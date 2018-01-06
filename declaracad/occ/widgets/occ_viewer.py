@@ -130,4 +130,3 @@ class OccViewer(Control):
         # The superclass handler implementation is sufficient.
         super(OccViewer, self)._update_proxy(change)
 
-

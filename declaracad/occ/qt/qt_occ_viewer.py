@@ -121,14 +121,21 @@ class Display(OCCViewer.Viewer3d):
             for i in ais_shapes:
                 shape_to_display.Connect(i)
 
-        # set the graphic properties
+        #set the graphic properties
         if material is None:
             #The default material is too shiny to show the object
             #color well, so I set it to something less reflective
             shape_to_display.SetMaterial(OCCViewer.Graphic3d_NOM_NEON_GNC)
         if color:
             if isinstance(color, str):
-                color = OCCViewer.get_color_from_name(color)
+                if color.startswith("#"):
+                    r, g, b, a = self.ParseColor(color)
+                    if a is not None:
+                        transparency = a
+
+                    color = OCCViewer.rgb_color(r, g, b)
+                else:
+                    color = OCCViewer.get_color_from_name(color)
             for shp in ais_shapes:
                 self.Context.SetColor(shp, color, False)
         if transparency:
@@ -147,6 +154,48 @@ class Display(OCCViewer.Viewer3d):
             return ais_shapes[0]
         else:
             return shape_to_display
+
+    def ParseColor(self, color):
+        """ Parse a color to rgba from formats
+        
+        Parameters
+        -----------
+        color: String
+            One of the folloing formats
+                #RGB
+                #RGBA
+                #RRGGBB
+                #RRGGBBA#
+        
+        Returns
+        --------
+        r,g,b,a: Tuple of floats
+            Color floats (0-1) for each. 
+            Note alpha will return None if not given. 
+            
+        """
+        c = color[1:]
+        if len(c) == 3:
+            return (int(c[0], 16)/16.0,
+                    int(c[1], 16)/16.0,
+                    int(c[2], 16)/16.0,
+                    None)
+        elif len(c) == 4:
+            return (int(c[0], 16)/16.0,
+                    int(c[1], 16)/16.0,
+                    int(c[2], 16)/16.0,
+                    int(c[3], 16)/16.0)
+        elif len(c) == 6:
+            return (int(c[0:2], 16)/255.0,
+                    int(c[2:4], 16)/255.0,
+                    int(c[4:6], 16)/255.0,
+                    None)
+        elif len(c) == 8:
+            return (int(c[0:2], 16)/255.0,
+                    int(c[2:4], 16)/255.0,
+                    int(c[4:6], 16)/255.0,
+                    int(c[6:])/255.0)
+        raise ValueError("Invalid color: '{}'".format(color))
 
 
 class QtBaseViewer(QtOpenGL.QGLWidget):
