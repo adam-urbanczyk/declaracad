@@ -21,7 +21,7 @@ Currently the following 3D features can be used:
 1. Basic shapes (Box, Sphere, Cylinder, Wedge, Torus) see [shapes](declaracad/occ/shape.py)
 2. Boolean operations (Cut, Fuse, Common) see [algo](declaracad/occ/algo.py)
 3. Fillet and Chamfer edges see [algo](declaracad/occ/algo.py)
-4. 2D Drawing of wires and faces see [draw](declaracad/occ/draw.py)
+4. 3D Drawing of wires and faces see [draw](declaracad/occ/draw.py)
 5. Pipes [algo](declaracad/occ/algo.py)
 6. Extrude (Prism), LinearForm, RevolutionForm [algo](declaracad/occ/algo.py)
 7. ThickSolid, ThroughSections [algo](declaracad/occ/algo.py)
