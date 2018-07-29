@@ -31,9 +31,13 @@ from glob import glob
 from . import inspection
 
 
-def EditorDockItem(*args, **kwargs):
+def editor_item_factory():
     with enaml.imports():
         from .view import EditorDockItem
+    return EditorDockItem
+
+def create_editor_item(*args, **kwargs):
+    EditorDockItem = editor_item_factory()
     return EditorDockItem(*args, **kwargs)
 
 
@@ -46,8 +50,8 @@ class Document(Model):
     cursor = Tuple(default=(0, 0))
 
     #: Any unsaved changes
-    unsaved = Bool(True)
-
+    unsaved = Bool(False)
+    
     #: Any linting errors
     errors = List()
 
@@ -63,7 +67,7 @@ class Document(Model):
         will be set.
         """
         try:
-            print("Loading '{}' from disk.".format(self.name))
+            log.debug("Loading '{}' from disk.".format(self.name))
             with open(self.name) as f:
                 return f.read()
         except Exception as e:
@@ -71,8 +75,10 @@ class Document(Model):
         return ""
 
     def _observe_source(self, change):
-        self._update_errors(change)
-        self._update_suggestions(change)
+        ext = os.path.splitext(self.name.lower())[-1]
+        if ext in ['.py', '.enaml']:
+            self._update_errors(change)
+            self._update_suggestions(change)
         if change['type'] == 'update':
             try:
                 with open(self.name) as f:
@@ -127,7 +133,7 @@ class EditorPlugin(Plugin):
         """ Make sure the documents all open on startup """
         super(EditorPlugin, self).start()
         self.workbench.application.deferred_call(
-            self._update_area_layout, {'type': 'manual'})
+            self._update_area_layout, {'type': 'load'})
 
     # -------------------------------------------------------------------------
     # Editor API
@@ -168,8 +174,8 @@ class EditorPlugin(Plugin):
             #: Determine which changed
             removed = old.difference(new)
             added = new.difference(old)
-        elif change['type'] == 'manual':
-            old = set([self.active_document])
+        elif change['type'] == 'load':
+            old = set([Document()])
             new = set(self.documents)
             #: Determine which changed
             removed = old.difference(new)
@@ -177,26 +183,32 @@ class EditorPlugin(Plugin):
 
         #: Update operations to apply
         ops = []
+        removed_targets = []
 
         #: Remove any old items
         for doc in removed:
-            ops.append(RemoveItem(
-                item='editor-item-{}'.format(doc.name)
-            ))
-
-        #: Add any new items
-        for doc in added:
-            log.debug("Adding: editor-item-{}".format(doc.name))
-            targets = ['editor-item-{}'.format(d.name) for d in self.documents
-                       if d.name != doc.name]
-            item = EditorDockItem(area, plugin=self, doc=doc)
-            ops.append(InsertTab(
-                item=item.name,
-                target=targets[0] if targets else ''
-            ))
-
-        #: Now apply all layout update operations
+            for item in self.get_editor_items():
+                if item.doc == doc:
+                    removed_targets.append(item.name)
+                    ops.append(RemoveItem(item=item.name))
+        
+        # Remove ops
         area.update_layout(ops)
+        
+        # Add each one at a time
+        targets = [item.name for item in area.dock_items() 
+                   if (item.name.startswith("editor-item") and 
+                   item.name not in removed_targets)]
+        for doc in added:
+            item = create_editor_item(area, plugin=self, doc=doc)
+            if targets:
+                op = InsertTab(item=item.name, target=targets[-1])
+            else:
+                op = InsertItem(item=item.name)
+            targets.append(item.name)
+            area.update_layout(op)
+
+        # Now save it
         self.save_dock_area(change)
 
     def save_dock_area(self, change):
@@ -219,15 +231,21 @@ class EditorPlugin(Plugin):
         ui = self.workbench.get_plugin('declaracad.ui')
         return ui.get_dock_area()
 
-    def get_editor(self):
+    def get_editor(self, document=None):
         """ Get the editor item for the currently active document 
         
         """
-        item = 'editor-item-{}'.format(self.active_document.name)
-        dock_item = self.get_dock_area().find(item)
-        if not dock_item:
-            return None
-        return dock_item.children[0].editor
+        doc = document or self.active_document
+        for item in self.get_editor_items():
+            if item.doc == doc:
+                return item.children[0].editor
+    
+    def get_editor_items(self):
+        dock = self.get_dock_area()
+        EditorDockItem = editor_item_factory()
+        for item in dock.dock_items():
+            if isinstance(item, EditorDockItem):
+                yield item
 
     # -------------------------------------------------------------------------
     # Document API
@@ -257,7 +275,11 @@ class EditorPlugin(Plugin):
         are open this only closes the first one it finds.
         
         """
-        path = event.parameters.get('path', self.active_document.name)
+        path = event.parameters.get('path')
+        
+        # Default to current document
+        if path is None:
+            path = self.active_document.name
         docs = self.documents
         opened = [d for d in docs if d.name == path]
         if not opened:
@@ -285,7 +307,7 @@ class EditorPlugin(Plugin):
             if doc.name == path:
                 self.active_document = doc
                 return
-        print("Opening '{}'".format(path))
+        log.debug("Opening '{}'".format(path))
 
         #: Otherwise open it
         doc = Document(name=path, unsaved=False)
@@ -329,7 +351,8 @@ class EditorPlugin(Plugin):
         with open(path, 'w') as f:
             f.write(doc.source)
 
-    @observe('active_document', 'active_document.source')
+    @observe('active_document', #'active_document.source', 
+             'active_document.unsaved')
     def refresh_view(self, change):
         """ Refresh the compiled view object.
     
@@ -339,8 +362,12 @@ class EditorPlugin(Plugin):
         will be applied to the view.
     
         """
-        viewer = self.workbench.get_plugin('declaracad.viewer')
+        plugin = self.workbench.get_plugin('declaracad.viewer')
         doc = self.active_document
+        for viewer in plugin.get_viewers():
+            viewer.renderer.filename = doc.name
+            viewer.renderer.version += 1
+        return
         try:
             ast = parse(doc.source, filename=doc.name)
             code = EnamlCompiler.compile(ast, doc.name)
@@ -355,14 +382,13 @@ class EditorPlugin(Plugin):
             errors = doc.errors[:]
             log.warning(traceback.format_exc())
             tb = traceback.format_exc().strip().split("\n")
-            print(tb[-3])
             m = re.search(r'File "(.+)", line (\d+),', tb[-3])
             if m:
                 errors.append("{}:{}: {}".format(m.group(1), m.group(2),
                                                 tb[-1]))
             doc.errors = errors
             viewer.parts = []
-
+            
     # -------------------------------------------------------------------------
     # Code inspection API
     # -------------------------------------------------------------------------

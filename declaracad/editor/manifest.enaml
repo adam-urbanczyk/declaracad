@@ -15,6 +15,7 @@ from glob import glob
 from collections import OrderedDict
 from enaml.widgets.api import FileDialogEx
 from enaml.core.api import Looper, Conditional
+from enaml.layout.api import InsertItem, RemoveItem
 from enaml.workbench.api import Extension, PluginManifest
 from enaml.workbench.core.api import Command
 from enaml.workbench.ui.api import ActionItem, MenuItem, ItemGroup, Autostart
@@ -69,7 +70,55 @@ def save_file_as(event):
         plugin.save_file_as(event)
 
 
+def new_editor(event):
+    plugin = event.workbench.get_plugin('declaracad.editor')
+    dock = plugin.get_dock_area()
+    position = event.parameters.get('position', 'right')
+    target = event.parameters.get('target')
+    buffer = event.parameters.get('buffer')
+    doc = event.parameters.get('document') or event.parameters.get('doc')
+    if doc is not None:
+        with enaml.imports():
+            from declaracad.editor.view import EditorDockItem
+        kwargs = {'plugin': plugin, 'doc': doc}
+        if buffer is not None:
+            kwargs['buffer'] = buffer
+        item = EditorDockItem(dock, **kwargs)
+        dock.update_layout(InsertItem(item=item.name, position=position, 
+                                      target=target))
 
+def close_editor(event):
+    plugin = event.workbench.get_plugin('declaracad.editor')
+    dock = plugin.get_dock_area()
+    target = event.parameters.get('target')
+    doc = event.parameters.get('document') or event.parameters.get('doc')
+    if doc is not None:
+        # Remove it
+        dock.update_layout(RemoveItem(item=target))
+        
+        # If no more are open, close the file
+        items = [i for i in plugin.get_editor_items() if i.doc == doc]
+        if not items:
+            plugin.close_file(doc.name)
+            
+            
+def close_all_editors(event):
+    plugin = event.workbench.get_plugin('declaracad.editor')
+    dock = plugin.get_dock_area()
+    ops = [RemoveItem(item=item.name) for item in plugin.get_editor_items()]
+    dock.update_layout(ops)
+    plugin.documents = []
+    
+
+def close_other_editors(event):
+    # Close all other editors except the 'editor' parameter given
+    plugin = event.workbench.get_plugin('declaracad.editor')
+    dock = plugin.get_dock_area()
+    editor = event.parameters.get('editor')
+    ops = [RemoveItem(item=item.name) for item in plugin.get_editor_items()
+           if item.name != editor.name]
+    dock.update_layout(ops) 
+    plugin.documents = [editor.doc]
 
 
 def plugin_factory():
@@ -103,8 +152,8 @@ def get_examples():
                 examples[folder] = []
 
         examples[folder].append("/".join(path))
-    print(examples)
     return examples
+
 
 def plugin_factory():
     from .plugin import EditorPlugin
@@ -116,15 +165,18 @@ def item_factory():
         from .view import EditorDockItem
     return EditorDockItem
 
+
 def settings_page_factory():
     with enaml.imports():
         from .settings import EditorSettingsPage
     return EditorSettingsPage
 
+
 def errors_item_factory():
   with enaml.imports():
     from .view import ErrorsDockItem
   return ErrorsDockItem
+
 
 enamldef EditorManifest(PluginManifest):
     """ The manifest which is registered when the view is loaded.
@@ -178,7 +230,18 @@ enamldef EditorManifest(PluginManifest):
         Command:
             id = 'declaracad.editor.open_file'
             handler = open_file
-
+        Command:
+            id = 'declaracad.editor.new_editor'
+            handler = new_editor
+        Command:
+            id = 'declaracad.editor.close_editor'
+            handler = close_editor
+        Command:
+            id = 'declaracad.editor.close_all_editors'
+            handler = close_all_editors
+        Command:
+            id = 'declaracad.editor.close_other_editors'
+            handler = close_other_editors
     
     Extension:
         id = 'actions'

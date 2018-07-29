@@ -13,6 +13,7 @@ import enaml
 from enaml.workbench.api import Extension, PluginManifest
 from enaml.workbench.core.api import Command
 from enaml.workbench.ui.api import ActionItem
+from enaml.layout.api import InsertItem
 from enaml.widgets.api import FileDialogEx
 from declaracad.ui.extensions import DOCK_ITEM_POINT, DockItem
 
@@ -22,6 +23,7 @@ def plugin_command(name, event):
     handler = getattr(plugin, name)
     handler(event)
 
+
 def export(event):
     ui = event.workbench.get_plugin('enaml.workbench.ui')
     plugin = event.workbench.get_plugin('declaracad.viewer')
@@ -29,6 +31,20 @@ def export(event):
         from .dialogs import ExportDialog
     ExportDialog(ui.window, plugin=plugin, event=event).exec_()
 
+
+def new_viewer(event):
+    editor_plugin = event.workbench.get_plugin('declaracad.editor')
+    viewer_plugin = event.workbench.get_plugin('declaracad.viewer')
+    dock = editor_plugin.get_dock_area()
+    position = event.parameters.get('position', 'right')
+    target = event.parameters.get('target', '')
+    with enaml.imports():
+        from declaracad.occ.view import ViewerDockItem
+    item = ViewerDockItem(dock, plugin=viewer_plugin)
+    doc = editor_plugin.active_document
+    item.renderer.filename = doc.name
+    dock.update_layout(InsertItem(item=item.name, position=position, 
+                                  target=target))
 
 def plugin_factory():
     from .plugin import ViewerPlugin
@@ -51,15 +67,17 @@ enamldef ViewerManifest(PluginManifest):
     factory = plugin_factory
 
     Extension:
-      id = 'commands'
-      point = 'enaml.workbench.core.commands'
-      Command:
-          id = 'declaracad.viewer.fit_all'
-          handler = lambda event:plugin_command('fit_all', event)
-      Command:
-          id = 'declaracad.viewer.export'
-          handler = export
-
+        id = 'commands'
+        point = 'enaml.workbench.core.commands'
+        Command:
+            id = 'declaracad.viewer.fit_all'
+            handler = lambda event:plugin_command('fit_all', event)
+        Command:
+            id = 'declaracad.viewer.export'
+            handler = export
+        Command:
+            id = 'declaracad.viewer.new_viewer'
+            handler = new_viewer
     Extension:
         id = 'items'
         point = DOCK_ITEM_POINT
@@ -76,4 +94,8 @@ enamldef ViewerManifest(PluginManifest):
             label = 'Export...'
             group = 'impexp'
             command = 'declaracad.viewer.export'
+        ActionItem:
+            path = '/view/viewer'
+            label = 'New viewer'
+            command = 'declaracad.viewer.new_viewer'
 

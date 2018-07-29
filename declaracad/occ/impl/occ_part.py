@@ -33,6 +33,6 @@ class OccPart(OccDependentShape, ProxyPart):
         for s in self.shapes:
             if hasattr(s.shape, 'Shape'):
                 builder.Add(shape, s.shape.Shape())
-            else:
+            elif s.shape is not None:
                 builder.Add(shape, s.shape)
         self.builder = builder

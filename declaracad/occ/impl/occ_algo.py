@@ -66,12 +66,14 @@ class OccOperation(OccDependentShape, ProxyOperation):
         
         """
         self._update_count +=1
-        timed_call(0,self._dequeue_update,change)
+        timed_call(0,self._dequeue_update, change)
     
     def _dequeue_update(self,change):
         """ Only update when all changes are done """
         self._update_count -=1
         if self._update_count !=0:
+            return
+        if not self.declaration:
             return
         self.update_shape(change)
     

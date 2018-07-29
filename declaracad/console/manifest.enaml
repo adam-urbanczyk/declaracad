@@ -11,6 +11,9 @@ Created on Dec 6, 2017
 """
 import enaml
 from enaml.workbench.api import Extension, PluginManifest
+from enaml.workbench.ui.api import ActionItem
+from enaml.workbench.core.api import Command
+from enaml.layout.api import RemoveItem, InsertDockBarItem
 from declaracad.ui.extensions import DOCK_ITEM_POINT, DockItem
 
 
@@ -18,16 +21,33 @@ def plugin_factory():
     from .plugin import ConsolePlugin
     return ConsolePlugin()
 
+
 def console_factory():
     with enaml.imports():
         from .view import ConsoleDockItem
     return ConsoleDockItem
 
 
-enamldef ConsoleManifest(PluginManifest):
-    """ The manifest which is registered when the view is loaded.
+def create_new_console(event):
+    plugin = event.workbench.get_plugin('declaracad.ui')
+    dock = plugin.get_dock_area()
+    ConsoleDockItem = console_factory()
+    item = ConsoleDockItem(dock, plugin=event.workbench.get_plugin('declaracad.console'))
+    dock.update_layout(InsertDockBarItem(item=item.name, position='bottom'))
+    
+    
+def close_console(event):
+    plugin = event.workbench.get_plugin('declaracad.ui')
+    console_id = event.parameters.get('console_id')
+    dock = plugin.get_dock_area()
+    item = dock.find(console_id)
+    if item is not None:
+        dock.update_layout(RemoveItem(item=item.name))
+    
 
-    This manifest contributes extra menu items to the menu bar.
+enamldef ConsoleManifest(PluginManifest):
+    """ Adds an IPython console to the workbench and commands to open and close 
+    new consoles.
 
     """
     id = 'declaracad.console'
@@ -40,4 +60,19 @@ enamldef ConsoleManifest(PluginManifest):
             plugin_id = 'declaracad.console'
             factory = console_factory
             layout = 'bottom'
-    
+    Extension:
+        id = 'actions'
+        point = 'enaml.workbench.ui.actions'
+        ActionItem:
+            path = '/view/console'
+            label = 'New console'
+            command = 'declaracad.console.new_console'
+    Extension:
+        id = 'commands'
+        point = 'enaml.workbench.core.commands'
+        Command:
+            id = 'declaracad.console.new_console'
+            handler = create_new_console
+        Command:
+            id = 'declaracad.console.close_console'
+            handler = close_console

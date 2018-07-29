@@ -21,8 +21,8 @@ def application_factory():
     app = QtApplication()
 
     #: Install twisted support into the Qt event loop
-    #import qt4reactor
-    #qt4reactor.install()
+    import qt5reactor
+    qt5reactor.install()
 
     return app
 
@@ -67,6 +67,11 @@ enamldef DeclaracadManifest(PluginManifest):
         point = 'enaml.workbench.ui.application_factory'
         factory = application_factory
     Extension:
+        id = 'autostarts'
+        point = 'enaml.workbench.ui.autostart'
+        Autostart:
+            plugin_id = 'declaracad.core'
+    Extension:
         id = 'actions'
         point = 'enaml.workbench.ui.actions'
         MenuItem:
@@ -84,7 +89,13 @@ enamldef DeclaracadManifest(PluginManifest):
             label = 'Quit'
             shortcut = 'Ctrl+Q'
             command = 'enaml.workbench.ui.close_window'
-
+        MenuItem:
+            path = '/view'
+            label = 'View'
+            after = 'file'
+            before = 'settings'
+            ItemGroup:
+                id = 'view'
         MenuItem:
             path = '/settings'
             label = 'Settings'
@@ -106,7 +117,6 @@ enamldef DeclaracadManifest(PluginManifest):
         id = 'window'
         point = 'enaml.workbench.ui.window_factory'
         factory = window_factory
-
     Extension:
         id = 'autostart'
         point = 'enaml.workbench.ui.autostart'

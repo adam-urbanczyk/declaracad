@@ -1,5 +1,5 @@
 """
-Copyright (c) 2017, Jairus Martin.
+Copyright (c) 2017-2018, Jairus Martin.
 
 Distributed under the terms of the GPL v3 License.
 
@@ -9,10 +9,14 @@ Created on Dec 7, 2017
 
 @author: jrm
 """
-from atom.api import Instance
+from atom.api import Instance, Int, set_default
 from enaml.core.declarative import d_
-from enaml.widgets.api import DockArea, DockItem
+from enaml.widgets.api import (
+    DockArea, DockItem, Window, Container, Label, RawWidget
+)
 from enaml.workbench.api import Plugin
+from enaml.qt.QtGui import QWindow
+from enaml.qt.QtWidgets import QWidget
 
 
 # -----------------------------------------------------------------------------
@@ -72,3 +76,21 @@ class PickableDockArea(DockArea):
         self.name = state['name']
         self.layout = state['layout']
         self.insert_children(None, state['items'])
+
+
+class EmbeddedWindow(RawWidget):
+    """ Create a widget that embeds the window from another application.
+    This allows you to run expensive operations (ex 3D rendering) without
+    blocking the main UI.
+
+    """
+    #: Expand by default
+    hug_width = set_default('ignore')
+    hug_height = set_default('ignore')
+    
+    #: Window ID of embedded application
+    window_id = d_(Int())
+    
+    def create_widget(self, parent):
+        window = QWindow.fromWinId(self.window_id)
+        return QWidget.createWindowContainer(window, parent=parent)

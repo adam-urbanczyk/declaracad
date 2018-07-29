@@ -21,6 +21,12 @@ class DeclaracadWorkbench(UIWorkbench):
 
     #: For error messages
     app_name = Unicode('DeclaraCAD')
+    
+    def __init__(self, *args, **kwargs):
+        if DeclaracadWorkbench.instance() is not None:
+            raise RuntimeError("Only one workbench may exist!")
+        DeclaracadWorkbench._instance = self
+        super(DeclaracadWorkbench, self).__init__(*args, **kwargs)
 
     @classmethod
     def instance(cls):
@@ -80,32 +86,3 @@ class DeclaracadWorkbench(UIWorkbench):
         """
         return QtWidgets.QMessageBox.question(self.window, "{0} - {1}".format(
             self.app_name, title), message, *args, **kwargs)
-
-    # -------------------------------------------------------------------------
-    # Workbench API
-    # -------------------------------------------------------------------------
-    def run(self):
-        """ Run the UI workbench application.
-    
-        This method will load the core and ui plugins and start the
-        main application event loop. This is a blocking call which
-        will return when the application event loop exits.
-    
-        """
-        DeclaracadWorkbench._instance = self
-
-        with enaml.imports():
-            from enaml.workbench.core.core_manifest import CoreManifest
-            from enaml.workbench.ui.ui_manifest import UIManifest
-
-        self.register(CoreManifest())
-        self.register(UIManifest())
-
-        #: Init the ui
-        ui = self.get_plugin('enaml.workbench.ui')
-        ui.show_window()
-
-        #: Start the core plugin
-        plugin = self.get_plugin('declaracad.core')
-        ui.start_application()
-        #self.unregister('enaml.workbench.ui')

@@ -35,9 +35,9 @@ enamldef DockView(DockArea):
         if event.type == DockItemEvent.Type.Shown \
                 and 'editor-item-' in event.name:
             path = event.name.split("editor-item-")[-1]
-            matches = [d for d in plugin.documents if d.name==path]
-            if matches:
-                plugin.active_document = matches[0]
+            for item in self.dock_items():
+                if item.name == event.name:
+                    plugin.active_document = item.doc
         else:
             plugin.save_dock_area(change)
     Include:

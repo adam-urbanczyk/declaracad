@@ -10,14 +10,15 @@ Created on Dec 10, 2015
 @author: jrm
 """
 import os
-from enaml.widgets.api import  Container, Timer, MultilineField
-from declaracad.core.api import DockItem
+import uuid
+from enaml.widgets.api import  Container, Timer, MultilineField, Menu, Action
 from enaml.scintilla.api import Scintilla, ScintillaIndicator, ScintillaMarker
 from enaml.scintilla.themes import THEMES
-from declaracad.core.utils import load_icon
-
-#from micropyde.plugins.editor.views.themes import THEMES
-from declaracad.core.utils import load_image
+from enaml.scintilla.mono_font import MONO_FONT
+from enaml.application import deferred_call
+from declaracad.core.api import DockItem
+from declaracad.core.utils import load_icon, load_image
+from .plugin import Document
 
 
 def format_title(docs, doc, path, unsaved):
@@ -58,7 +59,7 @@ def format_title(docs, doc, path, unsaved):
 
 def detect_syntax(path):
     p, ext = os.path.splitext(path)
-    file_type = ext[1:]
+    file_type = ext[1:] if ext else ''
     SYNTAXES = Scintilla.syntax.items
     if file_type in SYNTAXES:
         return file_type
@@ -70,6 +71,7 @@ def detect_syntax(path):
         return 'cpp'
     elif file_type in ['sh']:
         return 'bash'
+    return ''
 
 
 def create_indicators(errors):
@@ -105,13 +107,17 @@ def create_indicators(errors):
 enamldef Editor(Container): view:
     padding = 0
     alias editor
-    attr plugin
-    attr model << plugin.active_document
     Scintilla: editor:
         hug_height = 'ignore'
         hug_width = 'ignore'
-        syntax = 'enaml'#detect_syntax(model.name)
-        theme  << THEMES[plugin.theme] if plugin else THEMES['tango']
+        syntax << detect_syntax(doc.name)
+        attr editor_font: str = MONO_FONT
+        
+        func update_font(theme, font):
+            theme['settings']['font'] = font
+            return theme
+        
+        theme  << update_font(THEMES[plugin.theme] if plugin else THEMES['tango'], editor_font)
         settings = {
             "tab_width": 4,
             "use_tabs": False,
@@ -124,10 +130,10 @@ enamldef Editor(Container): view:
             "show_line_numbers": True,
         }
         autocomplete = 'all'
-        activated :: set_text(model.source) if model else None
+        activated :: set_text(doc.source)
         text_changed :: timer.start()
         zoom << plugin.zoom if plugin else 0
-        indicators << create_indicators(model.errors) if model else []
+        indicators << create_indicators(doc.errors) if doc else []
         markers << [ScintillaMarker(
                         line=i.start[0],
                         image=load_image("exclamation" if i.color=="#FF0000"
@@ -138,25 +144,65 @@ enamldef Editor(Container): view:
             interval = 350
             single_shot = True
             timeout ::
-                model.cursor = editor.cursor_position
-                model.source = editor.get_text()
-                editor.autocompletions = model.suggestions
+                doc.cursor = editor.cursor_position
+                doc.source = editor.get_text()
+                editor.autocompletions = doc.suggestions
 
 
 
 enamldef EditorDockItem(DockItem): view:
-    attr doc = plugin.active_document
+    attr doc: Document = Document()
+    alias buffer: editor.editor.document
     title << format_title(plugin.documents, doc, doc.name, doc.unsaved)
     closed ::
         core = plugin.workbench.get_plugin("enaml.workbench.core")
-        core.invoke_command('declaracad.editor.close_file',
-                            {'path':doc.name})
+        core.invoke_command('declaracad.editor.close_editor',
+                            {'document':doc, 'target': view.name})
     icon = load_icon('script_code')
-    name << 'editor-item-{}'.format(doc.name)
-    Editor:
+    name = 'editor-item-{}'.format(uuid.uuid4())
+    Editor: editor:
         minimum_size = (480, 320)
-        plugin << view.plugin
-        model << view.doc
+    title_bar_right_clicked :: menu.popup()
+    Menu: menu:
+        Action:
+            text = "Split vertically"
+            triggered ::
+                core = plugin.workbench.get_plugin("enaml.workbench.core")
+                core.invoke_command('declaracad.editor.new_editor',
+                                    {'document':doc, 'target': view.name,
+                                     'buffer': view.buffer,
+                                     'position': 'bottom'})
+        Action:
+            text = "Split horizontally"
+            triggered ::
+                core = plugin.workbench.get_plugin("enaml.workbench.core")
+                core.invoke_command('declaracad.editor.new_editor',
+                                    {'document':doc, 'target': view.name,
+                                     'buffer': view.buffer,
+                                     'position': 'right'})
+        Action:
+            separator = True
+        Action:
+            text = "New viewer"
+        Action:
+            separator = True
+        Action:
+            text = "Close"
+            triggered ::
+                core = plugin.workbench.get_plugin("enaml.workbench.core")
+                core.invoke_command('declaracad.editor.close_editor',
+                                    {'document':doc, 'target': view.name,})
+        Action:
+            text = "Close all"
+            triggered ::
+                core = plugin.workbench.get_plugin("enaml.workbench.core")
+                deferred_call(core.invoke_command, 'declaracad.editor.close_all_editors')
+        Action:
+            text = "Close all others"
+            triggered ::
+                core = plugin.workbench.get_plugin("enaml.workbench.core")
+                deferred_call(core.invoke_command, 'declaracad.editor.close_other_editors',
+                                    {'editor': view})
 
 
 enamldef ErrorsDockItem(DockItem):

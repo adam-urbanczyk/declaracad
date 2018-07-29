@@ -11,13 +11,27 @@ Created on Dec 13, 2017
 @author: jrm
 """
 import os
-from atom.api import List, Unicode, Float, Bool
-from declaracad.core.api import Plugin, Model
+import sys
+import json
+import atexit
+import enaml
+from atom.api import List, Unicode, Float, Bool, Int, Instance, observe
+from declaracad.core.api import Plugin, Model, log
 from enaml.application import timed_call
 from .part import Part
 
 from OCC.TopoDS import TopoDS_Compound
 from OCC.BRep import BRep_Builder
+
+from twisted.internet.protocol import ProcessProtocol
+from twisted.protocols.basic import LineReceiver
+
+
+def viewer_factory():
+    with enaml.imports():
+        from .view import ViewerDockItem
+    return ViewerDockItem
+
 
 class ExportError(Exception):
     """ Raised if export failed """
@@ -31,9 +45,111 @@ class ExportOptions(Model):
     binary = Bool(False)
 
 
+class ViewerProcess(Model, ProcessProtocol, LineReceiver):
+    #: Window id obtained after starting the process
+    window_id = Int()
+    
+    #: Process handle
+    process = Instance(object)
+    
+    #: Process stdio
+    transport = Instance(object)
+    
+    #: Filename
+    filename = Unicode()
+    
+    #: View version
+    version = Int()
+    
+    #: Split on each line
+    delimiter = b'\n'
+    
+    @observe('filename', 'version')
+    def _update_viewer(self, change):
+        self.send_message(change['name'], change['value'])
+        
+    def send_message(self, method, *args, **kwargs):
+        # Defer until it's ready
+        if not self.transport:
+            log.debug('renderer | message not ready deferring')
+            timed_call(0, self.send_message, method, *args, **kwargs)
+            return
+        request = {'jsonrpc': '2.0', 'method': method, 'params': args or kwargs}
+        log.debug(f'renderer | sent | {request}')
+        self.transport.write(json.dumps(request).encode()+b'\r\n')
+    
+    def _default_process(self):
+        from twisted.internet import reactor
+        exe = sys.executable
+        atexit.register(self.terminate)
+        return reactor.spawnProcess(self, exe, 
+                                    args=[exe, 'main.py', '--view', '-',
+                                          '--frameless'],
+                                    env=os.environ)
+    
+    def _default_window_id(self):
+        # Spawn the process 
+        timed_call(0, lambda: self.process)
+        return 0
+    
+    def connectionMade(self):
+        self.transport.disconnecting = 0
+    
+    def outReceived(self, data):
+        log.debug(f"render | out | {data}")
+        self.dataReceived(data)
+        
+    def lineReceived(self, line):
+        try:
+            response = json.loads(line.decode())
+            
+        except Exception as e:
+            log.error(f"render | resp | {e}")
+            response = {}
+        log.debug(f"render | resp | {response}")
+        
+        #: Special case for startup
+        if response.get('id') == -0xbabe:
+            self.window_id = response['result']
+        
+    def errReceived(self, data):
+        log.debug(f"render | err | {data}")
+    
+    def inConnectionLost(self):
+        log.warning("renderer | stdio closed (we probably did it)")
+    
+    def outConnectionLost(self):
+        log.warning("renderer | stdout closed")
+    
+    def errConnectionLost(self):
+        log.warning("renderer | stderr closed")
+    
+    def processExited(self, reason):
+        log.warning(f"renderer | process exit status {reason.value.exitCode}")
+    
+    def processEnded(self, reason):
+        log.warning(f"renderer | process ended status {reason.value.exitCode}")
+        
+    def terminate(self):
+        try:
+            self.transport.signalProcess('KILL')
+        except:
+            pass
+    
+
 class ViewerPlugin(Plugin):
     #: List of parts to display
     parts = List(Part)
+    
+    #: Viewer processes
+    #viewers = List(ViewerProcess, default=[ViewerProcess()])
+    
+    def get_viewers(self):
+        ViewerDockItem = viewer_factory()
+        dock = self.workbench.get_plugin('declaracad.ui').get_dock_area()
+        for item in dock.dock_items():
+            if isinstance(item, ViewerDockItem):
+                yield item
 
     def _observe_parts(self, change):
         """ When changed, do a fit all """
@@ -41,10 +157,12 @@ class ViewerPlugin(Plugin):
             timed_call(500, self.fit_all)
 
     def fit_all(self, event=None):
+        return
         viewer = self.get_viewer()
         viewer.proxy.display.FitAll()
 
     def get_viewer(self):
+        return
         ui = self.workbench.get_plugin('enaml.workbench.ui')
         area = ui.workspace.content.find('dock_area')
         return area.find('viewer-item').viewer

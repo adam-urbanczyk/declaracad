@@ -12,10 +12,16 @@ Created on Jul 12, 2015
 import os
 import sys
 import logging
+import traceback
 from enaml.image import Image
 from enaml.icon import Icon, IconImage
 from enaml.application import timed_call
+from twisted.protocols.basic import LineReceiver
 
+try:
+    import ujson as json
+except ImportError:
+    import json
 
 # -----------------------------------------------------------------------------
 # Logger
@@ -70,3 +76,50 @@ def menu_icon(name):
     if sys.platform == 'win32':
         return load_icon(name)
     return None
+
+
+class JSONRRCProtocol(LineReceiver):
+    def send_message(self, message):
+        response = {'jsonrpc': '2.0'}
+        response.update(message)
+        self.transport.write(json.dumps(response).encode()+b'\r\n')
+        
+    def lineReceived(self, line):
+        """ Process stdin as json-rpc request """
+        response = {}
+        try:
+            request = json.loads(line)
+        except Exception as e:
+            self.send_message({"id": None,
+                               'error': {'code': -32700,
+                                         'message': 'Parse error'}})
+            return
+        
+        request_id = request.get('id')
+        method = request.get('method')
+        if method is None:
+            self.send_message({"id": request_id,
+                               'error': {'code': -32600,
+                                         'message': "Invalid request"}})
+            return
+        
+        handler = getattr(self, 'handle_{}'.format(method), None)
+        if handler is None:
+            self.send_message({"id": request_id,
+                               'error': {'code': -32601,
+                                         'message': "Method not found"}})
+            return
+        
+        try:
+            params = request.get('params', [])
+            if isinstance(params, dict):
+                result = handler(**params)
+            else:
+                result = handler(*params)
+        except Exception as e:
+            self.send_message({"id": request_id,
+                               'error': {'code': -32601,
+                                         'message': traceback.format_exc()}})
+        
+        if request_id is not None:
+            self.send_message({'id': request_id, 'result': result})

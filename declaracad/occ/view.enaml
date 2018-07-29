@@ -3,15 +3,24 @@ Created on Sep 28, 2016
 
 @author: jrm
 """
+import uuid
+import traceback
 from atom.api import Atom
 
-from declaracad.core.api import DockItem
-from declaracad.core.utils import load_icon
-from enaml.core.api import Looper, Include
-from enaml.widgets.api import Container, Menu, Action
 
+from declaracad.core.api import DockItem, EmbeddedWindow
+from declaracad.core.utils import load_icon
+
+import enaml
+from enaml.core.api import Looper, Include, Conditional
+from enaml.core.parser import parse
+from enaml.core.import_hooks import EnamlCompiler
+from enaml.compat import exec_
 from enaml.qt.QtCore import Qt
+from enaml.widgets.api import Window, Container, Menu, Action
+
 from .widgets.api import OccViewer
+from .plugin import ViewerProcess
 
 
 enamldef ModelViewer(OccViewer): viewer:
@@ -81,15 +90,66 @@ enamldef ModelViewer(OccViewer): viewer:
                     triggered :: viewer.view_mode = loop_item
 
 
+enamldef ViewerWindow(Window): window:
+    attr filename: str = "-"
+    attr models: list = []
+    attr frameless: bool = False
+    attr version: int = 1
+    activated ::
+        if frameless:
+            self.proxy.widget.setWindowFlags(Qt.FramelessWindowHint)
+        
+    func load_source():
+        if filename != "-": 
+            try:
+                with open(filename, 'rU') as f:
+                    ast = parse(f.read())
+                    code = EnamlCompiler.compile(ast, filename)
+                namespace = {}
+                exec_(code, namespace)
+                Assembly = namespace['Assembly']
+                return [Assembly()]
+            except Exception as e:
+                traceback.print_exc()
+        return []
+    Container:
+        padding = 0
+        ModelViewer:
+            Include:
+                objects << load_source() if filename and version else []
+
+
+enamldef EmbeddedViewer(Conditional):
+    attr renderer: ViewerProcess = ViewerProcess()
+    condition << bool(renderer.window_id)
+    EmbeddedWindow: 
+        window_id = renderer.window_id
+
+
 enamldef ViewerDockItem(DockItem): view:
-  name = "viewer-item"
-  title = "Viewer"
-  alias viewer
-  closable = False
-  icon = load_icon("bricks")
-  stretch = 1
-  Container: container:
-      padding = 0
-      ModelViewer: viewer:
-          Include:
-              objects << plugin.parts
+    name = "3d-viewer-{}".format(uuid.uuid4())
+    title = "Viewer"
+    alias renderer: viewer.renderer
+    icon = load_icon("bricks")
+    stretch = 1
+    closed :: renderer.terminate()
+    Container: container:
+        padding = 0
+        EmbeddedViewer: viewer:
+            pass
+    title_bar_right_clicked :: menu.popup()
+    Menu: menu:
+        Action:
+            text = "Split vertically"
+            triggered ::
+                core = plugin.workbench.get_plugin("enaml.workbench.core")
+                core.invoke_command('declaracad.viewer.new_viewer',
+                                    {'target': view.name,
+                                     'position': 'bottom'})
+        Action:
+            text = "Split horizontally"
+            triggered ::
+                core = plugin.workbench.get_plugin("enaml.workbench.core")
+                core.invoke_command('declaracad.viewer.new_viewer',
+                                    {'target': view.name,
+                                     'position': 'right'})

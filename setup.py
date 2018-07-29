@@ -9,14 +9,16 @@ from setuptools import setup, find_packages
 
 setup(
     name='declaracad',
-    version='0.1.',
+    version='0.2.0',
     description='Parametric 3D modeling with enaml and OpenCascade',
     long_description=open('README.md').read(),
+    long_description_content_type='text/markdown',
     author='CodeLV',
     author_email='frmdstryr@gmail.com',
-    license=open('LICENSE').read(),
+    license='GPL3',
     url='https://github.com/codelv/declaracad',
     packages=find_packages(),
     install_requires=['enaml', 'jsonpickle', 'qtconsole', 'pyflakes',
-                      'QScintilla', 'numpydoc', 'markdown'],
+                      'QScintilla', 'numpydoc', 'markdown', 'enamlx',
+                      'qt5reactor'],
 )

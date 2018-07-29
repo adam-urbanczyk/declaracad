@@ -9,20 +9,33 @@ Created on Dec 10, 2015
 
 @author: jrm
 """
-from enaml.widgets.api import  Container
-from enaml.widgets.api import IPythonConsole
+import uuid
+from enaml.widgets.api import  Container, IPythonConsole, Menu, Action
 from declaracad.core.api import DockItem
 from declaracad.core.utils import load_icon
 
 
-enamldef ConsoleDockItem(DockItem):
+enamldef ConsoleDockItem(DockItem): dock_item:
     title = 'Console'
-    name = 'console-item'
+    name = 'ipython-console-{}'.format(uuid.uuid4())
     icon = load_icon('application_xp_terminal')
-    closable = False
+    alias console
+    title_bar_right_clicked :: menu.popup()
     Container:
         padding = 0
-        IPythonConsole:
+        IPythonConsole: console:
             minimum_size = (140, 140)
-
+    
+    Menu: menu:
+        Action:
+            text = "New console"
+            triggered ::
+                core = plugin.workbench.get_plugin("enaml.workbench.core")
+                core.invoke_command('declaracad.console.new_console')
+        Action:
+            text = "Close console"
+            triggered ::
+                core = plugin.workbench.get_plugin("enaml.workbench.core")
+                core.invoke_command('declaracad.console.close_console', 
+                                    {'console_id': dock_item.name})
 

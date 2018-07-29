@@ -513,10 +513,10 @@ class Pipe(Operation):
     proxy = Typed(ProxyPipe)
     
     #: Spline to make the pipe along
-    spline = d_(Instance(Shape))
+    spline = d_(ForwardInstance(WireFactory))
     
     #: Profile to make the pipe from
-    profile = d_(ForwardInstance(WireFactory))
+    profile = d_(Instance(Shape))
     
     #: Fill mode
     fill_mode = d_(Enum(None, 'corrected_frenet', 'fixed', 'frenet',
