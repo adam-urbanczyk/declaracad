@@ -10,14 +10,53 @@ Created on Dec 28, 2017
 
 @author: jrm
 """
+from atom.api import Unicode, Typed
 from enaml.core.api import Looper, Conditional
 from enaml.layout.api import align, hbox, spacer
 from enaml.widgets.api import (
-    Field, Label, PushButton, Form, ObjectCombo, Container, SpinBox, FileDialogEx
+    Field, Label, PushButton, Form, ObjectCombo, Container, SpinBox, FileDialogEx,
+    RawWidget
 )
 from enamlx.widgets.api import TreeView, TreeViewItem
 from enaml.scintilla.themes import THEMES
+from enaml.qt.QtWidgets import QFontComboBox
+from enaml.core.declarative import d_
+from enaml.qt.QtGui import QFont
+from declaracad.core.api import log
 
+
+class FontCombo(RawWidget):
+    __slots__ = '__weakref__'
+    
+    #: Selected font
+    selected = d_(Unicode())
+    
+    #: Widget
+    widget = Typed(QFontComboBox)
+    
+    def create_widget(self, parent):
+        self.widget =  QFontComboBox(parent)
+        widget.currentFontChanged.connect(self.on_current_font_changed)
+        if self.selected:
+            self.set_selected(self.selected)
+        return widget
+    
+    def _observe_selected(self, change):
+        self.set_selected(change['value'])
+        
+    def set_selected(self, font_family):
+        try:
+            font = QFont(font_family, 12, 100)
+            self.widget.setCurrentFont(font)
+        except Exception as e:
+            import traceback
+            log.error(traceback.print_exc())
+    
+    def on_current_font_changed(self, font):
+        font_family = font.toString().split(",")[0]
+        log.debug(f"Font changed to {font_family}")
+        self.selected = font_family
+        
 
 enamldef EditorSettingsPage(Container):
     attr model
@@ -31,6 +70,16 @@ enamldef EditorSettingsPage(Container):
             value := model.zoom
             minimum = -10
             maximum = 20
+        Label:
+            text = "Font Size"
+        SpinBox:
+            value := model.font_size
+            minimum = 8
+            maximum = 24
+        Label:
+            text = "Font Family"
+        FontCombo:
+            selected := model.font_family
         Label:
             text = "Theme"
         ObjectCombo:

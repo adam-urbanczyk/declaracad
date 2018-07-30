@@ -21,9 +21,11 @@ from atom.api import (
 
 from declaracad.core.api import Plugin, Model, log
 from enaml.scintilla.themes import THEMES
+from enaml.scintilla.mono_font import MONO_FONT
 from enaml.application import timed_call
 from enaml.core.enaml_compiler import EnamlCompiler
 from enaml.core.parser import parse
+from enaml.workbench.core.execution_event import ExecutionEvent
 from enaml.layout.api import InsertItem, InsertTab, RemoveItem
 from types import ModuleType
 from future.utils import exec_
@@ -124,6 +126,8 @@ class EditorPlugin(Plugin):
     #: Editor settings
     theme = Enum('friendly', *THEMES.keys()).tag(config=True)
     zoom = Int(0).tag(config=True)  #: Relative to default
+    font_size = Int(12).tag(config=True)  #: Default is 12 pt
+    font_family = Unicode(MONO_FONT.split()[-1]).tag(config=True) 
 
     #: Editor sys path
     sys_path = List().tag(config=True)
@@ -275,7 +279,10 @@ class EditorPlugin(Plugin):
         are open this only closes the first one it finds.
         
         """
-        path = event.parameters.get('path')
+        if isinstance(event, ExecutionEvent):
+            path = event.parameters.get('path')
+        else:
+            path = event
         
         # Default to current document
         if path is None:
