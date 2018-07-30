@@ -92,12 +92,14 @@ def close_editor(event):
     dock = plugin.get_dock_area()
     target = event.parameters.get('target')
     doc = event.parameters.get('document') or event.parameters.get('doc')
+    
+    # Remove it
+    dock.update_layout(RemoveItem(item=target))
+    
     if doc is not None:
-        # Remove it
-        dock.update_layout(RemoveItem(item=target))
-        
-        # If no more are open, close the file
-        items = [i for i in plugin.get_editor_items() if i.doc == doc]
+        # If no more editors are open for this document, close the file
+        items = [i for i in plugin.get_editor_items() 
+                 if i.doc == doc and i.name != target]
         if not items:
             plugin.close_file(doc.name)
             
