@@ -70,7 +70,7 @@ def make_installer(cfg):
 
     #: Make a desktop icon /usr/share/applications
     os.makedirs(desktop_dir)
-    print(sh.cp('{name}/res/micropyde.desktop'.format(**cfg), desktop_dir))
+    print(sh.cp('{name}/res/declaracad.desktop'.format(**cfg), desktop_dir))
 
     #: Prepare
     try:
@@ -128,7 +128,7 @@ def main(cfg):
                 'libQt5O*',
                 'libQt5T*',
                 'libQt5Web*',
-                #'micropyde',
+                #'declaracad',
                 'libQt5X*'
                 ]:
             try:
@@ -146,23 +146,15 @@ def main(cfg):
 
 if __name__ == '__main__':
     cfg = {
-        'name': 'micropyde',
+        'name': 'declaracad',
         'version': 1.0,
         'maintainer': 'CodeLV <frmdstryr@gmail.com>',
-        'section': 'programming',
+        'section': 'engineering',
         'depends': '',
-        'homepage': 'https://github.com/codelv/micropyde',
-        'short_desc': 'An IDE for micropython',
+        'homepage': 'https://github.com/codelv/declaracad',
+        'short_desc': 'A declarative and parametric 3D modeling application',
         'full_desc': "\n ".join(textwrap.dedent(
             """
-            An Arduino like IDE for micropython.
-            .
-            Features
-            * Editor using Scintilla with code hinting
-            * "Serial Monitor" with com and websocket support
-            * Flashing with esptool
-            * Script run and upload (WIP)
-            .
             Written using python and enaml.
             """.strip()).split("\n")),
     }

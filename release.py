@@ -62,23 +62,18 @@ def find_data_files(*modules):
 
 patch()
 setup(
-  name='micropyde',
+  name='dceclaracad',
   author="CodeLV",
   author_email="frmdstryr@gmail.com",
   license='GPLv3',
-  url='https://github.com/codelv/micropyde/',
-  description="An IDE for micropython",
+  url='https://github.com/codelv/declaracad/',
+  description="A declarative parametric 3D modeling application",
   long_description=open("README.md").read(),
   version='1.0',
-  install_requires=[
-      'PyQt5', 'enaml', 'enamlx', 'QScintilla', 'twisted', 'autobahn',
-      'qt5reactor', 'qtconsole', 'jsonpickle', 'pozetron-cli', 'jedi',
-      'pyserial',
-  ],
   options=dict(
       build_exe=dict(
           packages=[
-              'micropyde',
+              'declaracad',
               'enaml',
               'enamlx',
               'qt5reactor',
@@ -129,7 +124,7 @@ setup(
   ),
   executables=[
       Executable('main.py',
-                 targetName='micropyde',
+                 targetName='declaracad',
                  base='Win32GUI' if sys.platform == 'win32' else None)
   ]
 )
