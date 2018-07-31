@@ -111,7 +111,7 @@ enamldef ViewerWindow(Window): window:
                 result = [Assembly()]
                 if protocol:
                     protocol.send_message({'id': 'render_success'})
-                
+                return result
             except Exception as e:
                 #: Notify the client that we got an error
                 if protocol:

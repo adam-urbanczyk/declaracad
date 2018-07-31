@@ -40,7 +40,7 @@ class ViewerProtocol(JSONRRCProtocol):
         super(ViewerProtocol).__init__()
         
     def connectionMade(self):
-        self.send_message({'result': self.handle_window_id(), 
+        self.send_message({'result': self.handle_window_id(),
                            'id': 'window_id'})
         
     def handle_window_id(self):
