@@ -291,7 +291,7 @@ class EditorPlugin(Plugin):
         opened = [d for d in docs if d.name == path]
         if not opened:
             return
-        print("Closing '{}'".format(path))
+        log.debug("Closing '{}'".format(path))
         doc = opened[0]
         self.documents.remove(doc)
 
@@ -424,7 +424,7 @@ class EditorPlugin(Plugin):
                 List of autocompletion strings
         """
         try:
-            #: Use jedi to get suggestions
+            #: TODO: Move to separate process 
             line, column = cursor
             script = jedi.Script(source, line+1, column,
                                  sys_path=self.sys_path)

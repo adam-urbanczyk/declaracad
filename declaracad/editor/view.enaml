@@ -10,7 +10,6 @@ Created on Dec 10, 2015
 @author: jrm
 """
 import os
-import uuid
 from enaml.widgets.api import  Container, Timer, MultilineField, Menu, Action
 from enaml.scintilla.api import Scintilla, ScintillaIndicator, ScintillaMarker
 from enaml.scintilla.themes import THEMES
@@ -160,7 +159,7 @@ enamldef EditorDockItem(DockItem): view:
         core.invoke_command('declaracad.editor.close_editor',
                             {'document':doc, 'target': view.name})
     icon = load_icon('script_code')
-    name = 'editor-item-{}'.format(uuid.uuid4())
+    name = 'editor-item-{}'.format(id(self))
     Editor: editor:
         minimum_size = (480, 320)
     title_bar_right_clicked :: menu.popup()

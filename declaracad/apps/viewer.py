@@ -17,21 +17,17 @@ import qt5reactor
 import faulthandler
 faulthandler.enable()
 
-import enamlx
-enamlx.install()
-
 from declaracad import occ
 occ.install()
+from declaracad.core.utils import JSONRRCProtocol
 
 import enaml
-from enaml.qt.qt_application import QtApplication    
+from enaml.qt.qt_application import QtApplication 
 with enaml.imports():
     from declaracad.occ.view import ViewerWindow
 
 from twisted.internet.stdio import StandardIO
 from twisted.protocols.basic import LineReceiver
-
-from declaracad.core.utils import JSONRRCProtocol
 
 
 class ViewerProtocol(JSONRRCProtocol):
@@ -44,7 +40,8 @@ class ViewerProtocol(JSONRRCProtocol):
         super(ViewerProtocol).__init__()
         
     def connectionMade(self):
-        self.send_message({'result': self.handle_window_id(), 'id': -0xbabe})
+        self.send_message({'result': self.handle_window_id(), 
+                           'id': 'window_id'})
         
     def handle_window_id(self):
         return int(self.view.proxy.widget.winId())
@@ -61,8 +58,9 @@ def main(**kwargs):
     qt5reactor.install()
     view = ViewerWindow(filename=kwargs.get('view', '-'),
                         frameless=kwargs.get('frameless', False))
+    view.protocol = ViewerProtocol(view)
     view.show()
-    app.deferred_call(lambda: StandardIO(ViewerProtocol(view)))
+    app.deferred_call(lambda: StandardIO(view.protocol))
     app.start()
     
     

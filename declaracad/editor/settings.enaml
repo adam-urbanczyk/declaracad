@@ -35,7 +35,7 @@ class FontCombo(RawWidget):
     widget = Typed(QFontComboBox)
     
     def create_widget(self, parent):
-        self.widget =  QFontComboBox(parent)
+        widget = self.widget = QFontComboBox(parent)
         widget.currentFontChanged.connect(self.on_current_font_changed)
         if self.selected:
             self.set_selected(self.selected)

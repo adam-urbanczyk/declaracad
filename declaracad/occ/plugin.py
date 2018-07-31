@@ -61,8 +61,14 @@ class ViewerProcess(Model, ProcessProtocol, LineReceiver):
     #: View version
     version = Int()
     
+    #: Rendering error
+    errors = Unicode()
+    
     #: Split on each line
     delimiter = b'\n'
+    
+    #: Process terminated intentionally
+    terminated = Bool(False)
     
     @observe('filename', 'version')
     def _update_viewer(self, change):
@@ -92,7 +98,12 @@ class ViewerProcess(Model, ProcessProtocol, LineReceiver):
         timed_call(0, lambda: self.process)
         return 0
     
+    def restart(self):
+        self.window_id = 0
+        self.process = self._default_process()
+    
     def connectionMade(self):
+        self.terminated = False
         self.transport.disconnecting = 0
     
     def outReceived(self, data):
@@ -109,8 +120,13 @@ class ViewerProcess(Model, ProcessProtocol, LineReceiver):
         log.debug(f"render | resp | {response}")
         
         #: Special case for startup
-        if response.get('id') == -0xbabe:
+        response_id = response.get('id')
+        if response_id == 'window_id':
             self.window_id = response['result']
+        elif response_id == 'render_error':
+            self.errors = response['error']['message']
+        elif response_id == 'render_ok':
+            self.errors = ""
         
     def errReceived(self, data):
         log.debug(f"render | err | {data}")
@@ -119,6 +135,8 @@ class ViewerProcess(Model, ProcessProtocol, LineReceiver):
         log.warning("renderer | stdio closed (we probably did it)")
     
     def outConnectionLost(self):
+        if not self.terminated:
+            self.restart()
         log.warning("renderer | stdout closed")
     
     def errConnectionLost(self):
@@ -132,6 +150,7 @@ class ViewerProcess(Model, ProcessProtocol, LineReceiver):
         
     def terminate(self):
         try:
+            self.terminated = True
             self.transport.signalProcess('KILL')
         except:
             pass

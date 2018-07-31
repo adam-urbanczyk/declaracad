@@ -3,7 +3,6 @@ Created on Sep 28, 2016
 
 @author: jrm
 """
-import uuid
 import traceback
 from atom.api import Atom
 
@@ -95,6 +94,7 @@ enamldef ViewerWindow(Window): window:
     attr models: list = []
     attr frameless: bool = False
     attr version: int = 1
+    attr protocol = None
     activated ::
         if frameless:
             self.proxy.widget.setWindowFlags(Qt.FramelessWindowHint)
@@ -108,9 +108,21 @@ enamldef ViewerWindow(Window): window:
                 namespace = {}
                 exec_(code, namespace)
                 Assembly = namespace['Assembly']
-                return [Assembly()]
+                result = [Assembly()]
+                if protocol:
+                    protocol.send_message({'id': 'render_success'})
+                
             except Exception as e:
-                traceback.print_exc()
+                #: Notify the client that we got an error
+                if protocol:
+                    protocol.send_message({
+                        'error':{
+                            'message':traceback.format_exc()
+                        },
+                        'id': 'render_error'
+                    })
+                else:
+                    traceback.print_exc()
         return []
     Container:
         padding = 0
@@ -127,9 +139,15 @@ enamldef EmbeddedViewer(Conditional):
 
 
 enamldef ViewerDockItem(DockItem): view:
-    name = "3d-viewer-{}".format(uuid.uuid4())
+    name = "3d-viewer-{}".format(id(self))
     title = "Viewer"
     alias renderer: viewer.renderer
+    activated :: renderer.observe('errors', handle_errors)
+    
+    func handle_errors(change):
+        editor_plugin = plugin.workbench.get_plugin('declaracad.editor')
+        editor_plugin.active_document.errors = [change['value']]
+                                                    
     icon = load_icon("bricks")
     stretch = 1
     closed :: renderer.terminate()

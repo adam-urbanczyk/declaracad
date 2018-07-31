@@ -9,15 +9,14 @@ Created on Dec 10, 2015
 
 @author: jrm
 """
-import uuid
-from enaml.widgets.api import  Container, IPythonConsole, Menu, Action
+from enaml.widgets.api import Container, IPythonConsole, Menu, Action
 from declaracad.core.api import DockItem
 from declaracad.core.utils import load_icon
 
 
 enamldef ConsoleDockItem(DockItem): dock_item:
     title = 'Console'
-    name = 'ipython-console-{}'.format(uuid.uuid4())
+    name = 'ipython-console-{}'.format(id(self))
     icon = load_icon('application_xp_terminal')
     alias console
     title_bar_right_clicked :: menu.popup()
