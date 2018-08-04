@@ -10,10 +10,14 @@ Created on Aug 4, 2018
 @author: jrm
 """
 import json
-from declaracad.occ import install
-install()
+import faulthandler
+faulthandler.enable()
+
+from declaracad import occ
+occ.install()
 from declaracad.occ.plugin import export_model, ExportOptions
 from enaml.qt.qt_application import QtApplication
+
 
 def main(**kwargs):
     """ Runs export_model using the passed options.

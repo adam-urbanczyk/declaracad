@@ -22,12 +22,11 @@ occ.install()
 from declaracad.core.utils import JSONRRCProtocol
 
 import enaml
-from enaml.qt.qt_application import QtApplication 
+from enaml.qt.qt_application import QtApplication
 with enaml.imports():
     from declaracad.occ.view import ViewerWindow
 
 from twisted.internet.stdio import StandardIO
-from twisted.protocols.basic import LineReceiver
 
 
 class ViewerProtocol(JSONRRCProtocol):
