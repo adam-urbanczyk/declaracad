@@ -12,14 +12,11 @@ from declaracad.core.utils import load_icon
 
 import enaml
 from enaml.core.api import Looper, Include, Conditional
-from enaml.core.parser import parse
-from enaml.core.import_hooks import EnamlCompiler
-from enaml.compat import exec_
 from enaml.qt.QtCore import Qt
 from enaml.widgets.api import Window, Container, Menu, Action
 
 from .widgets.api import OccViewer
-from .plugin import ViewerProcess
+from .plugin import ViewerProcess, load_model
 
 
 enamldef ModelViewer(OccViewer): viewer:
@@ -102,13 +99,7 @@ enamldef ViewerWindow(Window): window:
     func load_source():
         if filename != "-": 
             try:
-                with open(filename, 'rU') as f:
-                    ast = parse(f.read())
-                    code = EnamlCompiler.compile(ast, filename)
-                namespace = {}
-                exec_(code, namespace)
-                Assembly = namespace['Assembly']
-                result = [Assembly()]
+                result = load_model(filename)
                 if protocol:
                     protocol.send_message({'id': 'render_success'})
                 return result

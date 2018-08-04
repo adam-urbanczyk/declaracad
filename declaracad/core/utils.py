@@ -13,9 +13,14 @@ import os
 import sys
 import logging
 import traceback
+
+from atom.api import Atom, Value, Int, Bool, Bytes, ContainerList
+
 from enaml.image import Image
 from enaml.icon import Icon, IconImage
 from enaml.application import timed_call
+
+from twisted.internet.protocol import ProcessProtocol
 from twisted.protocols.basic import LineReceiver
 
 try:
@@ -77,8 +82,10 @@ def menu_icon(name):
         return load_icon(name)
     return None
 
-
-class JSONRRCProtocol(LineReceiver):
+# ==============================================================================
+# Twisted protocols
+# ==============================================================================
+class JSONRRCProtocol(Atom, LineReceiver):
     def send_message(self, message):
         response = {'jsonrpc': '2.0'}
         response.update(message)
@@ -123,3 +130,53 @@ class JSONRRCProtocol(LineReceiver):
         
         if request_id is not None:
             self.send_message({'id': request_id, 'result': result})
+
+
+class ProcessLineReceiver(Atom, ProcessProtocol, LineReceiver):
+    """ A process protocol that pushes output into a list of each line.
+    Observe the `output` member in a view to have it update with live output.
+    
+    """
+    
+    #: Process transport
+    transport = Value()
+    
+    #: Status code
+    exit_code = Int()
+    
+    #: Holds process output
+    output = ContainerList()
+    
+    #: Redirect error to output
+    err_to_out = Bool(True)
+    
+    #: Split on each line
+    delimiter = Bytes(b'\n')
+    
+    def connectionMade(self):
+        self.transport.disconnecting = 0
+    
+    def outReceived(self, data):
+        # Forward to line receiver protocol handler
+        self.dataReceived(data)
+    
+    def errReceived(self, data):
+        # Forward to line receiver protocol handler
+        if self.err_to_out:
+            self.dataReceived(data)
+        
+    def lineReceived(self, line):
+        self.output.append(line)
+    
+    def processExited(self, reason):
+        self.exit_code = reason.value.exitCode
+    
+    def processEnded(self, reason):
+        self.exit_code = reason.value.exitCode
+    
+    def terminate(self):
+        try:
+            self.transport.signalProcess('KILL')
+        except:
+            pass
+    

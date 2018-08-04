@@ -567,7 +567,9 @@ class OccShape(ProxyShape):
 
     @observe('shape')    
     def update_display(self, change):
-        self.parent().update_display(change)
+        parent = self.parent()
+        if parent:
+            parent.update_display(change)
         
     def set_direction(self, direction):
         self.create_shape()

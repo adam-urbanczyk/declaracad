@@ -25,10 +25,11 @@ from enaml.stdlib.task_dialog import (
 )
 from enaml.widgets.api import (
     Dialog, Field, Label, PushButton, RadioButton, CheckBox, Html,
-    ProgressBar, ObjectCombo, Form, Container, SpinBox, FileDialogEx
+    ProgressBar, ObjectCombo, Form, Container, SpinBox, FileDialogEx,
+    MultilineField
 )
 from enamlx.widgets.api import DoubleSpinBox
-from .plugin import ExportOptions
+from .plugin import ExportOptions, log
 
 
 
@@ -38,11 +39,14 @@ enamldef ExportDialog(Dialog): dialog:
     initial_size = (640, 320)
     attr plugin
     attr event
-    attr options: ExportOptions = ExportOptions(path=load_name())
+    attr protocol = None
+    attr show_advanced: bool = False
+    attr options: ExportOptions = create_default_options()
 
-    func load_name():
-        doc = plugin.workbench.get_plugin('declaracad.editor').active_document
-        return "{}.stl".format(os.path.splitext(doc.name)[0])
+    func create_default_options():
+        editor = plugin.workbench.get_plugin('declaracad.editor')
+        doc = editor.active_document
+        return ExportOptions(filename=doc.name)
 
     TaskDialogStyleSheet:
             pass
@@ -81,38 +85,43 @@ enamldef ExportDialog(Dialog): dialog:
                                     path += '.stl'
                                 options.path = path
         TaskDialogDetailsArea: details:
-            visible = False
-            Form:
-                Label:
-                    text = "Linear deflection"
-                    tool_tip = "Lower means higher quality (1.0 low ... 0.05 high)"
-                DoubleSpinBox:
-                    value := options.linear_deflection
-                    minimum = 0.0000001
-                    single_step = 0.01
-                    maximum = 100
-                Label:
-                    text = "Angular deflection"
-                    tool_tip = "Lower means higher quality (1.0 low ... 0.05 high)"
-                DoubleSpinBox:
-                    value := options.angular_deflection
-                    minimum = 0.0000001
-                    single_step = 0.01
-                    maximum = 100
-                CheckBox:
-                    text = "Binary mode"
-                    tool_tip = "Export as binary (checked) or ascii (unchecked)"
-                    checked := options.binary
-                CheckBox:
-                    text = "Relative deflection"
-                    tool_tip = textwrap.dedent("""
-                    If checked, deflection used for discretization of each edge will be
-                    <lin_deflection> * <size of edge>. Deflection used for the faces will be the
-                    maximum deflection of their edges
-                    """).strip()
+            visible << dialog.show_advanced or dialog.protocol is not None
+            Conditional:
+                condition << dialog.show_advanced
+                Form:
+                    Label:
+                        text = "Linear deflection"
+                        tool_tip = "Lower means higher quality (1.0 low ... 0.05 high)"
+                    DoubleSpinBox:
+                        value := options.linear_deflection
+                        minimum = 0.0000001
+                        single_step = 0.01
+                        maximum = 100
+                    Label:
+                        text = "Angular deflection"
+                        tool_tip = "Lower means higher quality (1.0 low ... 0.05 high)"
+                    DoubleSpinBox:
+                        value := options.angular_deflection
+                        minimum = 0.0000001
+                        single_step = 0.01
+                        maximum = 100
+                    CheckBox:
+                        text = "Binary mode"
+                        tool_tip = "Export as binary (checked) or ascii (unchecked)"
+                        checked := options.binary
+                    CheckBox:
+                        text = "Relative deflection"
+                        tool_tip = textwrap.dedent("""
+                        If checked, deflection used for discretization of each edge will be
+                        <lin_deflection> * <size of edge>. Deflection used for the faces will be the
+                        maximum deflection of their edges
+                        """).strip()
 
-                    checked := options.relative
-
+                        checked := options.relative
+            Conditional:
+                condition << dialog.protocol is not None
+                MultilineField:
+                    text << b'\n'.join(dialog.protocol.output)
         TaskDialogCommandArea:
             constraints = [
                 hbox(show_options, spacer, btn_yes, btn_no),
@@ -120,17 +129,20 @@ enamldef ExportDialog(Dialog): dialog:
             ]
             CheckBox: show_options:
                 text = "Show advanced"
-                checked := details.visible
+                checked := dialog.show_advanced
             PushButton: btn_no:
-                text = "Cancel"
-                clicked :: dialog.close()
+                text << "Close" if dialog.protocol else "Cancel"
+                clicked :: 
+                    dialog.close()
+                    if dialog.protocol:
+                        dialog.protocol.terminate()
             PushButton: btn_yes:
                 enabled << bool(options.path)
                 text = "Export"
                 clicked ::
                     event.parameters['options'] = options
-                    plugin.export(event)
-                    dialog.close()
+                    dialog.protocol = plugin.export(event)
+                    
 
 
 
