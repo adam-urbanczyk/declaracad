@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 ##Copyright 2016 Luke Chen (@chentao807, https://github.com/chentao807)
 ##
 ##This file is part of pythonOCC.
@@ -428,7 +426,3 @@ class Sprocket(RawShape):
 enamldef Assembly(Part):
     Sprocket: sprocket:
         material = 'steel'
-    Transform:
-        material = 'steel'
-        shape << sprocket
-        translate = (0, 0, 10)
