@@ -90,13 +90,13 @@ There is currently no installer as it's in pre-alpha state. It runs on windows a
 #: See https://conda.io/miniconda.html
 
 #: Create a conda env
-conda create -n occ
+conda create -n declaracad
 
-#: Activate it
-source activate occ
+#: Activate it (on windows just do `activate declaracad`) 
+source activate declaracad
 
 #: Install pythonocc
-conda install -c conda-forge -c dlr-sc -c pythonocc -c oce pythonocc-core==0.18 python==3.7
+conda install -c conda-forge -c dlr-sc -c pythonocc -c oce pythonocc-core==0.18.1
 
 #: Now install clone this repo
 git clone https://github.com/codelv/declaracad.git
