@@ -169,10 +169,14 @@ class ProcessLineReceiver(Atom, ProcessProtocol, LineReceiver):
         self.output.append(line)
     
     def processExited(self, reason):
-        self.exit_code = reason.value.exitCode
+        code = reason.value.exitCode
+        if code is not None:
+            self.exit_code = code
     
     def processEnded(self, reason):
-        self.exit_code = reason.value.exitCode
+        code = reason.value.exitCode
+        if code is not None:
+            self.exit_code = code
     
     def terminate(self):
         try:

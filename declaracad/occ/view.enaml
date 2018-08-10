@@ -100,20 +100,21 @@ enamldef ViewerWindow(Window): window:
         if filename != "-": 
             try:
                 result = load_model(filename)
-                if protocol:
+                for shape in result:
+                    shape.render()
+                if protocol and protocol.transport:
                     protocol.send_message({'id': 'render_success'})
                 return result
             except Exception as e:
                 #: Notify the client that we got an error
-                if protocol:
+                if protocol and protocol.transport:
                     protocol.send_message({
                         'error':{
                             'message':traceback.format_exc()
                         },
                         'id': 'render_error'
                     })
-                else:
-                    traceback.print_exc()
+                traceback.print_exc()
         return []
     Container:
         padding = 0
@@ -162,3 +163,9 @@ enamldef ViewerDockItem(DockItem): view:
                 core.invoke_command('declaracad.viewer.new_viewer',
                                     {'target': view.name,
                                      'position': 'right'})
+        Action:
+            separator = True
+        Action:
+            text = "Restart view"
+            triggered :: viewer.renderer.transport.signalProcess("KILL")
+                

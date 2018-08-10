@@ -48,7 +48,11 @@ from ..shape import (
     ProxyHalfSpace, ProxyPrism, ProxySphere, ProxyWedge,
     ProxyTorus, ProxyRevol, ProxyRawShape, ProxyLoadShape
 )
-from OCC.gp import gp_Vec, gp_Ax1, gp_Ax3, gp_Trsf
+from OCC.gp import gp_Pnt, gp_Dir, gp_Vec, gp_Ax1, gp_Ax2, gp_Ax3, gp_Trsf
+
+
+def coerce_axis(value):
+    return gp_Ax2(gp_Pnt(*value[0]), gp_Dir(*value[1]))
 
 
 class WireExplorer(object):
@@ -648,7 +652,8 @@ class OccBox(OccShape, ProxyBox):
 
     def create_shape(self):
         d = self.declaration
-        self.shape = BRepPrimAPI_MakeBox(d.axis, d.dx, d.dy, d.dz)#.Shape()
+        self.shape = BRepPrimAPI_MakeBox(coerce_axis(d.axis),
+                                         d.dx, d.dy, d.dz)
 
     def set_dx(self, dx):
         self.create_shape()
@@ -666,7 +671,7 @@ class OccCone(OccShape, ProxyCone):
     
     def create_shape(self):
         d = self.declaration
-        args = [d.axis, d.radius, d.radius2, d.height]
+        args = [coerce_axis(d.axis), d.radius, d.radius2, d.height]
         if d.angle:
             args.append(d.angle)
         self.shape = BRepPrimAPI_MakeCone(*args)
@@ -690,7 +695,7 @@ class OccCylinder(OccShape, ProxyCylinder):
     
     def create_shape(self):
         d = self.declaration
-        args = [d.axis, d.radius, d.height]
+        args = [coerce_axis(d.axis), d.radius, d.height]
         if d.angle:
             args.append(d.angle)
         self.shape = BRepPrimAPI_MakeCylinder(*args)
@@ -711,7 +716,7 @@ class OccHalfSpace(OccShape, ProxyHalfSpace):
     
     def create_shape(self):
         d = self.declaration
-        self.shape = BRepPrimAPI_MakeHalfSpace(d.surface, d.position)
+        self.shape = BRepPrimAPI_MakeHalfSpace(d.surface, gp_Pnt(*d.position))
         
     def set_surface(self, surface):
         self.create_shape()
@@ -732,7 +737,7 @@ class OccPrism(OccDependentShape, ProxyPrism):
         if d.infinite:
             self.shape = BRepPrimAPI_MakePrism(
                 c.shape.Shape(),
-                d.direction,
+                gp_Dir(*d.direction),
                 True,
                 d.copy,
                 d.canonize)
@@ -773,7 +778,7 @@ class OccSphere(OccShape, ProxySphere):
     
     def create_shape(self):
         d = self.declaration
-        args = [d.axis, d.radius]
+        args = [coerce_axis(d.axis), d.radius]
         #: Ugly...
         if d.angle:
             args.append(d.angle)
@@ -803,7 +808,7 @@ class OccTorus(OccShape, ProxyTorus):
     
     def create_shape(self):
         d = self.declaration
-        args = [d.axis, d.radius, d.radius2]
+        args = [coerce_axis(d.axis), d.radius, d.radius2]
         #: Ugly...
         if d.angle:
             args.append(d.angle)
@@ -831,7 +836,8 @@ class OccWedge(OccShape, ProxyWedge):
     
     def create_shape(self):
         d = self.declaration
-        self.shape = BRepPrimAPI_MakeWedge(d.axis, d.dx, d.dy, d.dz, d.itx)
+        self.shape = BRepPrimAPI_MakeWedge(coerce_axis(d.axis), 
+                                           d.dx, d.dy, d.dz, d.itx)
 
     def set_dx(self, dx):
         self.create_shape()
@@ -858,7 +864,8 @@ class OccRevol(OccDependentShape, ProxyRevol):
         c = d.shape if d.shape else self.get_shape()
         
         #: Build arguments
-        args = [c.shape.Shape(), gp_Ax1(d.position, d.direction)]
+        args = [c.shape.Shape(), gp_Ax1(gp_Pnt(*d.position), 
+                                        gp_Dir(*d.direction))]
         if d.angle:
             args.append(d.angle)
         args.append(d.copy)
@@ -923,7 +930,7 @@ class OccLoadShape(OccShape, ProxyLoadShape):
         d = self.declaration
         t = gp_Trsf()
         #p = d.position
-        t.SetTransformation(gp_Ax3(d.axis))#gp_Vec(p.X(), p.Y(), p.Z()))
+        t.SetTransformation(gp_Ax3(coerce_axis(d.axis)))
         return t
 
     def load_shape(self):

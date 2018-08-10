@@ -32,6 +32,7 @@ with enaml.imports():
     from declaracad.docs.manifest import DocsManifest
     from declaracad.editor.manifest import EditorManifest
     from declaracad.toolbox.manifest import ToolboxManifest
+    from declaracad.cnc.manifest import CncManifest
 
 # Required on Qt 5.10+
 try:
@@ -50,6 +51,7 @@ def main(**kwargs):
     workbench.register(ViewerManifest())
     workbench.register(EditorManifest())
     workbench.register(ToolboxManifest())
+    workbench.register(CncManifest())
     workbench.run()
         
         

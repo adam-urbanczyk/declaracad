@@ -1,0 +1,85 @@
+"""
+Copyright (c) 2017, Jairus Martin.
+
+Distributed under the terms of the GPL v3 License.
+
+The full license is in the file LICENSE, distributed with this software.
+
+Created on Dec 6, 2017
+
+@author: jrm
+"""
+import enaml
+from enaml.workbench.api import Extension, PluginManifest
+from enaml.workbench.ui.api import ActionItem
+from enaml.workbench.core.api import Command
+from enaml.layout.api import RemoveItem, InsertDockBarItem
+from declaracad.ui.extensions import DOCK_ITEM_POINT, DockItem
+
+
+def plugin_factory():
+    from .plugin import CncPlugin
+    return CncPlugin()
+
+
+def control_panel_factory():
+    with enaml.imports():
+        from .view import ControlPanelDockItem
+    return ControlPanelDockItem
+
+
+def com_channel_factory():
+    with enaml.imports():
+        from .view import ComChannelDockItem
+    return ComChannelDockItem
+
+
+def create_new_com_channel(event):
+    plugin = event.workbench.get_plugin('declaracad.ui')
+    dock = plugin.get_dock_area()
+    ControlPanelDockItem = control_panel_factory()
+    plugin = event.workbench.get_plugin('declaracad.cnc')
+    item = ControlPanelDockItem(dock, plugin=plugin)
+    dock.update_layout(InsertDockBarItem(item=item.name, position='left'))
+    
+    
+def close_com_channel(event):
+    plugin = event.workbench.get_plugin('declaracad.ui')
+    target = event.parameters.get('target')
+    dock = plugin.get_dock_area()
+    item = dock.find(target)
+    if item is not None:
+        dock.update_layout(RemoveItem(item=item.name))
+    
+
+enamldef CncManifest(PluginManifest):
+    """ Adds an IPython console to the workbench and commands to open and close 
+    new consoles.
+
+    """
+    id = 'declaracad.cnc'
+    factory = plugin_factory
+
+    Extension:
+        id = 'items'
+        point = DOCK_ITEM_POINT
+        DockItem:
+            plugin_id = 'declaracad.cnc'
+            factory = com_channel_factory
+            layout = 'left'
+    Extension:
+        id = 'actions'
+        point = 'enaml.workbench.ui.actions'
+        ActionItem:
+            path = '/view/control-panel'
+            label = 'Open control panel'
+            command = 'declaracad.cnc.open_com_channel'
+    Extension:
+        id = 'commands'
+        point = 'enaml.workbench.core.commands'
+        Command:
+            id = 'declaracad.cnc.open_com_channel'
+            handler = create_new_com_channel
+        Command:
+            id = 'declaracad.cnc.close_com_channel'
+            handler = close_com_channel

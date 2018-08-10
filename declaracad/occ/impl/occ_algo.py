@@ -7,8 +7,8 @@ from atom.api import Int, Dict, Instance, set_default
 from enaml.application import timed_call
 from ..algo import (
     ProxyOperation, ProxyBooleanOperation, ProxyCommon, ProxyCut, ProxyFuse,
-    ProxyFillet, ProxyChamfer, ProxyOffset, ProxyThickSolid, 
-    ProxyPipe, ProxyThruSections, ProxyTransform, 
+    ProxyFillet, ProxyChamfer, ProxyOffset, ProxyThickSolid, ProxyPipe, 
+    ProxyThruSections, ProxyTransform, Translate, Rotate, Scale, Mirror
 )
 from .occ_shape import OccShape, OccDependentShape
 from OCC.BRepAlgoAPI import (
@@ -462,37 +462,22 @@ class OccTransform(OccOperation, ProxyTransform):
         
     def get_transform(self):
         d = self.declaration
-        t = gp_Trsf()
+        result = gp_Trsf()
         #: TODO: Order matters... how to configure it???
-        if d.mirror:
-            try:
-                p, v = d.mirror
-            except ValueError:
-                raise ValueError("You must specify a tuple containing a "
-                                 "(point, direction)")
-            t.SetMirror(gp_Ax1(gp_Pnt(*p),
-                               gp_Dir(*v)))
-        if d.scale:
-            try:
-                p, s = d.scale
-            except ValueError:
-                raise ValueError("You must specify a tuple containing a "
-                                 "(point, scale)")
-            t.SetScale(gp_Pnt(*p), s)
-        
-        if d.translate:
-            t.SetTranslation(gp_Vec(*d.translate))
-        
-        if d.rotate:
-            try:
-                p, v, a = d.rotate
-            except ValueError:
-                raise ValueError("You must specify a tuple containing a "
-                                 "(point, direction, angle)")
-            t.SetRotation(gp_Ax1(gp_Pnt(*p),
-                                 gp_Dir(*v)), a)
-            
-        return t
+        for op in d.operations:
+            t = gp_Trsf()
+            if isinstance(op, Translate):
+                t.SetTranslation(gp_Vec(op.x, op.y, op.z))
+            elif isinstance(op, Rotate):
+                t.SetRotation(gp_Ax1(gp_Pnt(*op.point),
+                                     gp_Dir(*op.direction)), op.angle)
+            elif isinstance(op, Mirror):
+                t.SetMirror(gp_Ax1(gp_Pnt(*op.point),
+                                   gp_Dir(op.x, op.y, op.z)))
+            elif isinstance(op, Scale):
+                t.SetScale(gp_Pnt(*op.point), s)
+            result.Multiply(t)
+        return result
     
     def update_shape(self, change):
         d = self.declaration

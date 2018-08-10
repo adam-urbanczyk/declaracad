@@ -11,7 +11,7 @@ from .algo import (
     Pipe,
     LinearForm, RevolutionForm,
     ThruSections,
-    Transform
+    Transform, Translate, Rotate, Scale, Mirror
 )
 
 from .draw import (

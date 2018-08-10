@@ -2,7 +2,7 @@ import math
 from enaml.core.api import Looper
 from declaracad.occ.api import ( 
     Face, Prism, Transform, Cut, Fuse, ThruSections,
-    Segment, Wire, Point, Arc, Circle, Part
+    Segment, Wire, Point, Arc, Circle, Part, Translate, Rotate
 )
 
 def cosd(angle):
@@ -18,6 +18,7 @@ enamldef SawBlade(Transform): root:
     attr radius = 2
     attr depth = 0.1
     attr thickness = 0.1
+    operations = [Translate(*self.position)]
         # Notches must be cut separately
         # because they're on the outer edge
     Prism:
@@ -35,23 +36,20 @@ enamldef SawBlade(Transform): root:
                         alpha2 = math.radians(loop_item+degrees/2.0)
                     Segment:
                         #: end of last arc
-                        Point:
-                            position = (radius*cosd(loop_item+degrees/2.0),
-                                        radius*sind(loop_item+degrees/2.0),
-                                        0)
+                        points = [(
+                            radius*cosd(loop_item+degrees/2.0),
+                            radius*sind(loop_item+degrees/2.0),
+                            0
+                        ), (
                         #: Tooth profile start
-                        Point:
-                            position = ((depth+radius)*cosd(loop_item+degrees/2.0),
-                                        (depth+radius)*sind(loop_item+degrees/2.0),
-                                        0)
-                            
-                        #: Tooth profile end
-                        
-                        #: Start of next Arc
-                        Point:
-                            position = (radius*cosd(loop_item+degrees),
-                                        radius*sind(loop_item+degrees),
-                                        0)
+                            (depth+radius)*cosd(loop_item+degrees/2.0),
+                            (depth+radius)*sind(loop_item+degrees/2.0),
+                            0
+                        ), (
+                            radius*cosd(loop_item+degrees),
+                            radius*sind(loop_item+degrees),
+                            0
+                        )]
                         
                 
             # Shaft
@@ -67,7 +65,7 @@ enamldef CamGear(Transform): root:
     attr cam_radius = 0.2
         # Notches must be cut separately
         # because they're on the outer edge
-        
+    operations = [Translate(*self.position)]
     #: Gear Edge
     Fuse:
         Prism:
@@ -85,33 +83,31 @@ enamldef CamGear(Transform): root:
                             alpha2 = math.radians(loop_item+degrees/2.0)
                         Segment:
                             #: end of last arc
-                            Point:
-                                position = (radius*cosd(loop_item+degrees/2.0),
-                                            radius*sind(loop_item+degrees/2.0),
-                                            0)
+                            points = [(
+                                radius*cosd(loop_item+degrees/2.0),
+                                radius*sind(loop_item+degrees/2.0),
+                                0
+                            ), (
                             #: Tooth profile start
-                            Point:
-                                position = ((depth+radius)*cosd(loop_item+5*degrees/8.0),
-                                            (depth+radius)*sind(loop_item+5*degrees/8.0),
-                                            0)
+                                (depth+radius)*cosd(loop_item+5*degrees/8.0),
+                                (depth+radius)*sind(loop_item+5*degrees/8.0),
+                                0
+                            )]
                         Arc:
                             radius = depth+root.radius
                             alpha1 = math.radians(loop_item+5*degrees/8.0)
                             alpha2 = math.radians(loop_item+7*degrees/8.0)
                         
                         Segment:
-                            Point:
-                                position = ((depth+radius)*cosd(loop_item+7*degrees/8.0),
-                                            (depth+radius)*sind(loop_item+7*degrees/8.0),
-                                            0)
-                                
-                            #: Tooth profile end
-                            
-                            #: Start of next Arc
-                            Point:
-                                position = (radius*cosd(loop_item+degrees),
-                                            radius*sind(loop_item+degrees),
-                                            0)
+                            points = [(
+                                (depth+radius)*cosd(loop_item+7*degrees/8.0),
+                                (depth+radius)*sind(loop_item+7*degrees/8.0),
+                                0
+                            ),(
+                                radius*cosd(loop_item+degrees),
+                                radius*sind(loop_item+degrees),
+                                0
+                            )]
                             
                     
                 # Shaft
@@ -142,6 +138,7 @@ enamldef HelicalGear(Transform): root:
     attr depth = 0.3
     attr thickness = 1
     attr offset << degrees/2.0 # 
+    operations = [Translate(*self.position)]
         
     #: Gear Edge
     ThruSections:
@@ -157,49 +154,53 @@ enamldef HelicalGear(Transform): root:
                     alpha1 = math.radians(loop_item)
                     alpha2 = math.radians(loop_item+degrees/2.0)
                 Segment:
-                    #: end of last arc
-                    Point:
-                        position = (radius*cosd(loop_item+degrees/2.0),
+                   points = [
+                       #: end of last arc
+                       (radius*cosd(loop_item+degrees/2.0),
                                     radius*sind(loop_item+degrees/2.0),
-                                    0)
-                    #: Tooth profile start
-                    Point:
-                        position = ((depth+radius)*cosd(loop_item+5*degrees/8.0),
+                                    0),
+                        #: Tooth profile start
+                        ((depth+radius)*cosd(loop_item+5*degrees/8.0),
                                     (depth+radius)*sind(loop_item+5*degrees/8.0),
                                     0)
+                ]
                 Arc:
                     radius = depth+root.radius
                     alpha1 = math.radians(loop_item+5*degrees/8.0)
                     alpha2 = math.radians(loop_item+7*degrees/8.0)
                 
                 Segment:
-                    Point:
-                        position = ((depth+radius)*cosd(loop_item+7*degrees/8.0),
+                    points = [
+                        #: Tooth profile end
+                        ((depth+radius)*cosd(loop_item+7*degrees/8.0),
                                     (depth+radius)*sind(loop_item+7*degrees/8.0),
-                                    0)
-                        
-                    #: Tooth profile end
+                                    0),
                     
-                    #: Start of next Arc
-                    Point:
-                        position = (radius*cosd(loop_item+degrees),
+                        #: Start of next Arc
+                        (radius*cosd(loop_item+degrees),
                                     radius*sind(loop_item+degrees),
                                     0)
+                    ]
         
         #: Needs more sections if thickness is big            
         Wire:
             Transform:
-                Transform:
-                    shape = f1
-                    rotate << ((0,0,0),(0,0,1),math.radians(offset/2.0))
-                translate = (0,0,thickness/2.0)
-                    
+                shape = f1
+                operations = [
+                    Rotate(direction=(0,0,1),
+                           angle=math.radians(offset/2.0)),
+                    Translate(0,0,thickness/2.0)
+                ]
         Wire:
             Transform:
-                Transform:
-                    shape = f1
-                    rotate << ((0,0,0),(0,0,1),math.radians(offset))
-                translate = (0,0,thickness)
+                shape = f1
+                operations = [
+                    Rotate(direction=(0,0,1), 
+                           angle=math.radians(offset)),
+                    Translate(0,0,thickness)
+                ]
+                    
+                
 
 
 enamldef Assembly(Part): gear:
@@ -207,11 +208,11 @@ enamldef Assembly(Part): gear:
     SawBlade:
         color = 'black'
         degrees = 10
-        translate = (5,5,0)
+        position = (5,5,0)
         
     CamGear:
         material = 'aluminium'
-        translate = (5,-5,0)
+        position = (5,-5,0)
     
     HelicalGear:
         material = 'plastic'

@@ -24,6 +24,10 @@ enamldef ConsoleDockItem(DockItem): dock_item:
         padding = 0
         IPythonConsole: console:
             minimum_size = (140, 140)
+            initial_ns = {
+                'workbench': plugin.workbench,
+                'plugins': list(plugin.workbench._plugins.keys())
+            }
     
     Menu: menu:
         Action:

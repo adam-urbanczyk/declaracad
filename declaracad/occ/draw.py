@@ -32,6 +32,9 @@ class ProxyEdge(ProxyShape):
 class ProxyLine(ProxyEdge):
     #: A reference to the shape declaration.
     declaration = ForwardTyped(lambda: Line)
+    
+    def set_points(self, points):
+        raise NotImplementedError
 
 
 class ProxySegment(ProxyEdge):
@@ -91,13 +94,13 @@ class ProxyParabola(ProxyEdge):
         raise NotImplementedError
 
 
-class ProxyPolygon(ProxyEdge):
+class ProxyPolygon(ProxyLine):
     #: A reference to the shape declaration.
     declaration = ForwardTyped(lambda: Polygon)
     
     def set_closed(self, closed):
         raise NotImplementedError
-
+    
 
 class ProxyWire(ProxyShape):
     declaration = ForwardTyped(lambda: Wire)
@@ -156,6 +159,13 @@ class Line(Edge):
     
     """
     proxy = Typed(ProxyLine)
+    
+    #: List of points
+    points = d_(ContainerList(tuple))
+    
+    @observe('points')
+    def _update_proxy(self, change):
+        super(Line, self)._update_proxy(change)
 
 
 class Segment(Line):
@@ -165,13 +175,7 @@ class Segment(Line):
     --------
     
     Segment:
-        Point:
-            position = (0, 0, 0)
-        
-        Point:
-            position = (10, 0, 0)
-    
-    
+        points = ((0, 0, 0), (10, 0, 0)]
     """
     proxy = Typed(ProxySegment)
 
@@ -209,12 +213,11 @@ class Arc(Line):
             alpha2 = math.radians(deg+2)
     Wire:
         Arc:
-            Point:
-                position = (1, 0, 0)
-            Point:
-                position = (2, 5, 0)
-            Point:
-                position = (3, 0, 0)
+            points = (
+                (1, 0, 0),
+                (2, 5, 0),
+                (3, 0, 0)
+            )
     
     """
     proxy = Typed(ProxyArc)
@@ -378,7 +381,7 @@ class Parabola(Edge):
         super(Parabola, self)._update_proxy(change)     
 
 
-class Polygon(Edge):
+class Polygon(Line):
     """ A Polygon that can be built from any number of points or vertices, 
     and consists of a sequence of connected rectilinear edges.
     
@@ -394,11 +397,7 @@ class Polygon(Edge):
     Wire:
         Polygon:
             closed = True
-            Looper:
-                iterable = [(0, 0, 0), (10, 0, 0), (10, 10, 0), (0, 10, 0)]
-                Point:
-                    position = loop_item
-    
+            points = [(0, 0, 0), (10, 0, 0), (10, 10, 0), (0, 10, 0)]
     
     """
     proxy = Typed(ProxyPolygon)
@@ -427,11 +426,7 @@ class Wire(Shape):
     Wire:
         Polygon:
             closed = True
-            Looper:
-                iterable = [(0, 0, 0), (10, 0, 0), (10, 10, 0), (0, 10, 0)]
-                Point:
-                    position = loop_item
-    
+            points = [(0, 0, 0), (10, 0, 0), (10, 10, 0), (0, 10, 0)]
     
     """
     proxy = Typed(ProxyWire)

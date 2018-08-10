@@ -4,8 +4,8 @@ Created on Sep 28, 2016
 @author: jrm
 """
 from atom.api import (
-    Instance, ForwardInstance, Typed, ForwardTyped, ContainerList, Enum, Float,
-    Bool, Coerced, observe
+    Atom, Instance, ForwardInstance, Typed, ForwardTyped, ContainerList, Enum, 
+    Float, Bool, Coerced, observe
 )
 from enaml.core.declarative import d_
 
@@ -187,16 +187,7 @@ class ProxyTransform(ProxyOperation):
     def set_shape(self, shape):
         raise NotImplementedError
     
-    def set_mirror(self, axis):
-        raise NotImplementedError
-    
-    def set_rotate(self, rotation):
-        raise NotImplementedError
-    
-    def set_scale(self, scale):
-        raise NotImplementedError
-    
-    def set_translate(self, translation):
+    def set_operations(self, operations):
         raise NotImplementedError
 
 
@@ -613,6 +604,52 @@ class ThruSections(Operation):
         super(ThruSections, self)._update_proxy(change)
 
 
+class TransformOperation(Atom):
+    #: Point
+    point = Coerced(tuple)
+    
+    def _default_point(self):
+        return (0.0, 0.0, 0.0)
+
+
+class Rotate(TransformOperation):
+    #: Rotation axis
+    direction = Coerced(tuple)
+    
+    def _default_direction(self):
+        return (0.0, 0.0, 1.0)
+    
+    #: Angle
+    angle = Float(0.0, strict=False)
+    
+
+class Translate(TransformOperation):
+    #: Position
+    x = Float(0.0, strict=False)
+    y = Float(0.0, strict=False)
+    z = Float(0.0, strict=False)
+    
+    def __init__(self, x=0, y=0, z=0, **kwargs):
+        super(Translate, self).__init__(x=x, y=y, z=z, **kwargs)
+
+
+class Scale(TransformOperation):
+    s = Float(1.0, strict=False)
+
+    def __init__(self, s=1, **kwargs):
+        super(Scale, self).__init__(s=s, **kwargs)
+
+
+class Mirror(TransformOperation):
+    #: Position
+    x = Float(0.0, strict=False)
+    y = Float(0.0, strict=False)
+    z = Float(0.0, strict=False)
+    
+    def __init__(self, x=0, y=0, z=0, **kwargs):
+        super(Mirror, self).__init__(x=x, y=y, z=z, **kwargs)
+
+
 class Transform(Operation):
     """ An operation that Transform's an existing shape (or a copy).
     
@@ -639,7 +676,7 @@ class Transform(Operation):
     --------
     
     Transform:
-        rotate = (math.pi/4, 0, 0) 
+        operations = [Rotate(direction=(1, 0, 0), angle=math.pi/4)]
         Box: box:
             pass
             
@@ -650,7 +687,11 @@ class Transform(Operation):
     Transform:
         #: Create a copy and move it
         shape = cyl
-        translate = (10, 20, 0)
+        operations = [
+            Translate(x=10, y=20, z=0),
+            Scale(s=2),
+            Rotate(direction=(0,0,1), angle=math.pi/2)
+        ]
         
     """
     #: Reference to the implementation control
@@ -660,18 +701,9 @@ class Transform(Operation):
     #: if none is given the first child will be used
     shape = d_(Instance(Shape))
     
-    #: Mirror
-    mirror = d_(Instance((tuple, list)))
+    #: Transform ops
+    operations = d_(ContainerList(TransformOperation))
     
-    #: Scale
-    scale = d_(Instance((tuple, list)))
-    
-    #: Rotation
-    rotate = d_(Instance((tuple, list)))
-    
-    #: Translation
-    translate = d_(Instance((tuple,list)))
-    
-    @observe('shape', 'mirror', 'scale', 'rotate', 'translate')
+    @observe('operations')
     def _update_proxy(self, change):
         super(Transform, self)._update_proxy(change)

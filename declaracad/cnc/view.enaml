@@ -1,0 +1,130 @@
+"""
+Copyright (c) 2017, Jairus Martin.
+
+Distributed under the terms of the GPL v3 License.
+
+The full license is in the file LICENSE, distributed with this software.
+
+Created on Dec 10, 2015
+
+@author: jrm
+"""
+from enaml.layout.api import vbox, hbox, align
+from enaml.widgets.api import (
+    Container, ObjectCombo, Menu, Action, Field, PushButton
+)
+from enaml.scintilla.api import Scintilla
+from declaracad.core.api import DockItem, log
+from declaracad.core.utils import load_icon
+from enamlx.widgets.api import KeyEvent
+
+from .plugin import CncPlugin, Connection
+
+
+enamldef CommView(Container): view:
+    attr plugin: CncPlugin
+    attr connection: Connection 
+    constraints = [
+            vbox(hbox(cmb_conn, btn_open, btn_clear, btn_refresh),
+                 comm_log,
+                 hbox(to_send, btn_send)),
+            align('v_center', cmb_conn, btn_open, btn_clear, btn_refresh),
+            align('v_center', to_send, btn_send),
+    ]
+    connection :: 
+        old = change['oldvalue']
+        if old:
+            old.unobserve('output', watch_output)
+        new = change['value']
+        if new:
+            new.observe('output', watch_output)
+        
+    func watch_output(change):
+        t = change['type']
+        widget = comm_log.proxy.widget
+        if t == 'update':
+            comm_log.set_text(b"\n".join(connection.output).decode() if connection else '')
+        elif t == 'container':
+            # Assume it's an append, don't even bother checking
+            widget.append("READ |" + change['item'].decode())
+        
+        # Scroll to end
+        widget.ensureLineVisible(widget.lines())
+        
+    func on_result(result):
+        log.debug(result)
+        
+    func send_text():
+        if connection:
+            comm_log.proxy.widget.append("SENT | "+to_send.text+"\r\n")
+            connection.write(to_send.text+"\r\n")
+            to_send.text = ""
+    
+    func toggle_port():
+        if connection and connection.connected:
+            connection.disconnect()
+            if connection in plugin.connections:
+                plugin.connections.remove(connection)
+            view.connection = None
+        elif cmb_conn.selected:
+            view.connection = cmb_conn.selected
+            plugin.connections.append(view.connection)
+            view.connection.connect().addCallback(on_result)
+    ObjectCombo: cmb_conn:
+        items << list(set([None]+plugin.available_connections+plugin.connections))
+        to_string = lambda c: "{}{}".format(c.name, ' (connected)' if c.connected else '') if c else ''
+        selected = items[0] if items else None
+        selected :: view.connection = change['value']
+            
+    PushButton: btn_open:
+        #text << "Close" if opened else "Open"
+        icon << load_icon("disconnect" if connection and connection.connected else "connect")
+        tool_tip << "Connected. Click to disconnect" if connection and connection.connected else "Disconnected. Click to Connect"
+        clicked :: toggle_port()
+    PushButton: btn_clear:
+        #text = "Clear"
+        icon = load_icon("bin")
+        tool_tip = "Clear console"
+        clicked :: 
+            if connection:
+                connection.output = []
+    PushButton: btn_refresh:
+        icon = load_icon("arrow_refresh")
+        tool_tip = "Refresh ports"
+        clicked :: plugin.refresh_connections()
+    Scintilla: comm_log:
+        activated :: self.proxy.widget.setReadOnly(True)
+    Field: to_send: 
+        enabled << bool(connection and connection.connected)
+        placeholder << "Enter a command.." if enabled else "Disconnected... reconnect first."
+        tool_tip = "Press Shift+Return to send"
+        KeyEvent:
+            keys = ['shift+return']
+            released :: send_text()
+    PushButton: btn_send:
+        text = "Send"
+        enabled << bool(connection and connection.connected)
+        clicked :: send_text()
+            
+
+enamldef ComChannelDockItem(DockItem): dock_item:
+    title = 'Channel'
+    name = 'com-channel-{}'.format(id(self))
+    icon = load_icon('disconnect')
+    title_bar_right_clicked :: menu.popup()
+    CommView:
+        plugin << dock_item.plugin
+        
+    Menu: menu:
+        Action:
+            text = "New com channel view"
+            triggered ::
+                core = plugin.workbench.get_plugin("enaml.workbench.core")
+                core.invoke_command('declaracad.cnc.open_com_channel')
+        Action:
+            text = "Close com channel view"
+            triggered ::
+                core = plugin.workbench.get_plugin("enaml.workbench.core")
+                core.invoke_command('declaracad.cnc.close_com_channel', 
+                                    {'target': dock_item.name})
+

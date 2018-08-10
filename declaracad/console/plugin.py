@@ -17,6 +17,7 @@ from declaracad.core.api import Plugin
 class ConsolePlugin(Plugin):
     def start(self):
         """ Set the log level for IPython stuff to warn """
-        for name in ['ipykernel.inprocess.ipkernel', 'traitlets']:
+        for name in ['ipykernel.inprocess.ipkernel', 'traitlets',
+                     'parso.python.diff', 'parso.cache']:
             log = logging.getLogger(name)
             log.setLevel(logging.WARNING)

@@ -7,7 +7,7 @@ from declaracad.occ.api import (
 enamldef Assembly(Part):
     name = "Primative Shapes"
     Looper:
-        iterable << range(10)
+        iterable << range(2)
         Box: 
             position = (10,0,loop_item*10)
             dx = 10

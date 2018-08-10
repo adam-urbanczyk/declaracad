@@ -1,8 +1,9 @@
 import math
 from enaml.core.api import Looper, Conditional
-from declaracad.occ.api (
+from declaracad.occ.api import (
     Box, Prism, Face, Segment, Arc, Wire, Point, Part,
     Cut, Fuse, Offset, Fillet, Transform, ThickSolid, Pipe,
+    Rotate
 )
 from OCC.gp import gp_Dir, gp_Ax1, gp_Pnt
 from OCC.gce import gce_MakeDir
@@ -92,7 +93,13 @@ enamldef Wall(Fuse):
             condition = loop_index > 0
             Transform:
                 attr pos << (points[loop_index-1][0],points[loop_index-1][1],floor)
-                rotate << (pos,(0,0,1),angle(points[loop_index-1],points[loop_index]))
+                operations = [
+                    Rotate(
+                        point=pos, 
+                        direction=(0,0,1), 
+                        angle=angle(points[loop_index-1],points[loop_index])
+                    )
+                ]
                 Box:
                     position << pos
                     dx << distance(points[loop_index-1],points[loop_index])#+thickness

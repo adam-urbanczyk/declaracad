@@ -16,6 +16,7 @@ import json
 import time
 import enaml
 import atexit
+from types import ModuleType
 from atom.api import (
     Atom, ContainerList, Unicode, Float, Bool, Int, Instance, observe
 )
@@ -57,7 +58,9 @@ def load_model(filename):
     with open(filename, 'rU') as f:
         ast = parse(f.read())
         code = EnamlCompiler.compile(ast, filename)
-    namespace = {}
+    module = ModuleType(filename.rsplit('.', 1)[0])
+    module.__file__ = filename
+    namespace = module.__dict__
     with enaml.imports():
         exec_(code, namespace)
     Assembly = namespace['Assembly']
@@ -221,6 +224,8 @@ class ViewerProcess(ProcessLineReceiver):
             self.errors = ""
         
     def errReceived(self, data):
+        if b'XCB error' in data:
+            return
         log.debug(f"render | err | {data}")
     
     def inConnectionLost(self):

@@ -1,6 +1,6 @@
 from declaracad.occ.api import (
     Cylinder, Prism, Face, Segment, Arc, Wire, Point,
-    Fuse, ThickSolid, Fillet, Transform, Part
+    Fuse, ThickSolid, Fillet, Transform, Part, Mirror
 )
 
 
@@ -37,25 +37,15 @@ enamldef Assembly(Part): part:
                         Wire:
                             # Create a wire from the profile and mirrored profile
                             Wire: profile:
-                                Segment:
-                                    Point: p1:
-                                        position << (-width/2.0, 0, 0)
-                                    Point: p2:
-                                        position << (-width/2.0, -thickness/4.0, 0)
+                                Segment: s1:
+                                    points << [ (-width/2.0, 0, 0), (-width/2.0, -thickness/4.0, 0)]
                                 Arc:
-                                    Point:
-                                        position := p2.position
-                                    Point: p3:
-                                        position << (0, -thickness/2.0, 0) 
-                                    Point:
-                                        position := p5.position
-                                        
-                                Segment:
-                                    Point: p4:
-                                        position << (width/2.0, 0, 0)
-                                    Point: p5:
-                                        position << (width/2.0, -thickness/4.0, 0) 
+                                    points = [s1.points[-1], 
+                                                    (0, -thickness/2.0, 0) , 
+                                                    s2.points[-1]]
+                                Segment: s2:
+                                    points = [(width/2.0, 0, 0), (width/2.0, -thickness/4.0, 0) ]
                             Transform:
                                 #: TODO coerce
-                                mirror = ((0,0,0),(1,0,0))
+                                operations = [Mirror(x=1)]
                                 shape = profile

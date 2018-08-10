@@ -14,7 +14,6 @@ from enaml.widgets.control import ProxyControl
 from enaml.widgets.toolkit_object import ToolkitObject
 
 #: TODO: This breaks the proxy pattern
-from OCC.gp import gp_Pnt,gp_Ax2, gp_Dir
 from OCC.TopoDS import TopoDS_Face, TopoDS_Shell, TopoDS_Shape
 
 
@@ -41,12 +40,6 @@ class ProxyShape(ProxyControl):
 class ProxyFace(ProxyShape):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: Face)
-
-
-def coerce_axis(value):
-    pos = gp_Pnt(*value[0])
-    v = gp_Dir(*value[1])
-    return gp_Ax2(pos, v)
 
 
 class ProxyBox(ProxyShape):
@@ -284,15 +277,32 @@ class Shape(ToolkitObject):
     z = d_(Float(0, strict=False)).tag(view=True, group='Position')
     
     #: Position
-    position = d_(Coerced(gp_Pnt, (0, 0, 0),
-                          coercer=lambda args: gp_Pnt(*args)))
+    position = d_(Coerced(tuple))
+    
+    def _default_position(self):
+        return (self.x, self.y, self.z)
+    
+    @observe('x', 'y', 'z')
+    def _update_position(self, change):
+        self.position = self._default_position()
+        
+    def _observe_position(self, change):
+        self.x, self.y, self.z = self.position
+        
+    #: Direction
+    direction = d_(Coerced(tuple))
+    
+    def _default_direction(self):
+        return (0, 0, 1)
+    
+    def _get_axis(self):
+        return (self.position, self.direction)
+    
+    def _set_axis(self, axis):
+        self.position, self.direction = axis
     
     #: Direction
-    direction = d_(Coerced(gp_Dir, (0, 0, 1),
-                           coercer=lambda args: gp_Dir(*args)))
-    
-    #: Axis
-    axis = d_(Coerced(gp_Ax2, ((0, 0, 0), (0, 0, 1)), coercer=coerce_axis))
+    axis = d_(Property(_get_axis, _set_axis))
     
     def _get_edges(self):
         topo = self.proxy.topology
@@ -301,7 +311,7 @@ class Shape(ToolkitObject):
         return [e for e in topo.edges()]
     
     #: Edges of this shape
-    shape_edges = Property(lambda self: self._get_edges(), cached=True)
+    shape_edges = Property(_get_edges, cached=True)
     
     def _get_faces(self):
         topo = self.proxy.topology
@@ -310,7 +320,7 @@ class Shape(ToolkitObject):
         return [e for e in topo.faces()]
     
     #: Faces of this shape
-    shape_faces = Property(lambda self: self._get_faces(), cached=True)
+    shape_faces = Property(_get_faces, cached=True)
 
     def _get_shells(self):
         topo = self.proxy.topology
@@ -319,51 +329,9 @@ class Shape(ToolkitObject):
         return [e for e in topo.shells()]
 
     #: Shells of this shape
-    shape_shells = Property(lambda self: self._get_shells(), cached=True)
+    shape_shells = Property(_get_shells, cached=True)
     
-    #: Block change updates to prevent loops when updated synced properties
-    _block_updates = Bool()
-
-    @contextmanager
-    def suppress_updates(self):
-        self._block_updates = True
-        try:
-            yield
-        finally:
-            self._block_updates = False
-
-    @observe('x', 'y', 'z')
-    def _update_position(self, change):
-        """ Keep position in sync with x,y,z """
-        if change['type'] != 'update':
-            return
-        pt = gp_Pnt(self.x, self.y, self.z)
-        if not pt.IsEqual(self.position, self.tolerance):
-            self.position = pt 
-        
-    @observe('position')
-    def _update_xyz(self, change):
-        """ Keep x,y,z in sync with position """
-        self.x, self.y, self.z = (self.position.X(), self.position.Y(),
-                                  self.position.Z())
-    
-    @observe('position', 'direction')
-    def _update_axis(self, change):
-        """ Keep axis in sync with position and direction """
-        if not self._block_updates:
-            self.axis = self._default_axis()
-    
-    @observe('axis')
-    def _update_state(self, change):
-        """ Keep position and direction in sync with axis """
-        with self.suppress_updates():
-            self.position = self.axis.Location()
-            self.direction = self.axis.Direction()
-
-    def _default_axis(self):
-        return gp_Ax2(self.position, self.direction)
-    
-    @observe('axis', 'color', 'transparency')
+    @observe('color', 'transparency')
     def _update_proxy(self, change):
         super(Shape, self)._update_proxy(change)
         if self.proxy:
@@ -371,7 +339,7 @@ class Shape(ToolkitObject):
     
     @observe('proxy.shape')
     def _update_topo(self, change):
-        """ Update the cached topology references when the shape changes. s"""
+        """ Update the cached topology references when the shape changes. """
         for k in ['shape_edges', 'shape_faces', 'shape_shells']:
             self.get_member(k).reset(self)
             
@@ -605,10 +573,7 @@ class Prism(Shape):
     Prism:
         Wire:
             Polygon:
-                Looper:
-                    iterable = [(0,5,0), (2,6,0),  (5,4,0), (0,5,0)]
-                    Point:
-                        position = loop_item
+                points = [(0,5,0), (2,6,0),  (5,4,0), (0,5,0)]
     
     """
 

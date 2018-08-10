@@ -50,12 +50,16 @@ class ViewerProtocol(JSONRRCProtocol):
     
     def handle_version(self, version):
         self.view.version = version
+        
+    def connectionLost(self, reason):
+        if self.view.frameless:
+            sys.exit(0)
     
 
 def main(**kwargs):
     app = QtApplication()
     qt5reactor.install()
-    view = ViewerWindow(filename=kwargs.get('view', '-'),
+    view = ViewerWindow(filename=kwargs.get('file', '-'),
                         frameless=kwargs.get('frameless', False))
     view.protocol = ViewerProtocol(view)
     view.show()

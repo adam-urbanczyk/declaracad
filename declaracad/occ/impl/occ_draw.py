@@ -11,7 +11,7 @@ from ..draw import (
     ProxyHyperbola, ProxyParabola, ProxyEdge, ProxyWire, 
     ProxySegment, ProxyArc, ProxyPolygon,
 )
-from .occ_shape import OccShape, OccDependentShape
+from .occ_shape import OccShape, OccDependentShape, coerce_axis
 
 from OCC.BRepBuilderAPI import (
     BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeWire,
@@ -37,9 +37,8 @@ class OccPoint(OccShape, ProxyPoint):
         d = self.declaration
         # Not sure why but we need this
         # to force a sync of position and xyz
-        d.position
-         
-        self.shape = gp_Pnt(d.x, d.y, d.z)
+        print(d, self, d.position, d.x, d.y, d.z)
+        self.shape = gp_Pnt(*d.position)
         
     def set_position(self, position):
         self.create_shape()
@@ -84,33 +83,17 @@ class OccLine(OccEdge, ProxyLine):
                             'classgp___lin.html')
 
     def create_shape(self):
-        pass
-    
-    def init_layout(self):
-        for child in self.children():
-            self.child_added(child)
-        self.update_shape({})
-    
-    def update_shape(self, change):
         d = self.declaration
-        if len(d.children) == 2:
-            points = [c.shape for c in self.children()]
-            shape = gce_MakeLin(points[0], points[1]).Value()
+        if len(d.points) == 2:
+            shape = gce_MakeLin(gp_Pnt(*d.points[0]),
+                                gp_Pnt(*d.points[1])).Value()
         else:
-            shape = gp_Lin(d.axis)
+            shape = gp_Lin(coerce_axis(d.axis))
         self.make_edge(shape)
-    
-    def child_added(self, child):
-        super(OccLine, self).child_added(child)
-        if not isinstance(child, (OccPoint, OccVertex)):
-            raise TypeError("{} can only have Points or Vertices as "
-                            "children".format(self))
-        child.observe('shape', self.update_shape)
         
-    def child_removed(self, child):
-        super(OccLine, self).child_removed(child)
-        child.unobserve('shape', self.update_shape)
-
+    def set_points(self, points):
+        self.create_shape()
+        
 
 class OccSegment(OccLine, ProxySegment):
     #: Update the class reference
@@ -119,18 +102,16 @@ class OccSegment(OccLine, ProxySegment):
 
     shape = List(BRepBuilderAPI_MakeEdge)
     
-    def get_points(self):
-        return [c.shape for c in self.children() if isinstance(c, OccPoint)]
-    
-    def update_shape(self,change):
+    def create_shape(self):
         d = self.declaration
-        points = self.get_points()
-        if len(points) > 1:
-            edges = []
-            for i in range(1, len(points)):
-                segment = GC_MakeSegment(points[i-1], points[i]).Value()
-                edges.append(BRepBuilderAPI_MakeEdge(segment))
-            self.shape = edges
+        points = [gp_Pnt(*p) for p in d.points]
+        if len(points) < 2:
+            raise ValueError("A segment requires at least two points")
+        edges = []
+        for i in range(1, len(points)):
+            segment = GC_MakeSegment(points[i-1], points[i]).Value()
+            edges.append(BRepBuilderAPI_MakeEdge(segment))
+        self.shape = edges
 
 
 class OccArc(OccLine, ProxyArc):
@@ -138,11 +119,11 @@ class OccArc(OccLine, ProxyArc):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_g_c___make_arc_of_circle.html')
 
-    def update_shape(self,change):
+    def create_shape(self):
         d = self.declaration
-        points = [c.shape for c in self.children()]
+        points = [gp_Pnt(*p) for p in d.points]
         if d.radius:
-            circle = gp_Circ(d.axis, d.radius)
+            circle = gp_Circ(coerce_axis(d.axis), d.radius)
             sense = True
             if len(points) == 2:
                 arc = GC_MakeArcOfCircle(circle, points[0], points[1],
@@ -186,7 +167,7 @@ class OccCircle(OccEdge, ProxyCircle):
 
     def create_shape(self):
         d = self.declaration
-        self.make_edge(gp_Circ(d.axis, d.radius))
+        self.make_edge(gp_Circ(coerce_axis(d.axis), d.radius))
         
     def set_radius(self, r):
         self.create_shape()
@@ -199,7 +180,8 @@ class OccEllipse(OccEdge, ProxyEllipse):
     
     def create_shape(self):
         d = self.declaration
-        self.make_edge(gp_Elips(d.axis, d.major_radius, d.minor_radius))
+        self.make_edge(gp_Elips(coerce_axis(d.axis), d.major_radius,
+                                d.minor_radius))
         
     def set_major_radius(self, r):
         self.create_shape()
@@ -215,7 +197,8 @@ class OccHyperbola(OccEdge, ProxyHyperbola):
 
     def create_shape(self):
         d = self.declaration
-        self.make_edge(gp_Hypr(d.axis, d.major_radius, d.minor_radius))
+        self.make_edge(gp_Hypr(coerce_axis(d.axis), d.major_radius,
+                               d.minor_radius))
         
     def set_major_radius(self, r):
         self.create_shape()
@@ -231,29 +214,30 @@ class OccParabola(OccEdge, ProxyParabola):
     
     def create_shape(self):
         d = self.declaration
-        self.make_edge(gp_Parab(d.axis, d.focal_length))
+        self.make_edge(gp_Parab(coerce_axis(d.axis), d.focal_length))
         
     def set_focal_length(self, l):
         self.create_shape()
 
 
-class OccPolygon(OccDependentShape, OccEdge, ProxyPolygon):
+class OccPolygon(OccLine, ProxyPolygon):
     #: Update the class reference
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_builder_a_p_i___make_polygon.html')
 
     shape = Typed(BRepBuilderAPI_MakePolygon)
     
-    def update_shape(self, change):
+    def create_shape(self):
         d = self.declaration
         shape = BRepBuilderAPI_MakePolygon()
-        for child in self.children():
-            if isinstance(child, (OccPoint, OccVertex)):
-                shape.Add(child.shape)
+        for p in d.points:
+            shape.Add(gp_Pnt(*p))
+        if d.closed:
+            shape.Close()
         self.shape = shape
         
     def set_closed(self, closed):
-        self.update_shape({})
+        self.create_shape()
 
 
 class OccWire(OccShape, ProxyWire):
@@ -270,10 +254,9 @@ class OccWire(OccShape, ProxyWire):
         pass
     
     def init_layout(self):
+        self.update_shape({})
         for child in self.children():
             self.child_added(child)
-        #: Immediate update
-        self.update_shape({})
     
     def update_shape(self, change):
         d = self.declaration
@@ -298,20 +281,9 @@ class OccWire(OccShape, ProxyWire):
         
     def child_added(self, child):
         super(OccWire, self).child_added(child)
-        child.observe('shape', self._queue_update)
+        child.observe('shape', self.update_shape)
         
     def child_removed(self, child):
         super(OccEdge, self).child_removed(child)
-        child.unobserve('shape', self._queue_update)
+        child.unobserve('shape', self.update_shape)
         
-    def _queue_update(self,change=None):
-        change = change or {}
-        self._update_count += 1
-        timed_call(0, self._dequeue_update, change)
-    
-    def _dequeue_update(self, change):
-        # Only update when all changes are done
-        self._update_count -= 1
-        if self._update_count != 0:
-            return
-        self.update_shape(change)

@@ -38,7 +38,6 @@ enamldef Assembly(Part):
                 Circle: ci2:
                     axis := c2.axis
                     radius << c2.radius-thickness/2.0
-                    
             Wire:
                 Circle: ci3:
                     axis := c3.axis
