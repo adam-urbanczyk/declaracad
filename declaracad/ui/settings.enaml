@@ -25,7 +25,7 @@ from enaml.stdlib.task_dialog import (
 )
 from enaml.widgets.api import (
     Dialog, Field, Label, PushButton, Form, ObjectCombo, SplitItem, Splitter,
-    Container, SpinBox, FileDialogEx,
+    Container, SpinBox, FileDialogEx, ObjectCombo
 
 )
 from enamlx.widgets.api import TreeView, TreeViewItem
@@ -35,9 +35,10 @@ enamldef SystemSettingsPage(Container):
     attr model
     Form:
         Label:
-            text = "Wiki page"
-        Field:
-            text := model.wiki_page
+            text = "Theme"
+        ObjectCombo:
+            items = list(model.get_member('dock_style').items)
+            selected := model.dock_style
 
 enamldef SettingsDialog(Dialog): dialog:
     title = 'Settings'

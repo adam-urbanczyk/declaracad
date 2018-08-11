@@ -10,10 +10,14 @@ Created on Jul 12, 2015
 @author: jrm
 """
 import enaml
-from atom.api import Atom, List, Unicode, Instance, Dict
+from atom.api import Atom, List, Unicode, Instance, Dict, Enum
 from declaracad.core.api import Plugin, DockItem, log
+
 from enaml.layout.api import AreaLayout, DockBarLayout, HSplitLayout, TabLayout
 from . import extensions
+
+with enaml.imports():
+    from enaml.stdlib.dock_area_styles import available_styles
 
 
 class DeclaracadPlugin(Plugin):
@@ -23,6 +27,7 @@ class DeclaracadPlugin(Plugin):
     #: Dock items to add
     dock_items = List(DockItem)
     dock_layout = Instance(AreaLayout)
+    dock_style = Enum(*reversed(available_styles()))
 
     #: Settings pages to add
     settings_pages = List(extensions.SettingsPage)

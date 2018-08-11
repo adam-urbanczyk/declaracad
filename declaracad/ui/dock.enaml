@@ -18,6 +18,7 @@ from enaml.widgets.dock_events import DockItemEvent
 enamldef DockView(DockArea):
     attr workbench
     attr plugin
+    style << plugin.dock_style
     name = 'dock_area'
     layout << plugin.dock_layout
 #    dock_events_enabled = True
