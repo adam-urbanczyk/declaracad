@@ -183,7 +183,12 @@ class ViewerProcess(ProcessLineReceiver):
     
     #: ID count
     _id = Int()
+    
+    #: Holds responses temporarily
     _responses = Dict()
+    
+    #: Seconds to ping
+    _ping_rate = Int(40)
     
     @observe('filename', 'version')
     def _update_viewer(self, change):
@@ -230,6 +235,7 @@ class ViewerProcess(ProcessLineReceiver):
     
     def connectionMade(self):
         super(ViewerProcess, self).connectionMade()
+        self.schedule_ping()
         self.terminated = False
     
     def lineReceived(self, line):
@@ -296,6 +302,14 @@ class ViewerProcess(ProcessLineReceiver):
     def terminate(self):
         super(ViewerProcess, self).terminate()
         self.terminated = True
+        
+    def schedule_ping(self):
+        """ Ping perioidcally so the process stays awake """
+        if self.terminated:
+            return 
+        # Ping the viewer to tell it to keep alive
+        self.send_message("ping", _id="keep_alive")
+        timed_call(self._ping_rate*1000, self.schedule_ping)
         
     def __getattr__(self, name):
         """ Proxy all calls """

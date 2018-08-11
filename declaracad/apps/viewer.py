@@ -23,6 +23,7 @@ from declaracad.core.utils import JSONRRCProtocol
 
 import enaml
 from enaml.qt.qt_application import QtApplication
+from enaml.application import timed_call
 with enaml.imports():
     from declaracad.occ.view import ViewerWindow
 
@@ -36,11 +37,14 @@ class ViewerProtocol(JSONRRCProtocol):
     """
     def __init__(self, view):
         self.view = view
+        self._exit_in_sec = 60
         super(ViewerProtocol).__init__()
         
     def connectionMade(self):
         self.send_message({'result': self.handle_window_id(),
                            'id': 'window_id'})
+        if self.view.frameless:
+            self.schedule_close()
         
     def handle_window_id(self):
         return int(self.view.proxy.widget.winId())
@@ -51,13 +55,25 @@ class ViewerProtocol(JSONRRCProtocol):
     def handle_version(self, version):
         self.view.version = version
         
+    def handle_ping(self):
+        self._exit_in_sec = 60
+        return True
+        
     def __getattr__(self, name):
         if name.startswith("handle_"):
             return getattr(self.view, name.lstrip("handle_"))
         
-    def connectionLost(self, reason):
-        if self.view.frameless:
-            sys.exit(0)
+    def schedule_close(self):
+        """ A watchdog so if the parent is killed the viewer will automatically
+        exit. Otherwise it will hang around forever.
+        """
+        if self._exit_in_sec <= 0:
+            # Timeout
+            print("WARNING: Ping timeout expired, closing")
+            sys.exit(1)
+        else:
+            timed_call(self._exit_in_sec*1000, self.schedule_close)
+            self._exit_in_sec = 0  # Clear timeout
     
 
 def main(**kwargs):
