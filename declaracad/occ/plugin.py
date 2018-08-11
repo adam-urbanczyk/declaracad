@@ -208,9 +208,10 @@ class ViewerProcess(ProcessLineReceiver):
     
     def lineReceived(self, line):
         try:
-            response = json.loads(line.decode())
+            line = line.decode()
+            log.debug(f"render | out | {line}")
+            response = json.loads(line)
         except Exception as e:
-            log.error(f"render | resp | {e}")
             response = {}
         
         #: Special case for startup
@@ -222,6 +223,9 @@ class ViewerProcess(ProcessLineReceiver):
             self.errors = response['error']['message']
         elif response_id == 'render_ok':
             self.errors = ""
+        elif response_id == 'capture_output':
+            # Script output capture it
+            self.output = response['result'].split("\n")
         
     def errReceived(self, data):
         if b'XCB error' in data:

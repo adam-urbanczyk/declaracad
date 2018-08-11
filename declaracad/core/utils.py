@@ -13,6 +13,8 @@ import os
 import sys
 import logging
 import traceback
+from io import StringIO
+from contextlib import contextmanager
 
 from atom.api import Atom, Value, Int, Bool, Bytes, ContainerList
 
@@ -81,6 +83,16 @@ def menu_icon(name):
     if sys.platform == 'win32':
         return load_icon(name)
     return None
+
+@contextmanager
+def capture_output():
+    _stdout = sys.stdout
+    try:
+        capture = StringIO()
+        sys.stdout = capture
+        yield capture
+    finally:
+        sys.stdout = _stdout
 
 # ==============================================================================
 # Twisted protocols

@@ -46,7 +46,7 @@ enamldef CommView(Container): view:
             comm_log.set_text(b"\n".join(connection.output).decode() if connection else '')
         elif t == 'container':
             # Assume it's an append, don't even bother checking
-            widget.append("READ |" + change['item'].decode())
+            widget.append("\r\nREAD |" + change['item'].decode().rstrip("\n"))
         
         # Scroll to end
         widget.ensureLineVisible(widget.lines())
@@ -56,7 +56,7 @@ enamldef CommView(Container): view:
         
     func send_text():
         if connection:
-            comm_log.proxy.widget.append("SENT | "+to_send.text+"\r\n")
+            comm_log.proxy.widget.append("\r\nSENT | "+to_send.text)
             connection.write(to_send.text+"\r\n")
             to_send.text = ""
     
@@ -88,6 +88,8 @@ enamldef CommView(Container): view:
         clicked :: 
             if connection:
                 connection.output = []
+            else:
+                comm_log.set_text("")
     PushButton: btn_refresh:
         icon = load_icon("arrow_refresh")
         tool_tip = "Refresh ports"

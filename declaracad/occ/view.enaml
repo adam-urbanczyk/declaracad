@@ -8,7 +8,7 @@ from atom.api import Atom
 
 
 from declaracad.core.api import DockItem, EmbeddedWindow
-from declaracad.core.utils import load_icon
+from declaracad.core.utils import load_icon, capture_output
 
 import enaml
 from enaml.core.api import Looper, Include, Conditional
@@ -98,23 +98,30 @@ enamldef ViewerWindow(Window): window:
         
     func load_source():
         if filename != "-": 
-            try:
-                result = load_model(filename)
-                for shape in result:
-                    shape.render()
-                if protocol and protocol.transport:
-                    protocol.send_message({'id': 'render_success'})
-                return result
-            except Exception as e:
-                #: Notify the client that we got an error
-                if protocol and protocol.transport:
-                    protocol.send_message({
-                        'error':{
-                            'message':traceback.format_exc()
-                        },
-                        'id': 'render_error'
-                    })
-                traceback.print_exc()
+            with capture_output() as stdout:
+                try:
+                    result = load_model(filename)
+                    for shape in result:
+                        shape.render()
+                    if protocol and protocol.transport:
+                        protocol.send_message({'id': 'render_success'})
+                    return result
+                except Exception as e:
+                    #: Notify the client that we got an error
+                    if protocol and protocol.transport:
+                        protocol.send_message({
+                            'error':{
+                                'message':traceback.format_exc()
+                            },
+                            'id': 'render_error'
+                        })
+                    traceback.print_exc()
+                finally:
+                    if protocol and protocol.transport:
+                        protocol.send_message({'id': 'capture_output',
+                                               'result': stdout.getvalue()})
+                    else:
+                        print(stdout.getvalue())
         return []
     Container:
         padding = 0
@@ -134,12 +141,22 @@ enamldef ViewerDockItem(DockItem): view:
     name = "3d-viewer-{}".format(id(self))
     title = "Viewer"
     alias renderer: viewer.renderer
-    activated :: renderer.observe('errors', handle_errors)
+    activated :: 
+        renderer.observe('errors', handle_errors)
+        renderer.observe('output', handle_output)
     
     func handle_errors(change):
         editor_plugin = plugin.workbench.get_plugin('declaracad.editor')
         editor_plugin.active_document.errors = [change['value']]
-                                                    
+        
+    func handle_output(change):
+        print(change)
+        editor_plugin = plugin.workbench.get_plugin('declaracad.editor')
+        if change['type'] in ('create', 'update'):
+            editor_plugin.active_document.output = change['value']
+        elif change['type'] == 'container':
+            editor_plugin.active_document.output.append(change['item'])
+                                                
     icon = load_icon("bricks")
     stretch = 1
     closed :: renderer.terminate()

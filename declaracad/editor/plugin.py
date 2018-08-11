@@ -56,6 +56,9 @@ class Document(Model):
     
     #: Any linting errors
     errors = List()
+    
+    #: Any script output
+    output = ContainerList()
 
     #: Any autocomplete suggestions
     suggestions = List()

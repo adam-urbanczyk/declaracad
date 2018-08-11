@@ -210,5 +210,16 @@ enamldef ErrorsDockItem(DockItem):
   name = 'errors-item'
   icon = load_icon('bug')
   Container:
-    MultilineField:
-        text << "\n".join(plugin.active_document.errors)
+      padding = 0
+      MultilineField:
+          text << "\n".join(plugin.active_document.errors)
+
+
+enamldef OutputDockItem(DockItem):
+  title = "Output"
+  name = 'script-output-item'
+  icon = load_icon('script')
+  Container:
+      padding = 0
+      MultilineField:
+          text << "\n".join(plugin.active_document.output)
