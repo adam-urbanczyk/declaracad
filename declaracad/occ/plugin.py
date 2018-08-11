@@ -18,10 +18,10 @@ import enaml
 import atexit
 from types import ModuleType
 from atom.api import (
-    Atom, ContainerList, Unicode, Float, Bool, Int, Instance, observe
+    Atom, ContainerList, Unicode, Float, Dict, Bool, Int, Instance, observe
 )
 from declaracad.core.api import Plugin, Model, log
-from declaracad.core.utils import ProcessLineReceiver
+from declaracad.core.utils import ProcessLineReceiver, Deferred
 
 from enaml.application import timed_call
 from enaml.core.parser import parse
@@ -29,7 +29,6 @@ from enaml.core.import_hooks import EnamlCompiler
 from enaml.compat import exec_
 
 from .part import Part
-
 
 
 def viewer_factory():
@@ -140,6 +139,24 @@ class ExportOptions(Atom):
     def format(self):
         """ Return formatted option values for the exporter app to parse """
         return json.dumps(self.__getstate__())
+    
+    
+class ScreenshotOptions(Atom):
+    #: Path to save
+    path = Unicode()
+    
+    #: Document file name
+    filename = Unicode()
+    
+    #: Only screenshot this view
+    target = Unicode()
+    
+    def _default_path(self):
+        return "{}.png".format(os.path.splitext(self.filename)[0])
+    
+    def format(self):
+        """ Return formatted option values for the exporter app to parse """
+        return json.dumps(self.__getstate__())
 
 
 class ViewerProcess(ProcessLineReceiver):
@@ -164,9 +181,13 @@ class ViewerProcess(ProcessLineReceiver):
     #: Count restarts so we can detect issues with startup s
     restarts = Int()
     
+    #: ID count
+    _id = Int()
+    _responses = Dict()
+    
     @observe('filename', 'version')
     def _update_viewer(self, change):
-        self.send_message(change['name'], change['value'])
+        self.send_message(change['name'], change['value'], _id=None)
         
     def send_message(self, method, *args, **kwargs):
         # Defer until it's ready
@@ -174,7 +195,12 @@ class ViewerProcess(ProcessLineReceiver):
             log.debug('renderer | message not ready deferring')
             timed_call(0, self.send_message, method, *args, **kwargs)
             return
+        _id = kwargs.pop('_id')
+        
         request = {'jsonrpc': '2.0', 'method': method, 'params': args or kwargs}
+        if _id is not None:
+            request['id'] = _id        
+        
         log.debug(f'renderer | sent | {request}')
         self.transport.write(json.dumps(request).encode()+b'\r\n')
     
@@ -226,11 +252,27 @@ class ViewerProcess(ProcessLineReceiver):
         elif response_id == 'capture_output':
             # Script output capture it
             self.output = response['result'].split("\n")
-        
+        elif response_id is not None:
+            # Lookup the deferred object that should be stored for this id
+            # when it is called and invoke the callback or errback based on the
+            # result
+            d = self._responses.get(response_id)
+            if d is not None:
+                del self._responses[response_id]
+                error = response.get('error')
+                if error is not None:
+                    d.errback(error)
+                else:
+                    d.callback(response.get('result'))
+                
     def errReceived(self, data):
         if b'XCB error' in data:
             return
-        log.debug(f"render | err | {data}")
+        for line in data.split(b"\n"):
+            try:
+                log.debug(f"render | err | {line.encode()}")
+            except:
+                pass
     
     def inConnectionLost(self):
         log.warning("renderer | stdio closed (we probably did it)")
@@ -255,6 +297,16 @@ class ViewerProcess(ProcessLineReceiver):
         super(ViewerProcess, self).terminate()
         self.terminated = True
         
+    def __getattr__(self, name):
+        """ Proxy all calls """
+        def remote_viewer_call(*args, **kwargs):
+            d = Deferred()
+            self._id += 1
+            kwargs['_id'] = self._id
+            self._responses[self._id] = d
+            self.send_message(name, *args, **kwargs)
+            return d
+        return remote_viewer_call
 
 class ViewerPlugin(Plugin):
     
@@ -270,11 +322,12 @@ class ViewerPlugin(Plugin):
         viewer = self.get_viewer()
         viewer.proxy.display.FitAll()
 
-    def get_viewer(self):
-        return
-        ui = self.workbench.get_plugin('enaml.workbench.ui')
-        area = ui.workspace.content.find('dock_area')
-        return area.find('viewer-item').viewer
+    def get_viewer(self, name=None):
+        for viewer in self.get_viewers():
+            if name is None:
+                return viewer
+            elif viewer.name == name:
+                return viewer
 
     def export(self, event):
         """ Export the current model to stl """
@@ -292,4 +345,23 @@ class ViewerPlugin(Plugin):
             protocol, sys.executable, args=cmd, env=os.environ)
         return protocol
         
+    def screenshot(self, event):
+        """ Export the views as a screenshot """
+        if 'options' not in event.parameters:
+            editor = self.workbench.get_plugin('declaracad.editor')
+            options = ScreenshotOptions(filename=editor.active_document.name)
+        else:
+            options = event.parameters.get('options')
+        results = []
+        if options.target:
+            viewer = self.get_viewer(options.target)
+            if viewer:
+                results.append(viewer.renderer.screenshot(options.path))
+        else:
+            for i, viewer in enumerate(self.get_viewers()):
+                # Insert view number
+                path, ext = os.path.splitext(options.path)
+                filename = "{}-{}{}".format(path, i+1, ext)
+                results.append(viewer.renderer.screenshot(filename))
+        return results
         

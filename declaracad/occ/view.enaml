@@ -3,6 +3,7 @@ Created on Sep 28, 2016
 
 @author: jrm
 """
+import os
 import traceback
 from atom.api import Atom
 
@@ -95,7 +96,15 @@ enamldef ViewerWindow(Window): window:
     activated ::
         if frameless:
             self.proxy.widget.setWindowFlags(Qt.FramelessWindowHint)
-        
+    
+    func screenshot(filename):
+        if filename:
+            path, ext = os.path.splitext(filename.lower())
+            if ext not in ('.bmp', '.png', '.jpeg', '.tiff'):
+                raise ValueError("Filename must be a .jpeg, .png, .bmp, or .tiff")
+            viewer.proxy.display.View.Dump(filename)
+        return filename
+    
     func load_source():
         if filename != "-": 
             with capture_output() as stdout:
@@ -125,7 +134,7 @@ enamldef ViewerWindow(Window): window:
         return []
     Container:
         padding = 0
-        ModelViewer:
+        ModelViewer: viewer:
             Include:
                 objects << load_source() if filename and version else []
 
@@ -150,7 +159,6 @@ enamldef ViewerDockItem(DockItem): view:
         editor_plugin.active_document.errors = [change['value']]
         
     func handle_output(change):
-        print(change)
         editor_plugin = plugin.workbench.get_plugin('declaracad.editor')
         if change['type'] in ('create', 'update'):
             editor_plugin.active_document.output = change['value']
@@ -183,6 +191,14 @@ enamldef ViewerDockItem(DockItem): view:
         Action:
             separator = True
         Action:
-            text = "Restart view"
+            text = "Restart viewer"
             triggered :: viewer.renderer.transport.signalProcess("KILL")
+        Action:
+            separator = True
+        Action:
+            text = "Export screenshot..."
+            triggered ::
+                core = plugin.workbench.get_plugin("enaml.workbench.core")
+                core.invoke_command('declaracad.viewer.screenshot',
+                                    {'target': view.name})
                 

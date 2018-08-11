@@ -32,6 +32,14 @@ def export(event):
     ExportDialog(ui.window, plugin=plugin, event=event).exec_()
 
 
+def screenshot(event):
+    ui = event.workbench.get_plugin('enaml.workbench.ui')
+    plugin = event.workbench.get_plugin('declaracad.viewer')
+    with enaml.imports():
+        from .dialogs import ScreenCaptureDialog
+    ScreenCaptureDialog(ui.window, plugin=plugin, event=event).exec_()
+    
+
 def new_viewer(event):
     editor_plugin = event.workbench.get_plugin('declaracad.editor')
     viewer_plugin = event.workbench.get_plugin('declaracad.viewer')
@@ -78,6 +86,9 @@ enamldef ViewerManifest(PluginManifest):
         Command:
             id = 'declaracad.viewer.new_viewer'
             handler = new_viewer
+        Command:
+            id = 'declaracad.viewer.screenshot'
+            handler = screenshot
     Extension:
         id = 'items'
         point = DOCK_ITEM_POINT
@@ -91,9 +102,14 @@ enamldef ViewerManifest(PluginManifest):
         point = 'enaml.workbench.ui.actions'
         ActionItem:
             path = '/file/export'
-            label = 'Export...'
+            label = 'Export model...'
             group = 'impexp'
             command = 'declaracad.viewer.export'
+        ActionItem:
+            path = '/file/screenshot'
+            label = 'Export screenshot...'
+            group = 'impexp'
+            command = 'declaracad.viewer.screenshot'
         ActionItem:
             path = '/view/viewer'
             label = 'New viewer'

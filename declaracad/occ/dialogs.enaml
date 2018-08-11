@@ -15,8 +15,9 @@ import sys
 import textwrap
 if sys.platform == 'win32':
     from enaml import winutil
+from enaml.image import Image
 from enaml.layout.api import align, hbox, spacer
-from enaml.core.api import Conditional
+from enaml.core.api import Conditional, Looper
 from enaml.stdlib.dialog_buttons import DialogButtonBox, DialogButton
 from enaml.stdlib.task_dialog import (
     TaskDialogBody, TaskDialogCommandArea,
@@ -26,12 +27,10 @@ from enaml.stdlib.task_dialog import (
 from enaml.widgets.api import (
     Dialog, Field, Label, PushButton, RadioButton, CheckBox, Html,
     ProgressBar, ObjectCombo, Form, Container, SpinBox, FileDialogEx,
-    MultilineField
+    MultilineField, ImageView
 )
 from enamlx.widgets.api import DoubleSpinBox
-from .plugin import ExportOptions, log
-
-
+from .plugin import ScreenshotOptions, ExportOptions, log
 
 
 enamldef ExportDialog(Dialog): dialog:
@@ -144,5 +143,108 @@ enamldef ExportDialog(Dialog): dialog:
                     dialog.protocol = plugin.export(event)
                     
 
+enamldef ScreenCaptureDialog(Dialog): dialog:
+    title = 'Screen Capture'
+    initial_size = (640, 320)
+    attr plugin
+    attr event
+    attr show_preview: bool = False
+    attr results: list = []
+    attr options: ScreenshotOptions = create_default_options()
 
+    func create_default_options():
+        editor = plugin.workbench.get_plugin('declaracad.editor')
+        doc = editor.active_document
+        return ScreenshotOptions(filename=doc.name, 
+                                 target=event.parameters.get('target', ''))
+
+    TaskDialogStyleSheet:
+            pass
+    TaskDialogBody:
+        TaskDialogInstructionArea:
+            Label:
+                style_class = 'task-dialog-instructions'
+                text = 'Export screenshots of model'
+        TaskDialogContentArea:
+            Label:
+                style_class = 'task-dialog-content'
+                text = 'Enter the new file name'
+            Form:
+                Label:
+                    text = "Name"
+                Container:
+                    constraints = [
+                        hbox(file_name, browse)
+                    ]
+                    padding = 0
+                    Field: file_name:
+                        submit_triggers = ['auto_sync']
+                        text << os.path.abspath(options.path)
+                        text ::
+                            path = change['value']
+                            if path:
+                                p, ext in os.path.splitext(path.lower())
+                                if ext in ('.png', '.jpeg', '.tiff', '.bmp'):
+                                    options.path = path
+                    PushButton: browse:
+                        text = "Browse"
+                        clicked ::
+                            path = FileDialogEx.get_save_file_name(self,
+                                        current_path=options.path, 
+                                        name_filters=['*.png', 
+                                                      '*.jpeg', 
+                                                      '*.tiff', 
+                                                      '*.bmp'])
+                            if path:
+                                options.path = path
+        TaskDialogDetailsArea: details:
+            visible << dialog.show_preview
+            Form:
+                func load_image(result):
+                    if result is not None:
+                        with open(result, 'rb') as f:
+                            return Image(data=f.read())
+                    else:
+                        return None
+                func image_ready(result):
+                    try:
+                        return os.path.exists(result)
+                    except:
+                        return False
+                
+                Looper:
+                    iterable << results
+                    Conditional: cond:
+                        condition << image_ready(loop_item.result)
+                        ImageView:
+                            resist_width = 'weak'
+                            resist_height = 'weak'
+                            scale_to_fit = True
+                            allow_upscaling = False
+                            preserve_aspect_ratio = True
+                            constraints = [(width == 640) | 'weak', (height == 480) | 'weak']
+                            image << load_image(loop_item.result)
+                    Conditional:
+                        condition << not cond.condition
+                        MultilineField:
+                            text << str(loop_item.result) if loop_item.result else "Loading..."
+            
+        TaskDialogCommandArea:
+            constraints = [
+                hbox(show_options, spacer, btn_yes, btn_no),
+                align('v_center', btn_yes, btn_no),
+            ]
+            CheckBox: show_options:
+                text = "Show preview"
+                checked := dialog.show_preview
+            PushButton: btn_no:
+                text << "Close" if results else "Cancel"
+                clicked :: dialog.close()
+            PushButton: btn_yes:
+                enabled << bool(options.path)
+                text = "Export"
+                clicked ::
+                    event.parameters['options'] = options
+                    dialog.results = plugin.screenshot(event)
+                    dialog.show_preview = True
 

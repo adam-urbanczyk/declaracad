@@ -51,6 +51,10 @@ class ViewerProtocol(JSONRRCProtocol):
     def handle_version(self, version):
         self.view.version = version
         
+    def __getattr__(self, name):
+        if name.startswith("handle_"):
+            return getattr(self.view, name.lstrip("handle_"))
+        
     def connectionLost(self, reason):
         if self.view.frameless:
             sys.exit(0)

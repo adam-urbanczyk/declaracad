@@ -16,12 +16,13 @@ import traceback
 from io import StringIO
 from contextlib import contextmanager
 
-from atom.api import Atom, Value, Int, Bool, Bytes, ContainerList
+from atom.api import Atom, Value, Int, Bool, Bytes, ContainerList, Value
 
 from enaml.image import Image
 from enaml.icon import Icon, IconImage
 from enaml.application import timed_call
 
+from twisted.internet.defer import Deferred as TwistedDeferred
 from twisted.internet.protocol import ProcessProtocol
 from twisted.protocols.basic import LineReceiver
 
@@ -97,6 +98,18 @@ def capture_output():
 # ==============================================================================
 # Twisted protocols
 # ==============================================================================
+class Deferred(Atom, TwistedDeferred):
+    """ An observable deferred """
+    #: Watch this to see when the deferred is complete
+    called = Bool()
+    
+    #: Result when deferred completes
+    result = Value()
+    
+    #: Pass
+    callbacks = Value()
+    
+
 class JSONRRCProtocol(Atom, LineReceiver):
     def send_message(self, message):
         response = {'jsonrpc': '2.0'}
@@ -135,14 +148,14 @@ class JSONRRCProtocol(Atom, LineReceiver):
                 result = handler(**params)
             else:
                 result = handler(*params)
+            if request_id is not None:
+                self.send_message({'id': request_id, 'result': result})
         except Exception as e:
             self.send_message({"id": request_id,
                                'error': {'code': -32601,
                                          'message': traceback.format_exc()}})
-        
-        if request_id is not None:
-            self.send_message({'id': request_id, 'result': result})
-
+       
+       
 
 class ProcessLineReceiver(Atom, ProcessProtocol, LineReceiver):
     """ A process protocol that pushes output into a list of each line.
