@@ -596,16 +596,10 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             self.display.SetModeWireFrame()
     
     def set_view_mode(self, mode):
-        if mode == 'iso':
-            self.display.View_Iso()
-        elif mode == 'top':
-            self.display.View_Top()
-        elif mode == 'bottom':
-            self.display.View_Bottom()
-        elif mode == 'left':
-            self.display.View_Left()
-        elif mode == 'right':
-            self.display.View_Right()
+        """ Call View_<mode> on the display and refit as needed. """
+        handler = getattr(self.display, 'View_{}'.format(mode.title()), None)
+        if handler is not None:
+            handler()
         self.display.FitAll()
             
     def update_selection(self, *args, **kwargs):
