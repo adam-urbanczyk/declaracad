@@ -280,7 +280,18 @@ class Shape(ToolkitObject):
     position = d_(Coerced(tuple))
     
     def _default_position(self):
-        return (self.x, self.y, self.z)
+        return tuple([
+            self.get_member(axis).get_slot(self) or 0.0 for axis in 'xyz'
+        ])
+    
+    def _default_x(self):
+        return self.position[0]
+    
+    def _default_y(self):
+        return self.position[1]
+    
+    def _default_z(self):
+        return self.position[2]
     
     @observe('x', 'y', 'z')
     def _update_position(self, change):
