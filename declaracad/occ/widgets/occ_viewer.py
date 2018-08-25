@@ -4,12 +4,22 @@ Created on Sep 26, 2016
 @author: jrm
 """
 from atom.api import (
-   Event, List, Tuple, Bool, Int, Enum, Typed, ForwardTyped, observe,
-   set_default
+   Atom, Event, List, Tuple, Bool, Int, Enum, Typed, ForwardTyped, observe,
+   Dict, set_default
 )
 from enaml.core.declarative import d_
 from enaml.widgets.control import Control, ProxyControl
 
+
+class ViewerSelectionEvent(Atom):
+    #: Selected shape or shapes
+    selection = List()
+    
+    #: Parameters such as coodrinates or selection area
+    parameters = Tuple()
+    
+    #: Selection callback parameters
+    options = Dict()
 
 class ProxyOccViewer(ProxyControl):
     """ The abstract definition of a proxy SpinBox object.
@@ -62,6 +72,15 @@ class ProxyOccViewer(ProxyControl):
     def set_antialiasing(self, enabled):
         raise NotImplementedError
     
+    def fit_all(self):
+        raise NotImplementedError
+    
+    def fit_selection(self):
+        raise NotImplementedError
+    
+    def take_screenshot(self, filename):
+        raise NotImplementedError
+    
 
 class OccViewer(Control):
     """ A spin box widget which manipulates integer values.
@@ -79,7 +98,7 @@ class OccViewer(Control):
     selection_mode = d_(Enum('shape', 'neutral', 'face', 'edge', 'vertex'))
     
     #: Selected items
-    selection = d_(List(), writable=False)
+    selection = d_(Event(ViewerSelectionEvent), writable=False)
     
     #: View direction
     view_mode = d_(Enum('iso', 'top', 'bottom', 'left', 'right', 'front',
@@ -130,3 +149,17 @@ class OccViewer(Control):
         # The superclass handler implementation is sufficient.
         super(OccViewer, self)._update_proxy(change)
 
+    # -------------------------------------------------------------------------
+    # Viewer API
+    # -------------------------------------------------------------------------
+    def fit_all(self):
+        """ Zoom in and center on all item(s) """
+        self.proxy.fit_all()
+        
+    def fit_selection(self):
+        """ Zoom in and center on the selected item(s) """
+        self.proxy.fit_selection()
+        
+    def take_screenshot(self, filename):
+        """ Take a screenshot and save it with the given filename """
+        self.proxy.take_screenshot(filename)

@@ -270,6 +270,9 @@ class ViewerProcess(ProcessLineReceiver):
                     d.errback(error)
                 else:
                     d.callback(response.get('result'))
+        else:
+            # Append to output
+            self.output.append(line)
                 
     def errReceived(self, data):
         if b'XCB error' in data:
@@ -290,14 +293,10 @@ class ViewerProcess(ProcessLineReceiver):
     
     def errConnectionLost(self):
         log.warning("renderer | stderr closed")
-    
-    def processExited(self, reason):
-        super(ViewerProcess, self).processExited(reason)
-        log.warning(f"renderer | process exit status {reason.value.exitCode}")
-    
+        
     def processEnded(self, reason):
         super(ViewerProcess, self).processEnded(reason)
-        log.warning(f"renderer | process ended status {reason.value.exitCode}")
+        log.warning(f"renderer | process ended: {reason}")
         
     def terminate(self):
         super(ViewerProcess, self).terminate()

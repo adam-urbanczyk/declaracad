@@ -56,7 +56,10 @@ enamldef ModelViewer(OccViewer): viewer:
         context_menu = True
         Action:
             text = 'Fit all'
-            triggered :: viewer.proxy.display.FitAll()
+            triggered :: viewer.fit_all()
+        Action:
+            text = 'Fit to selection'
+            triggered :: viewer.fit_selection()
         Action:
             separator = True
         Menu:
@@ -102,7 +105,7 @@ enamldef ViewerWindow(Window): window:
             path, ext = os.path.splitext(filename.lower())
             if ext not in ('.bmp', '.png', '.jpeg', '.tiff'):
                 raise ValueError("Filename must be a .jpeg, .png, .bmp, or .tiff")
-            viewer.proxy.display.View.Dump(filename)
+            viewer.take_screenshot(filename)
         return filename
     
     func load_source():
@@ -135,6 +138,13 @@ enamldef ViewerWindow(Window): window:
     Container:
         padding = 0
         ModelViewer: viewer:
+            selection ::
+                e = change['value']
+                if protocol and protocol.transport:
+                    protocol.send_message({
+                        'result': str(e.selection),
+                        'id': 'shape_selection'
+                    })
             Include:
                 objects << load_source() if filename and version else []
 

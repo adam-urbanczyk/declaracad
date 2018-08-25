@@ -15,7 +15,7 @@ from atom.api import Dict, Typed, Int, Property
 
 from OCC.Display import OCCViewer
 from ..impl.occ_part import OccPart
-from ..widgets.occ_viewer import ProxyOccViewer
+from ..widgets.occ_viewer import ProxyOccViewer, ViewerSelectionEvent
 
 from enaml.qt import QtCore, QtGui
 from PyQt5 import QtOpenGL
@@ -26,6 +26,10 @@ from enaml.qt.qt_toolkit_object import QtToolkitObject
 from enaml.application import timed_call
 from OCC.BRepBuilderAPI import BRepBuilderAPI_MakeShape
 from OCC import Graphic3d
+
+from OCC.Bnd import Bnd_Box
+from OCC.BRepBndLib import brepbndlib_Add
+
 
 log = logging.getLogger('declaracad')
 
@@ -337,6 +341,7 @@ class QtViewer3d(QtBaseViewer):
 
     def ZoomAll(self, evt):
         self._display.FitAll()
+        
 
     def wheelEvent(self, event):
         if self._fireEventCallback('mouse_scrolled', event):
@@ -386,7 +391,7 @@ class QtViewer3d(QtBaseViewer):
 
         if event.button() == Qt.LeftButton:
             pt = event.pos()
-            if self._select_area:
+            if self._select_area and self._drawbox:
                 [xmin, ymin, dx, dy] = self._drawbox
                 self._display.SelectArea(xmin, ymin, xmin + dx, ymin + dy)
                 self._select_area = False
@@ -503,8 +508,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         self._update_raytracing_mode()
 
         #: Setup callbacks
-        display.register_select_callback(self.update_selection)
-        self.update_selection()
+        display.register_select_callback(self.on_selection)
 
         widget._inited = True  # dict mapping keys to functions
         widget._SetupKeyMap()  #
@@ -540,7 +544,40 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             child.unobserve('shape', self.update_display)
         else:
             super(QtOccViewer, self).child_removed(child)
+    
+    # -------------------------------------------------------------------------
+    # Viewer API
+    # -------------------------------------------------------------------------
+    def get_bounding_box(self, shapes):
+        """ Compute the bounding box for the given list of shapes. Return values
+        are in 3d coordinate space.
         
+        Parameters
+        ----------
+        shapes: List
+            A list of TopoDS_Shape to compute a bbox for
+        
+        Returns
+        -------
+        bbox: Tuple
+            A tuple of (xmin, ymin, zmin, xmax, ymax, zmax).
+        
+        """
+        bbox = Bnd_Box()
+        for shape in shapes:
+            brepbndlib_Add(shape, bbox)
+        return bbox.Get()
+    
+    def get_screen_coordinate(self, point):
+        """ Convert a 3d coordinate to a 2d screen coordinate
+        
+        Parameters
+        ----------
+        (x, y, z): Tuple
+            A 3d coordinate
+        """
+        return self.display.View.Convert(*point)
+    
     def set_antialiasing(self, enabled):
         if enabled:
             self.display.EnableAntiAliasing()
@@ -576,16 +613,11 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         self.display.display_trihedron()
         
     def set_selection_mode(self, mode):
-        if mode == 'shape':
-            self.display.SetSelectionModeShape()
-        elif mode == 'neutral':
-            self.display.SetSelectionModeNeutral()
-        elif mode == 'face':
-            self.display.SetSelectionModeFace()
-        elif mode == 'edge':
-            self.display.SetSelectionModeEdge()
-        elif mode == 'vertex':
-            self.display.SetSelectionModeVertex()
+        """ Call SetSelectionMode<mode> on the display. """
+        attr = 'SetSelectionMode{}'.format(mode.title())
+        handler = getattr(self.display, attr, None)
+        if handler is not None:
+            handler()
         
     def set_display_mode(self, mode):
         if mode == 'shaded':
@@ -597,12 +629,35 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     
     def set_view_mode(self, mode):
         """ Call View_<mode> on the display and refit as needed. """
-        handler = getattr(self.display, 'View_{}'.format(mode.title()), None)
+        attr = 'View_{}'.format(mode.title())
+        handler = getattr(self.display, attr, None)
         if handler is not None:
             handler()
         self.display.FitAll()
-            
-    def update_selection(self, *args, **kwargs):
+        
+    def fit_all(self):
+        self.display.FitAll()
+        
+    def fit_selection(self):
+        if not self.display.selected_shapes:
+            return
+        
+        # Compute bounding box of the selection
+        bbox = self.get_bounding_box(self.display.selected_shapes)
+        xmin, ymin = self.get_screen_coordinate(bbox[0:3])
+        xmax, ymax = self.get_screen_coordinate(bbox[3:6])
+        cx, cy = int(xmin+(xmax-xmin)/2), int(ymin+(ymax-ymin)/2)
+        self.display.MoveTo(cx, cy)
+        pad = 20
+        self.display.ZoomArea(xmin-pad, ymin-pad, xmax+pad, ymax+pad)
+        
+    def take_screenshot(self, filename):
+        return self.display.View.Dump(filename)
+    
+    # -------------------------------------------------------------------------
+    # Display Handling
+    # -------------------------------------------------------------------------
+    def on_selection(self, selection, *args, **kwargs):
         d = self.declaration
         selection = []
         for shape in self.display.selected_shapes:
@@ -611,7 +666,10 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             else:
                 log.warn("shape {} not in {}".format(shape,
                                                      self._displayed_shapes))
-        d.selection = selection
+        #d.selection = selection
+        d.selection(ViewerSelectionEvent(selection=selection,
+                                         parameters=args,
+                                         options=kwargs))
         
 #     def _queue_update(self,change):
 #         self._update_count +=1
@@ -625,8 +683,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 #         self.update_shape(change)
             
     def update_display(self, change=None):
+        """ Queue an update request """
         self._update_count += 1
-        log.debug('update_display')
         timed_call(10, self._do_update)
         
     def clear_display(self):
@@ -658,7 +716,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
             self.clear_display()
             displayed_shapes = {}
-            log.debug("_do_update {}")
+            #log.debug("_do_update {}")
 
             #: Expand all parts otherwise we lose the material information
             shapes = self._expand_shapes(self.shapes[:])
