@@ -17,7 +17,9 @@ from .algo import (
 from .draw import (
     Point, Vertex, Edge, Line,
     Segment, Arc, Circle, Ellipse, Hyperbola,
-    Parabola, Polygon, Wire
+    Parabola, Polygon,
+    BSpline, Bezier,
+    Wire
 )
 
 from .part import Part

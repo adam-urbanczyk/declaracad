@@ -9,7 +9,7 @@ from enaml.application import timed_call
 from ..draw import (
     ProxyPoint, ProxyVertex, ProxyLine, ProxyCircle, ProxyEllipse, 
     ProxyHyperbola, ProxyParabola, ProxyEdge, ProxyWire, 
-    ProxySegment, ProxyArc, ProxyPolygon,
+    ProxySegment, ProxyArc, ProxyPolygon, ProxyBSpline, ProxyBezier
 )
 from .occ_shape import OccShape, OccDependentShape, coerce_axis
 
@@ -23,6 +23,9 @@ from OCC.gce import gce_MakeLin
 from OCC.GC import GC_MakeSegment, GC_MakeArcOfCircle
 from OCC.gp import gp_Pnt, gp_Lin, gp_Circ, gp_Elips, gp_Hypr, gp_Parab
 from OCC.TopoDS import TopoDS_Vertex, topods
+from OCC.GeomAPI import GeomAPI_PointsToBSpline
+from OCC.Geom import Geom_BezierCurve, Geom_BSplineCurve
+from OCC.TColgp import TColgp_Array1OfPnt
 
 
 class OccPoint(OccShape, ProxyPoint):
@@ -240,6 +243,46 @@ class OccPolygon(OccLine, ProxyPolygon):
         self.create_shape()
 
 
+class OccBSpline(OccLine, ProxyBSpline):
+    #: Update the class reference
+    reference = set_default('https://dev.opencascade.org/doc/refman/html/'
+                            'class_geom___b_spline_curve.html')
+
+    shape = Typed(Geom_BSplineCurve)
+    
+    def create_shape(self):
+        d = self.declaration
+        if not d.points:
+            raise ValueError("Must have at least two points")
+        # Poles and weights
+        pts = TColgp_Array1OfPnt(1, len(d.points))
+        set_value = pts.SetValue
+        
+        # TODO: Support weights
+        for i, p in enumerate(d.points):
+            set_value(i+1, gp_Pnt(*p))
+        
+        self.shape = GeomAPI_PointsToBSpline(pts).Curve().GetObject()
+        
+        
+class OccBezier(OccLine, ProxyBezier):
+    #: Update the class reference
+    reference = set_default('https://dev.opencascade.org/doc/refman/html/'
+                            'class_geom___bezier_curve.html')
+
+    shape = Typed(Geom_BezierCurve)
+    
+    def create_shape(self):
+        d = self.declaration
+        pts = TColgp_Array1OfPnt(1, len(d.points))
+        set_value = pts.SetValue
+        
+        # TODO: Support weights
+        for i, p in enumerate(d.points):
+            set_value(i+1, gp_Pnt(*p))
+        self.shape = Geom_BezierCurve(pts)
+
+
 class OccWire(OccShape, ProxyWire):
     #: Update the class reference
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
@@ -257,24 +300,31 @@ class OccWire(OccShape, ProxyWire):
         self.update_shape({})
         for child in self.children():
             self.child_added(child)
-    
+            
+    def shape_to_wire(self, shape):
+        
+        if hasattr(shape, 'Wire'):
+            return shape.Wire()
+        elif hasattr(shape, 'Edge'):
+            return shape.Edge()
+        elif hasattr(shape, 'Shape'):  # Transforms
+            return topods.Wire(shape.Shape())
+        elif hasattr(shape, 'GetHandle'): # Curves
+            return BRepBuilderAPI_MakeEdge(shape.GetHandle()).Edge()
+        
+        raise ValueError("Cannot build Wire from shape: {}".format(shape))
+        
     def update_shape(self, change):
         d = self.declaration
         shape = BRepBuilderAPI_MakeWire()
         for c in self.children():
-            if hasattr(c.shape, 'Wire'):
-                #: No conversion needed
-                shape.Add(c.shape.Wire())
-            elif hasattr(c.shape, 'Edge'):
-                #: No conversion needed
-                shape.Add(c.shape.Edge())
-            elif isinstance(c.shape, (list, tuple)):
+            convert = self.shape_to_wire
+            if isinstance(c.shape, (list, tuple)):
                 #: Assume it's a list of drawn objects...
-                for e in c.shape: 
-                    shape.Add(e.Edge())
+                for item in c.shape:
+                    shape.Add(convert(item))
             else:
-                #: Attempt to convert the shape into a wire
-                shape.Add(topods.Wire(c.shape.Shape()))
+                shape.Add(convert(c.shape))
                     
         assert shape.IsDone(), 'Edges must be connected'
         self.shape = shape

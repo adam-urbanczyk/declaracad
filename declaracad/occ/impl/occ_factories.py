@@ -16,6 +16,16 @@ def occ_box_factory():
     return OccBox
 
 
+def occ_bezier_factory():
+    from .occ_draw import OccBezier
+    return OccBezier
+
+
+def occ_bspline_factory():
+    from .occ_draw import OccBSpline
+    return OccBSpline
+
+
 def occ_cone_factory():
     from .occ_shape import OccCone
     return OccCone
@@ -236,6 +246,8 @@ OCC_FACTOIRES = {
     'Hyperbola': occ_hyperbola_factory,
     'Parabola': occ_parabola_factory,
     'Polygon': occ_polygon_factory,
+    'Bezier': occ_bezier_factory,
+    'BSpline': occ_bspline_factory,
     'Wire': occ_wire_factory,
 }
 

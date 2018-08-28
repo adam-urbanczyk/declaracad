@@ -100,6 +100,16 @@ class ProxyPolygon(ProxyLine):
     
     def set_closed(self, closed):
         raise NotImplementedError
+
+
+class ProxyBSpline(ProxyLine):
+    #: A reference to the shape declaration.
+    declaration = ForwardTyped(lambda: BSpline)
+    
+    
+class ProxyBezier(ProxyLine):
+    #: A reference to the shape declaration.
+    declaration = ForwardTyped(lambda: Bezier)
     
 
 class ProxyWire(ProxyShape):
@@ -409,6 +419,34 @@ class Polygon(Line):
     def _update_proxy(self, change):
         super(Polygon, self)._update_proxy(change) 
 
+
+class BSpline(Line):
+    """ A BSpline built by approximation from the given points.
+             
+    Examples
+    ---------
+    
+    Wire:
+        BSpline:
+            points = [(0, 0, 0), (10, 0, 0), (10, 10, 0), (0, 10, 0)]
+    
+    """
+    proxy = Typed(ProxyBSpline)
+    
+
+class Bezier(Line):
+    """ A Bezier curve built by approximation from the given points.
+    
+         
+    Examples
+    ---------
+    
+    Wire:
+        Bezier:
+            points = [(0, 0, 0), (10, 0, 0), (10, 10, 0), (0, 10, 0)]
+    
+    """
+    proxy = Typed(ProxyBezier)
 
 class Wire(Shape):
     """ A Wire is a Path or series of Segment, Arcs, etc... All child items
