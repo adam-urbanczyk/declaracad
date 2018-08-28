@@ -36,9 +36,6 @@ class ProxyOccViewer(ProxyControl):
     def set_background_gradient(self, gradient):
         raise NotImplementedError
     
-    def set_zoom(self, zoom):
-        raise NotImplementedError
-    
     def set_rotation(self, rotation):
         raise NotImplementedError
     
@@ -79,6 +76,9 @@ class ProxyOccViewer(ProxyControl):
         raise NotImplementedError
     
     def take_screenshot(self, filename):
+        raise NotImplementedError
+    
+    def zoom_factor(self, zoom):
         raise NotImplementedError
     
 
@@ -163,3 +163,7 @@ class OccViewer(Control):
     def take_screenshot(self, filename):
         """ Take a screenshot and save it with the given filename """
         self.proxy.take_screenshot(filename)
+        
+    def zoom_factor(self, factor):
+        """ Zoom in by a given factor """
+        self.proxy.zoom_factor(factor)
