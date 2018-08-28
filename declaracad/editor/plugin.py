@@ -30,13 +30,13 @@ from enaml.layout.api import InsertItem, InsertTab, RemoveItem
 from types import ModuleType
 from future.utils import exec_
 from glob import glob
-from . import inspection
 
 
 def editor_item_factory():
     with enaml.imports():
         from .view import EditorDockItem
     return EditorDockItem
+
 
 def create_editor_item(*args, **kwargs):
     EditorDockItem = editor_item_factory()
@@ -82,7 +82,7 @@ class Document(Model):
     def _observe_source(self, change):
         ext = os.path.splitext(self.name.lower())[-1]
         if ext in ['.py', '.enaml']:
-            self._update_errors(change)
+            self.errors = []
             self._update_suggestions(change)
         if change['type'] == 'update':
             try:
@@ -90,25 +90,7 @@ class Document(Model):
                     self.unsaved = f.read() != self.source
             except:
                 pass
-
-    def _update_errors(self, change):
-        """ Parse the source and try to detect any errors
-         
-        """
-        if self.errors and change['type'] == 'create':
-            #: Don't squash load errors
-            return
-        checker, reporter = inspection.run(self.source, self.name)
-        warnings = [l for l in reporter._stdout.getvalue().split("\n") if l]
-        errors = [l for l in reporter._stderr.getvalue().split("\n") if l]
-
-        #: Ignore for enaml
-        #if os.path.splitext(self.name)[-1] == '.enaml':
-        #    errors = []
-
-        self.errors = warnings + errors
-        self.checker = checker
-
+            
     def _update_suggestions(self, change):
         """ Determine code completion suggestions for the current cursor
         position in the document.

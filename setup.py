@@ -18,7 +18,7 @@ setup(
     license='GPL3',
     url='https://github.com/codelv/declaracad',
     packages=find_packages(),
-    install_requires=['enaml', 'jsonpickle', 'qtconsole', 'pyflakes',
+    install_requires=['enaml', 'jsonpickle', 'qtconsole',
                       'QScintilla', 'numpydoc', 'markdown', 'enamlx',
-                      'qt5reactor', 'pyserial'],
+                      'qt5reactor', 'pyserial', 'watchdog'],
 )
