@@ -62,7 +62,6 @@ class DeclaracadWorkspace(Workspace):
         """ Save the dock area for the workspace.
 
         """
-        print("Saving dock area")
         area = self.content.find('dock_area')
         try:
             with open('declaracad.workspace.db', 'w') as f:

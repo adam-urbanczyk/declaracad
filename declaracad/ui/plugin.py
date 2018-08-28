@@ -27,7 +27,7 @@ class DeclaracadPlugin(Plugin):
     #: Dock items to add
     dock_items = List(DockItem)
     dock_layout = Instance(AreaLayout)
-    dock_style = Enum(*reversed(available_styles()))
+    dock_style = Enum(*reversed(available_styles())).tag(config=True)
 
     #: Settings pages to add
     settings_pages = List(extensions.SettingsPage)
