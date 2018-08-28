@@ -7,12 +7,9 @@ and [enaml](https://github.com/nucleic/enaml/).
 
 It's similar to [OpenSCAD](http://www.openscad.org/)
 in that everything is intended to be defined programatically. However the 
-language being used is enaml (a superset of python) instead of javascript.  
-Python users/developers will find this very easy and intuitive.
+language being used is enaml (a superset of python) instead of javascript.  Python users/developers will find this very easy and intuitive.
 
-Meant to be used along side of [pythonocc](https://github.com/tpaviot/pythonocc-core) 
-code when very custom shapes are needed. You can easily combind parts from various
-sources into assemblies.
+It's intended to be used along side of [pythonocc](https://github.com/tpaviot/pythonocc-core), using either OCC apis directly or the declarative abstractions. You can easily combind parts from various sources into assemblies.
 
 
 See [the project site](https://www.codelv.com/projects/declaracad/) (coming soon).
