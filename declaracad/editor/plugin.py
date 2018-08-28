@@ -343,7 +343,7 @@ class EditorPlugin(Plugin):
         with open(path, 'w') as f:
             f.write(doc.source)
 
-    @observe('active_document', #'active_document.source', 
+    @observe('active_document',  #'active_document.source',
              'active_document.unsaved')
     def refresh_view(self, change):
         """ Refresh the compiled view object.
@@ -359,27 +359,6 @@ class EditorPlugin(Plugin):
         for viewer in plugin.get_viewers():
             viewer.renderer.filename = doc.name
             viewer.renderer.version += 1
-        return
-        try:
-            ast = parse(doc.source, filename=doc.name)
-            code = EnamlCompiler.compile(ast, doc.name)
-            module = ModuleType('__main__')
-            module.__file__ = doc.name
-            namespace = module.__dict__
-            with enaml.imports():
-                exec_(code, namespace)
-            assembly = namespace.get('Assembly', lambda: None)()
-            viewer.parts = [assembly] if assembly else []
-        except Exception as e:
-            errors = doc.errors[:]
-            log.warning(traceback.format_exc())
-            tb = traceback.format_exc().strip().split("\n")
-            m = re.search(r'File "(.+)", line (\d+),', tb[-3])
-            if m:
-                errors.append("{}:{}: {}".format(m.group(1), m.group(2),
-                                                tb[-1]))
-            doc.errors = errors
-            viewer.parts = []
             
     # -------------------------------------------------------------------------
     # Code inspection API
