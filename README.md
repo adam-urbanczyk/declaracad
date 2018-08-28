@@ -3,12 +3,16 @@
 A declarative parametric 3D modeling program built using [OpenCascade](https://github.com/tpaviot/pythonocc-core)
 and [enaml](https://github.com/nucleic/enaml/). 
 
-[![Declaracad preview](https://img.youtube.com/vi/SeVcerBlpWE/0.jpg)](https://youtu.be/SeVcerBlpWE)
+![DeclaraCAD](https://user-images.githubusercontent.com/380158/43459223-d3ddf346-949a-11e8-8b3c-efe60e88818c.gif)
 
 It's similar to [OpenSCAD](http://www.openscad.org/)
 in that everything is intended to be defined programatically. However the 
 language being used is enaml (a superset of python) instead of javascript.  
 Python users/developers will find this very easy and intuitive.
+
+Meant to be used along side of [pythonocc](https://github.com/tpaviot/pythonocc-core) 
+code when very custom shapes are needed. You can easily combind parts from various
+sources into assemblies.
 
 
 See [the project site](https://www.codelv.com/projects/declaracad/) (coming soon).
@@ -21,10 +25,11 @@ Currently the following 3D features can be used:
 1. Basic shapes (Box, Sphere, Cylinder, Wedge, Torus) see [shapes](declaracad/occ/shape.py)
 2. Boolean operations (Cut, Fuse, Common) see [algo](declaracad/occ/algo.py)
 3. Fillet and Chamfer edges see [algo](declaracad/occ/algo.py)
-4. 3D Drawing of wires and faces see [draw](declaracad/occ/draw.py)
+4. 3D Drawing (Lines, Arcs, BSplines, Beziers, Circles, etc...) see [draw](declaracad/occ/draw.py)
 5. Pipes [algo](declaracad/occ/algo.py)
 6. Extrude (Prism), LinearForm, RevolutionForm [algo](declaracad/occ/algo.py)
 7. ThickSolid, ThroughSections [algo](declaracad/occ/algo.py)
+8. Any shape from [pythonocc](https://github.com/tpaviot/pythonocc-core) can be used via a RawShape. See the [sprocket example](https://github.com/codelv/declaracad/blob/master/examples/sprocket.enaml)
 
 See the [examples](examples) and the [occ](declaracad/occ/) package.
 
