@@ -63,9 +63,6 @@ class Document(Model):
     #: Any autocomplete suggestions
     suggestions = List()
 
-    #: Checker instance
-    checker = Instance(inspection.Checker)
-
     def _default_source(self):
         """ Load the document from the path given by `name`.
         If it fails to load, nothing will be returned and an error
