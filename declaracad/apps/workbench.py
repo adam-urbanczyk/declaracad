@@ -22,6 +22,7 @@ occ.install()
 
 from declaracad.core.workbench import DeclaracadWorkbench
 
+import signal
 import enaml
 with enaml.imports():
     #: TODO autodiscover these
@@ -42,6 +43,9 @@ except ImportError:
 
 
 def main(**kwargs):
+    # Make sure ^C keeps working
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    
     # Start the workbench
     workbench = DeclaracadWorkbench()
     workbench.register(DeclaracadManifest())
