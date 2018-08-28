@@ -635,6 +635,9 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             handler()
         self.display.FitAll()
         
+    def zoom_factor(self, factor):
+        self.display.ZoomFactor(factor)
+        
     def fit_all(self):
         self.display.FitAll()
         

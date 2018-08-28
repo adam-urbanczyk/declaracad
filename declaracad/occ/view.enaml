@@ -62,6 +62,14 @@ enamldef ModelViewer(OccViewer): viewer:
             triggered :: viewer.fit_selection()
         Action:
             separator = True
+        Action:
+            text = 'Zoom in'
+            triggered :: viewer.zoom_factor(2)
+        Action:
+            text = 'Zoom out'
+            triggered :: viewer.zoom_factor(1/2)
+        Action:
+            separator = True
         Menu:
             title = 'Display'
             Looper:
@@ -69,8 +77,9 @@ enamldef ModelViewer(OccViewer): viewer:
                 Action:
                     text = loop_item.title()
                     checked << viewer.display_mode == loop_item
-                    triggered :: viewer.display_mode = loop_item
-
+                    triggered :: viewer.display_mode = loop_item        
+        Action:
+            separator = True
         Menu:
             title = 'Selection'
             Looper:
@@ -166,7 +175,7 @@ enamldef ViewerDockItem(DockItem): view:
     
     func handle_errors(change):
         editor_plugin = plugin.workbench.get_plugin('declaracad.editor')
-        editor_plugin.active_document.errors = [change['value']]
+        editor_plugin.active_document.errors = change['value'].split("\n")
         
     func handle_output(change):
         editor_plugin = plugin.workbench.get_plugin('declaracad.editor')
