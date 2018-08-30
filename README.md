@@ -17,7 +17,9 @@ See [the project site](https://www.codelv.com/projects/declaracad/) (coming soon
 
 ## Features
 
-Currently the following 3D features can be used:
+#### Modeling
+
+Currently the following 3D features can be used declaratively:
 
 1. Basic shapes (Box, Sphere, Cylinder, Wedge, Torus) see [shapes](declaracad/occ/shape.py)
 2. Boolean operations (Cut, Fuse, Common) see [algo](declaracad/occ/algo.py)
@@ -26,15 +28,29 @@ Currently the following 3D features can be used:
 5. Pipes [algo](declaracad/occ/algo.py)
 6. Extrude (Prism), LinearForm, RevolutionForm [algo](declaracad/occ/algo.py)
 7. ThickSolid, ThroughSections [algo](declaracad/occ/algo.py)
-8. Any shape from [pythonocc](https://github.com/tpaviot/pythonocc-core) can be used via a RawShape. See the [sprocket example](https://github.com/codelv/declaracad/blob/master/examples/sprocket.enaml)
 
 See the [examples](examples) and the [occ](declaracad/occ/) package.
+
+You can also embed any shape built using [pythonocc](https://github.com/tpaviot/pythonocc-core) directly via a RawShape. See the [sprocket example](https://github.com/codelv/declaracad/blob/master/examples/sprocket.enaml)
+
+
+#### Viewer
+
+Declaracad uses pythonocc's Qt Viewer and supports basic rotate, pan, zoom.  Each view is rendered in a separate process. 
+
+Clipping planes are now supported.
+
+![declaracad-3d-view-clip-planes](https://user-images.githubusercontent.com/380158/44884230-84e61100-ac88-11e8-8bba-3ebd30941371.gif)
+
+#### Editor
+
+Multiple editor views are supported. Basic error checking hinting is implemented.
 
 ## Import / export
 
 
 Currently there is no import support from other 3d types into editable code, 
-but models can be loaded for display
+but models can be loaded for display and exported to stl files or images.
 
 ![DeclaraCAD - loading models](https://user-images.githubusercontent.com/380158/34421112-4fcd664e-ebdb-11e7-8f75-ae7c2354dfa7.gif)
 
@@ -45,7 +61,6 @@ Importing 2D paths from SVG (ex Adobe Illustrator, Inkscape, etc..) is possible
 Models can be exported to an stl file for imported into other programs (ex Simplify3D, FreeCAD, etc..)
 
 ![DeclaraCAD export to stl](https://user-images.githubusercontent.com/380158/34184975-d911c43c-e4f0-11e7-88ca-b52e6557ae83.gif)
-
 
 ## Example
 
