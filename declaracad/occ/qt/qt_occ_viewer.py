@@ -776,7 +776,6 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             # TODO: Is there an API for this?
             bbox = self.get_bounding_box(displayed_shapes.keys())
             self.declaration.bounding_box = bbox
-            print(self.declaration.bounding_box)
         except:
             log.error("Failed to display shapes: {}".format(
                 traceback.format_exc()))
@@ -851,8 +850,11 @@ class QtOccViewerClippedPlane(QtControl, ProxyOccViewerClippedPlane):
         self.graphic.SetCapping(capping)
         self.update_viewer()
     
-    def set_capping_hatched(self, hashed):
-        self.graphic.SetCappingHatch(hashed)
+    def set_capping_hatched(self, hatched):
+        if hatched:
+            self.graphic.SetCappingHatchOn()
+        else:
+            self.graphic.SetCappingHatchOff()
         self.update_viewer()
         
     def set_capping_color(self, color):

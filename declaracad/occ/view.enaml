@@ -22,19 +22,25 @@ from enaml.core.api import Looper, Include, Conditional
 from enaml.layout.api import align, hbox
 from enaml.qt.QtCore import Qt
 from enaml.widgets.api import (
-    Window, Container, Menu, Action, Slider, CheckBox, Label
+    Window, Container, Menu, Action, DualSlider, CheckBox, Label
 )
-from enamlx.widgets.api import DoubleSpinBox
 
 from .widgets.api import OccViewer, OccViewerClippedPlane
 from .plugin import ViewerProcess, load_model
 
 
+def expand_dict(p):
+    for k, v in p.items():
+        for p in v:
+            yield p
+
+
 enamldef ModelViewer(OccViewer): viewer:
     attr p0 = None
-    attr clipped_planes: list = []
+    attr clipped_planes: dict = {} # Map axis to tuple of (lower, upper)
     Include:
-        objects << clipped_planes
+        
+        objects << list(expand_dict(clipped_planes))
 #     on_mouse_press::
 #         display, event = change['value']
 #         #print 'mouse_press',event
@@ -114,28 +120,52 @@ enamldef ModelViewer(OccViewer): viewer:
         Menu:
             title = 'Clip planes'
             Looper:
-                iterable = (('X', (1, 0, 0)), ('Y', (0, 1, 0)), ('Z', (0, 0, 1)))
+                iterable = (
+                    ('X', (1, 0, 0), 'red'), 
+                    ('Y', (0, 1, 0), 'blue',), 
+                    ('Z', (0, 0, 1), 'green')
+                )
                 Action:
                     text = loop_item[0]
                     triggered :: 
-                        pln = OccViewerClippedPlane(parent=viewer, direction=loop_item[1])
-                        plns = viewer.clipped_planes[:]
-                        plns.append(pln)
+                        # Create a plus and minus plane
+                        axis = loop_item[1].index(1)
+                        maxes = viewer.bounding_box[3:]
+                        
+                        d = loop_item[1]
+                        low_pln = OccViewerClippedPlane(
+                            parent=viewer, 
+                            direction=d,
+                            capping_color=loop_item[2],
+                        )
+                        
+                        # Create for other side by flipping direction and
+                        # positioning at the max
+                        high_pln = OccViewerClippedPlane(
+                            parent=viewer, 
+                            capping_color=loop_item[2],
+                            direction=tuple(-i for i in d),
+                            position=tuple(k*maxes[i] for i, k in enumerate(d))
+                        )
+                        plns = viewer.clipped_planes.copy()
+                        plns[axis] = (low_pln, high_pln)
                         viewer.clipped_planes = plns
             Action:
                 text = 'Clear all' 
-                triggered :: viewer.clipped_planes = []
+                triggered :: viewer.clipped_planes = {}
                     
                     
 enamldef ClippedPlaneRow(Container):
     padding = 0
     attr plane
+    attr high_plane
     attr bounding_box
     attr axis << plane.direction.index(1)
     attr labels = {0: 'X', 1: 'Y', 2: 'Z'}
-    constraints = [hbox(label,cbx, dsb, sldr), 
-                   align('v_center', label, cbx, dsb, sldr)]
-    func set_position(value):
+    
+    constraints = [hbox(label, cbx, sldr), 
+                   align('v_center', label, cbx, sldr)]
+    func set_position(plane, value):
         p = list(plane.position)
         p[axis] = value
         plane.position = tuple(p)
@@ -143,11 +173,8 @@ enamldef ClippedPlaneRow(Container):
         text << labels.get(axis, 'Custom')
     CheckBox: cbx:    
         checked := plane.enabled
-    DoubleSpinBox: dsb:
-        hug_width = 'strong'
-        value << plane.position[axis]
-        value :: set_position(change['value'])
-    Slider: sldr:
+        checked >> high_plane.enabled
+    DualSlider: sldr:
         func compute_bounds(vmin, vmax):
             # Divide the value into 100 items
             scale = 100/(vmax - vmin)
@@ -155,12 +182,13 @@ enamldef ClippedPlaneRow(Container):
             
         # min, max, scale
         attr bounds << compute_bounds(bounding_box[axis], bounding_box[axis+3])        
-        minimum << bounds[0]
-        maximum << bounds[1]
-        value << int(plane.position[axis]*bounds[2])
-        value :: set_position(change['value']/bounds[2])
+        minimum << bounds[0]-1
+        maximum << bounds[1]+1
+        low_value << int(plane.position[axis]*bounds[2])
+        low_value :: set_position(plane, change['value']/bounds[2])
+        high_value << int(high_plane.position[axis]*bounds[2])
+        high_value :: set_position(high_plane, change['value']/bounds[2])
             
-
 
 enamldef ViewerWindow(Window): window:
     #: File to load
@@ -200,7 +228,7 @@ enamldef ViewerWindow(Window): window:
                     if protocol and protocol.transport:
                         protocol.send_message({'id': 'render_success'})
                     # Clear clipped planes
-                    viewer.clipped_planes = []
+                    viewer.clipped_planes = {}
                     return result
                 except Exception as e:
                     # Notify the client that we got an error
@@ -233,11 +261,13 @@ enamldef ViewerWindow(Window): window:
                 objects << load_source() if filename and version else []
         Conditional:
             condition << bool(viewer.clipped_planes)
+            
             Container:
                 Looper:
-                    iterable << viewer.clipped_planes
+                    iterable << viewer.clipped_planes.values()
                     ClippedPlaneRow:
-                        plane = loop_item
+                        plane = loop_item[0]
+                        high_plane = loop_item[1]
                         bounding_box << viewer.bounding_box
 
 
