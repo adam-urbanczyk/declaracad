@@ -11,11 +11,13 @@ Based on https://github.com/tpaviot/pythonocc-core/
 import sys
 import logging
 import traceback
-from atom.api import Dict, Typed, Int, Property
+from atom.api import List, Dict, Typed, Int, Property, Bool
 
 from OCC.Display import OCCViewer
 from ..impl.occ_part import OccPart
-from ..widgets.occ_viewer import ProxyOccViewer, ViewerSelectionEvent
+from ..widgets.occ_viewer import (
+    ProxyOccViewer, ViewerSelectionEvent, ProxyOccViewerClippedPlane
+)
 
 from enaml.qt import QtCore, QtGui
 from PyQt5 import QtOpenGL
@@ -26,12 +28,25 @@ from enaml.qt.qt_toolkit_object import QtToolkitObject
 from enaml.application import timed_call
 from OCC.BRepBuilderAPI import BRepBuilderAPI_MakeShape
 from OCC import Graphic3d
-
 from OCC.Bnd import Bnd_Box
 from OCC.BRepBndLib import brepbndlib_Add
+from OCC.gp import gp_Pnt, gp_Dir, gp_Ax3
 
 
 log = logging.getLogger('declaracad')
+
+
+def coerce_color(color):
+    transparency = None
+    if isinstance(color, str):
+        if color.startswith("#"):
+            r, g, b, a = Display.hex_color(color)
+            if a is not None:
+                transparency = a
+            color = OCCViewer.rgb_color(r, g, b)
+        else:
+            color = OCCViewer.get_color_from_name(color)
+    return color, transparency
 
 
 class Display(OCCViewer.Viewer3d):
@@ -131,15 +146,9 @@ class Display(OCCViewer.Viewer3d):
             #color well, so I set it to something less reflective
             shape_to_display.SetMaterial(OCCViewer.Graphic3d_NOM_NEON_GNC)
         if color:
-            if isinstance(color, str):
-                if color.startswith("#"):
-                    r, g, b, a = self.ParseColor(color)
-                    if a is not None:
-                        transparency = a
-
-                    color = OCCViewer.rgb_color(r, g, b)
-                else:
-                    color = OCCViewer.get_color_from_name(color)
+            color, _transparency = coerce_color(color)
+            if _transparency is not None:
+                transparency = _transparency
             for shp in ais_shapes:
                 self.Context.SetColor(shp, color, False)
         if transparency:
@@ -159,7 +168,8 @@ class Display(OCCViewer.Viewer3d):
         else:
             return shape_to_display
 
-    def ParseColor(self, color):
+    @staticmethod
+    def hex_color(color):
         """ Parse a color to rgba from formats
         
         Parameters
@@ -473,13 +483,16 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     
     #: Displayed Shapes
     _displayed_shapes = Dict()
+    _ais_shapes = List()
     
     #: Shapes
     shapes = Property(lambda self: self.get_shapes(), cached=True)
     
-    @property
-    def display(self):
+    def _get_display(self):
         return self.widget._display
+    
+    #: Display
+    display = Property(_get_display, cached=True)
     
     def get_shapes(self):
         return [c for c in self.children()
@@ -719,11 +732,12 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
             self.clear_display()
             displayed_shapes = {}
+            ais_shapes = []
             #log.debug("_do_update {}")
 
             #: Expand all parts otherwise we lose the material information
             shapes = self._expand_shapes(self.shapes[:])
-
+            
             for shape in shapes:
                 d = shape.declaration
                 if not shape.shape:
@@ -750,12 +764,113 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                 #: If last shape
                 update = shape == shapes[-1]
 
-                ais_shape = display.DisplayShape(
+                ais_shapes.append(display.DisplayShape(
                     s, color=d.color, material=material,
                     transparency=d.transparency,
-                    update=update, fit=not self._displayed_shapes)
-
+                    update=update, fit=not self._displayed_shapes))
+                
+            self._ais_shapes = ais_shapes
             self._displayed_shapes = displayed_shapes
+            
+            # Update bounding box
+            # TODO: Is there an API for this?
+            bbox = self.get_bounding_box(displayed_shapes.keys())
+            self.declaration.bounding_box = bbox
+            print(self.declaration.bounding_box)
         except:
             log.error("Failed to display shapes: {}".format(
                 traceback.format_exc()))
+
+
+class QtOccViewerClippedPlane(QtControl, ProxyOccViewerClippedPlane):
+
+    #: Viewer widget
+    graphic = Typed(Graphic3d.Graphic3d_ClipPlane)
+    
+    #: Updates blocked
+    _updates_blocked = Bool(True)
+    
+    def _get_display(self):
+        return self.parent().display
+    
+    #: Display
+    display = Property(_get_display, cached=True)
+    
+    def create_widget(self):
+        self.graphic = Graphic3d.Graphic3d_ClipPlane()
+        
+    def init_widget(self):
+        #super(QtOccViewerClippedPlane, self).init_widget()
+        d = self.declaration
+        clip_plane = self.graphic
+        self.set_enabled(d.enabled)
+        self.set_capping(d.capping)
+        self.set_capping_hatched(d.capping_hatched)
+        self.set_position(d.position)
+        if d.capping_color:
+            self.set_capping_color(d.capping_color)
+        
+    def init_layout(self):
+        self._updates_blocked = False
+        viewer = self.parent()
+        clip_plane = self.graphic.GetHandle()
+        for ais_shp in viewer._ais_shapes:
+            ais_shp.GetObject().AddClipPlane(clip_plane)
+        self.update_viewer()
+        
+    def destroy(self):
+        viewer = self.parent()
+        self.graphic.SetOn(False)
+        if viewer is not None:
+            clip_plane = self.graphic.GetHandle()
+            
+            for ais_shp in viewer._ais_shapes:
+                try:
+                    ais_shp.GetObject().RemoveClipPlane(clip_plane)
+                except:
+                    pass
+        del self.graphic
+        super(QtOccViewerClippedPlane, self).destroy()
+        
+    # -------------------------------------------------------------------------
+    # Helpers
+    # -------------------------------------------------------------------------
+    def update_viewer(self):
+        if self._updates_blocked:
+            return
+        self.display.Context.UpdateCurrentViewer()
+        
+    # -------------------------------------------------------------------------
+    # ProxyOccViewerCappedPlane API
+    # -------------------------------------------------------------------------
+    def set_enabled(self, enabled):
+        self.graphic.SetOn(enabled)
+        self.update_viewer()
+        
+    def set_capping(self, capping):
+        self.graphic.SetCapping(capping)
+        self.update_viewer()
+    
+    def set_capping_hatched(self, hashed):
+        self.graphic.SetCappingHatch(hashed)
+        self.update_viewer()
+        
+    def set_capping_color(self, color):
+        display = self.display
+        clip_plane = self.graphic
+        if color:
+            c, t = coerce_color(color)
+            mat = clip_plane.CappingMaterial()
+            mat.SetAmbientColor(c)
+            mat.SetDiffuseColor(c)
+            clip_plane.SetCappingMaterial(mat)
+        
+    def set_position(self, position):
+        d = self.declaration
+        pln = self.graphic.ToPlane()
+        pln.SetPosition(gp_Ax3(gp_Pnt(*position), gp_Dir(*d.direction)))
+        self.graphic.SetEquation(pln)
+        self.update_viewer()
+    
+    def set_direction(self, direction):
+        self.set_position(self.declaration.position)

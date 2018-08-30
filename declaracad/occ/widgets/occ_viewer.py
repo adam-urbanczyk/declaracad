@@ -1,11 +1,17 @@
 """
+Copyright (c) 2016-2018, Jairus Martin.
+
+Distributed under the terms of the GPL v3 License.
+
+The full license is in the file LICENSE, distributed with this software.
+
 Created on Sep 26, 2016
 
 @author: jrm
 """
 from atom.api import (
    Atom, Event, List, Tuple, Bool, Int, Enum, Typed, ForwardTyped, observe,
-   Dict, set_default
+   Dict, Str, Float, set_default
 )
 from enaml.core.declarative import d_
 from enaml.widgets.control import Control, ProxyControl
@@ -20,11 +26,12 @@ class ViewerSelectionEvent(Atom):
     
     #: Selection callback parameters
     options = Dict()
-
+    
+    
 class ProxyOccViewer(ProxyControl):
-    """ The abstract definition of a proxy SpinBox object.
+    """ The abstract definition of a proxy Viewer object.
     """
-    #: A reference to the SpinBox declaration.
+    #: A reference to the Viewer declaration.
     declaration = ForwardTyped(lambda: OccViewer)
 
     def set_position(self, position):
@@ -80,16 +87,41 @@ class ProxyOccViewer(ProxyControl):
     
     def zoom_factor(self, zoom):
         raise NotImplementedError
+
+    
+class ProxyOccViewerClippedPlane(ProxyControl):
+    #: A reference to the ClippedPlane declaration.
+    declaration = ForwardTyped(lambda: OccViewerClippedPlane)
+    
+    def set_enabled(self, enabled):
+        raise NotImplementedError
+    
+    def set_capping(self, enabled):
+        raise NotImplementedError
+    
+    def set_capping_hashed(self, enabled):
+        raise NotImplementedError
+    
+    def set_capping_color(self, color):
+        raise NotImplementedError
+    
+    def set_position(self, position):
+        raise NotImplementedError
+    
+    def set_direction(self, direction):
+        raise NotImplementedError
     
 
 class OccViewer(Control):
-    """ A spin box widget which manipulates integer values.
+    """ A widget to view OpenCascade shapes.
     """
     #: A reference to the ProxySpinBox object.
     proxy = Typed(ProxyOccViewer)
     
-    #: The minimum value for the spin box. Defaults to 0.
-    position = d_(Tuple(Int(strict=False), default=(0, 0)))
+    #: Bounding box of displayed shapes. A tuple of the following values
+    #: (xmin, ymin, zmin, xmax, ymax, zmax). 
+    bounding_box = d_(Tuple(Float(strict=False), default=(0, 0, 0, 1, 1, 1)),
+                      writable=False)
     
     #: Display mode
     display_mode = d_(Enum('shaded', 'hlr', 'wireframe'))
@@ -167,3 +199,37 @@ class OccViewer(Control):
     def zoom_factor(self, factor):
         """ Zoom in by a given factor """
         self.proxy.zoom_factor(factor)
+
+
+class OccViewerClippedPlane(Control):
+    #: A reference to the ProxySpinBox object.
+    proxy = Typed(ProxyOccViewerClippedPlane)
+    
+    #: Enabled
+    enabled = d_(Bool(True))
+    
+    #: Capping
+    capping = d_(Bool(True))
+    
+    #: Hatched
+    capping_hatched = d_(Bool(True))
+    
+    #: Color
+    capping_color = d_(Str())
+    
+    #: Position
+    position = d_(Tuple(Float(strict=False), default=(0, 0, 0)))
+    
+    #: Direction
+    direction = d_(Tuple(Float(strict=False), default=(1, 0, 0)))
+    
+    # -------------------------------------------------------------------------
+    # Observers
+    # -------------------------------------------------------------------------
+    @observe('position', 'direction', 'enabled', 'capping', 'capping_hatched', 
+             'capping_color')
+    def _update_proxy(self, change):
+        """ An observer which sends state change to the proxy.
+        """
+        # The superclass handler implementation is sufficient.
+        super(OccViewerClippedPlane, self)._update_proxy(change)

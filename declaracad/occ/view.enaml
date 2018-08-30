@@ -1,4 +1,10 @@
-"""'
+"""
+Copyright (c) 2016-2018, Jairus Martin.
+
+Distributed under the terms of the GPL v3 License.
+
+The full license is in the file LICENSE, distributed with this software.
+
 Created on Sep 28, 2016
 
 @author: jrm
@@ -13,15 +19,22 @@ from declaracad.core.utils import load_icon, capture_output
 
 import enaml
 from enaml.core.api import Looper, Include, Conditional
+from enaml.layout.api import align, hbox
 from enaml.qt.QtCore import Qt
-from enaml.widgets.api import Window, Container, Menu, Action
+from enaml.widgets.api import (
+    Window, Container, Menu, Action, Slider, CheckBox, Label
+)
+from enamlx.widgets.api import DoubleSpinBox
 
-from .widgets.api import OccViewer
+from .widgets.api import OccViewer, OccViewerClippedPlane
 from .plugin import ViewerProcess, load_model
 
 
 enamldef ModelViewer(OccViewer): viewer:
     attr p0 = None
+    attr clipped_planes: list = []
+    Include:
+        objects << clipped_planes
 #     on_mouse_press::
 #         display, event = change['value']
 #         #print 'mouse_press',event
@@ -52,6 +65,7 @@ enamldef ModelViewer(OccViewer): viewer:
     #    display, event = change['value']
     #    print 'mouse_release',event
     #    raise StopIteration
+    
     Menu:
         context_menu = True
         Action:
@@ -97,19 +111,78 @@ enamldef ModelViewer(OccViewer): viewer:
                     text = loop_item.title()
                     checked << viewer.view_mode == loop_item
                     triggered :: viewer.view_mode = loop_item
+        Menu:
+            title = 'Clip planes'
+            Looper:
+                iterable = (('X', (1, 0, 0)), ('Y', (0, 1, 0)), ('Z', (0, 0, 1)))
+                Action:
+                    text = loop_item[0]
+                    triggered :: 
+                        pln = OccViewerClippedPlane(parent=viewer, direction=loop_item[1])
+                        plns = viewer.clipped_planes[:]
+                        plns.append(pln)
+                        viewer.clipped_planes = plns
+            Action:
+                text = 'Clear all' 
+                triggered :: viewer.clipped_planes = []
+                    
+                    
+enamldef ClippedPlaneRow(Container):
+    padding = 0
+    attr plane
+    attr bounding_box
+    attr axis << plane.direction.index(1)
+    attr labels = {0: 'X', 1: 'Y', 2: 'Z'}
+    constraints = [hbox(label,cbx, dsb, sldr), 
+                   align('v_center', label, cbx, dsb, sldr)]
+    func set_position(value):
+        p = list(plane.position)
+        p[axis] = value
+        plane.position = tuple(p)
+    Label: label:        
+        text << labels.get(axis, 'Custom')
+    CheckBox: cbx:    
+        checked := plane.enabled
+    DoubleSpinBox: dsb:
+        hug_width = 'strong'
+        value << plane.position[axis]
+        value :: set_position(change['value'])
+    Slider: sldr:
+        func compute_bounds(vmin, vmax):
+            # Divide the value into 100 items
+            scale = 100/(vmax - vmin)
+            return int(vmin*scale), int(vmax*scale), scale
+            
+        # min, max, scale
+        attr bounds << compute_bounds(bounding_box[axis], bounding_box[axis+3])        
+        minimum << bounds[0]
+        maximum << bounds[1]
+        value << int(plane.position[axis]*bounds[2])
+        value :: set_position(change['value']/bounds[2])
+            
 
 
 enamldef ViewerWindow(Window): window:
+    #: File to load
     attr filename: str = "-"
+    
+    #: Rendered shapes
     attr models: list = []
-    attr frameless: bool = False
+    
+    #: Rendered version
     attr version: int = 1
+    
+    #: Hide window frame (when embedding)
+    attr frameless: bool = False
+    
+    #: IPC protocol for communication with parent process
     attr protocol = None
     activated ::
         if frameless:
             self.proxy.widget.setWindowFlags(Qt.FramelessWindowHint)
     
     func screenshot(filename):
+        # Take a screenshot and save it 
         if filename:
             path, ext = os.path.splitext(filename.lower())
             if ext not in ('.bmp', '.png', '.jpeg', '.tiff'):
@@ -126,9 +199,11 @@ enamldef ViewerWindow(Window): window:
                         shape.render()
                     if protocol and protocol.transport:
                         protocol.send_message({'id': 'render_success'})
+                    # Clear clipped planes
+                    viewer.clipped_planes = []
                     return result
                 except Exception as e:
-                    #: Notify the client that we got an error
+                    # Notify the client that we got an error
                     if protocol and protocol.transport:
                         protocol.send_message({
                             'error':{
@@ -156,11 +231,22 @@ enamldef ViewerWindow(Window): window:
                     })
             Include:
                 objects << load_source() if filename and version else []
+        Conditional:
+            condition << bool(viewer.clipped_planes)
+            Container:
+                Looper:
+                    iterable << viewer.clipped_planes
+                    ClippedPlaneRow:
+                        plane = loop_item
+                        bounding_box << viewer.bounding_box
 
 
 enamldef EmbeddedViewer(Conditional):
+    #: Process handle for communication with the child viewer
     attr renderer: ViewerProcess = ViewerProcess()
     condition << bool(renderer.window_id)
+    
+    #: Embedded viewer
     EmbeddedWindow: 
         window_id = renderer.window_id
 
