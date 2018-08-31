@@ -1,0 +1,37 @@
+channels:
+    - dlr-sc
+    - conda-forge
+    - pythonocc
+    - codelv
+    - oce
+
+package:
+  name: declaracad
+  version: 0.3.0
+
+requirements:
+  run:
+    - pythonocc-core>=0.18.1
+    - enaml>=0.10.2
+    - qtconsole
+    - pyflakes
+    - numpydoc 
+    - markdown
+    - jsonpickle
+    pip:
+        - QScintilla
+        - enamlx
+        - qt5reactor
+
+build:
+  number: 0
+  noarch: python
+  script:
+    - cd $RECIPE_DIR
+    - python setup.py install --single-version-externally-managed --record=record.txt --no-compile
+  entry_points:
+    - declaracad = declaracad:main
+about:
+  home: http://github.com/codelv/declaracad
+  summary: "A declarative parametric 3D modeling application using python"
+  license: GPLv3
