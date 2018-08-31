@@ -16,7 +16,8 @@ import jedi
 import enaml
 import traceback
 from atom.api import (
-    Enum, ContainerList, Unicode, Tuple, Bool, List, Int, Instance, observe
+    Enum, ContainerList, Unicode, Tuple, Bool, List, Int, Instance, Dict,
+    observe
 )
 
 from declaracad.core.api import Plugin, Model, log
@@ -107,13 +108,35 @@ class EditorPlugin(Plugin):
     #: Editor settings
     theme = Enum('friendly', *THEMES.keys()).tag(config=True)
     zoom = Int(0).tag(config=True)  #: Relative to default
+    show_line_numbers = Bool(True).tag(config=True)
+    code_folding = Bool(True).tag(config=True) 
     font_size = Int(12).tag(config=True)  #: Default is 12 pt
     font_family = Unicode(MONO_FONT.split()[-1]).tag(config=True) 
+    file_associations = Dict(default={
+        'py': 'python',
+        'pyx': 'python',
+        'pyd': 'python',
+        'pyi': 'python',
+        'ino': 'cpp',
+        'sh': 'bash',
+        'yml': 'yaml',
+        'js': 'javascript',
+        'ts': 'javascript',
+        'jsx': 'javascript',
+        'md': 'markdown',
+    }).tag(config=True)
+    
+    #: Key mappings
+    key_mapping = Dict(default={
+        'find': '\x06',  # Ctrl+F
+        'replace': '\x12',  # Ctrl+R
+        'goto': '\x0c',  # Ctrl + L
+    }).tag(config=True)
 
     #: Editor sys path
     sys_path = List().tag(config=True)
     _area_saves_pending = Int()
-
+    
     def start(self):
         """ Make sure the documents all open on startup """
         super(EditorPlugin, self).start()
@@ -184,7 +207,10 @@ class EditorPlugin(Plugin):
         targets = [item.name for item in area.dock_items() 
                    if (item.name.startswith("editor-item") and 
                    item.name not in removed_targets)]
-        for doc in added:
+        
+        # Sort documents so active is last so it's on top when we restore
+        # from a previous state
+        for doc in sorted(added, key=lambda d: int(d == self.active_document)):
             item = create_editor_item(area, plugin=self, doc=doc)
             if targets:
                 op = InsertTab(item=item.name, target=targets[-1])
@@ -192,7 +218,7 @@ class EditorPlugin(Plugin):
                 op = InsertItem(item=item.name)
             targets.append(item.name)
             area.update_layout(op)
-
+        
         # Now save it
         self.save_dock_area(change)
 
@@ -352,6 +378,9 @@ class EditorPlugin(Plugin):
         """
         plugin = self.workbench.get_plugin('declaracad.viewer')
         doc = self.active_document
+        path, ext = os.path.splitext(doc.name)
+        if ext not in ('.py', '.enaml'):
+            return
         for viewer in plugin.get_viewers():
             viewer.renderer.filename = doc.name
             viewer.renderer.version += 1

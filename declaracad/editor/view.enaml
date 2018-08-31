@@ -19,18 +19,18 @@ from enaml.core.api import Looper, Conditional
 from enaml.core.parser import parse
 from enaml.colors import parse_color
 from enaml.qt.q_resource_helpers import get_cached_qcolor
-from enaml.layout.api import RetractItem
+from enaml.layout.api import RetractItem, vbox, hbox, align
 from enaml.scintilla.api import Scintilla, ScintillaIndicator, ScintillaMarker
 from enaml.scintilla.themes import THEMES
 from enaml.scintilla.mono_font import MONO_FONT
 from enaml.widgets.api import (
-    Container, Timer, MultilineField, Menu, Action, PopupView, Label
+    Container, Timer, MultilineField, Menu, Action, PopupView, Label,
+    Field, PushButton, SpinBox
 )
-
-from enamlx.widgets.api import TreeView, TreeViewItem, TreeViewColumn
+from enamlx.widgets.api import KeyEvent, TreeView, TreeViewItem, TreeViewColumn
 
 from declaracad.core.api import DockItem
-from declaracad.core.utils import load_icon, load_image
+from declaracad.core.utils import load_icon, load_image, log
 from .plugin import Document
 
 
@@ -69,22 +69,20 @@ def format_title(docs, doc, path, unsaved):
         name += "*"
     return name
 
+# TODO: Make configurable
 
-def detect_syntax(path):
+
+def detect_syntax(plugin, path):
+    """ Attempt to detect the file syntax """
     p, ext = os.path.splitext(path)
     file_type = ext[1:] if ext else ''
     SYNTAXES = Scintilla.syntax.items
     if file_type in SYNTAXES:
-        return file_type
-    elif file_type in ['py', 'pyx']:
-        return 'python'
-    elif file_type in ['js', 'ts', 'jsx']:
-        return 'javascript'
-    elif file_type in ['ino']:
-        return 'cpp'
-    elif file_type in ['sh']:
-        return 'bash'
-    return ''
+        result = file_type
+    else:
+        result = plugin.file_associations.get(file_type, '')
+    log.info("Detected syntax: {}".format(result))
+    return result
 
 
 def create_indicators(filename, errors):
@@ -146,10 +144,175 @@ enamldef ErrorPopup(PopupView):
             text = message
 
 
+enamldef EditorGotoBar(Container): bar:
+    attr editor
+    constraints = [
+        hbox(lbl, sb, pb, cb),
+        align('v_center', lbl, sb, pb, cb),
+        lbl.height == sb.height == pb.height == cb.height,
+    ]
+    func go_to_line():
+        w = editor.proxy.widget
+        n = max(0, sb.value-1)
+        w.setCursorPosition(n, 0)
+        w.ensureLineVisible(n)
+        editor.set_focus()
+        editor.show_goto_bar = False
+    Label: lbl:
+        text = 'Go to line:'
+        align = 'right'
+    SpinBox: sb:
+        activated :: 
+            self.set_focus()
+            self.proxy.widget.selectAll()
+        value << editor.cursor_position[0]
+        maximum << editor.proxy.widget.lines() if editor.doc.source else 1
+        KeyEvent:
+            pressed ::
+                e = change['value']
+                if e['key'] == '\r':
+                    deferred_call(go_to_line) 
+    PushButton: pb:
+        icon = load_icon('control_play')
+        clicked :: go_to_line()
+        KeyEvent:
+            pressed ::
+                e = change['value']
+                if e['key'] == '\r':
+                    go_to_line() 
+    PushButton: cb:
+        icon = load_icon('cancel')
+        clicked :: editor.show_goto_bar = False
+        
+
+enamldef EditorFindBar(Container): bar:
+    attr editor
+    attr show_replace: bool = False
+    
+    func make_constraints(show_replace): 
+        constraints = [
+            align('v_center', lbl, search, pb1, pb2, pb3, pb4),
+            pb1.height == pb2.height == pb3.height ==  pb4.height == search.height,
+        ]
+        layout = hbox(lbl, search, pb1, pb2, pb3, pb4)
+        if show_replace:
+            layout = vbox(layout, hbox(lbl2, replace, pb5, pb6, pb7, pb8))
+            constraints.extend([
+                align('v_center', lbl2, replace, pb5, pb6, pb7, pb8),
+                replace.height == search.height,
+                replace.width == search.width,
+                lbl.width == lbl2.width,
+            ])
+        constraints.append(layout)
+        return constraints
+    
+    constraints << make_constraints(show_replace)
+    hug_height = 'strong'
+    func find_text(**opts):
+        if search.text:
+            w = editor.proxy.widget
+            w.selectAll(False)
+            w.findFirst(
+                search.text, 
+                opts.get('re', pb7.checked),
+                opts.get('cs', pb6.checked),
+                opts.get('wo', pb8.checked),
+                opts.get('wrap', True),
+                opts.get('forward', True),
+                opts.get('line', -1),
+                opts.get('index', -1),
+                opts.get('show', True),
+                opts.get('posix', False),
+            )
+    func replace_text():
+        w = editor.proxy.widget
+        if w.hasSelectedText():
+            w.replace(replace.text)
+    func hide_search_bar():
+        if editor.show_find_bar:
+            editor.show_find_bar = False
+        if editor.show_replace_bar:
+            editor.show_replace_bar = False
+        editor.proxy.widget.selectAll(False)
+        editor.set_focus()
+    Label: lbl:
+        text = 'Find:'
+        align = 'right'
+    Field: search:
+        text = editor.proxy.widget.selectedText()
+        text :: find_text()
+        submit_triggers = ['auto_sync', 'return_pressed']
+        activated :: search.set_focus()
+        KeyEvent:
+            pressed :: 
+                e = change['value']
+                k = e['key']
+                if k == plugin.key_mapping.get('find', '\x06'):
+                    self.proxy.widget.selectAll()
+                if k == plugin.key_mapping.get('replace', '\x12'):
+                    bar.show_replace = not bar.show_replace
+                elif e['key'] == '\r':
+                    editor.proxy.widget.findNext()
+    PushButton: pb1:
+        icon = load_icon("control_rewind")
+        tool_tip = 'Find previous'
+        clicked :: 
+            find_text(forward=False)
+            editor.proxy.widget.findNext()
+    PushButton: pb2:
+        icon = load_icon("control_fastforward")
+        tool_tip = 'Find next'
+        clicked :: 
+            find_text(forward=True)
+            editor.proxy.widget.findNext()
+    PushButton: pb3:
+        icon << load_icon("control_equalizer")
+        tool_tip = 'More options'
+        checkable = True
+        checked := show_replace
+    PushButton: pb4:
+        icon << load_icon('cancel')
+        tool_tip = 'Hide search bar'
+        clicked :: hide_search_bar()
+    Label: lbl2:
+        text = 'Replace:'
+        align = 'right'
+        visible << show_replace
+    Field: replace:
+        visible << show_replace
+        submit_triggers = ['auto_sync', 'return_pressed']
+    PushButton: pb5:
+        visible << show_replace
+        icon = load_icon("control_repeat")
+        tool_tip = 'Replace'
+        clicked :: replace_text()
+    PushButton: pb6:
+        visible << show_replace
+        icon = load_icon("text_uppercase")
+        tool_tip = 'Match case'
+        checkable = True
+        checked = True
+        toggled :: find_text()
+    PushButton: pb7:
+        visible << show_replace
+        icon = load_icon("zoom")
+        tool_tip = 'Match regex'
+        checkable = True
+        toggled :: find_text()
+    PushButton: pb8:
+        visible << show_replace
+        icon = load_icon("page_white_text")
+        tool_tip = 'Match words'
+        checkable = True
+        toggled :: find_text()
+        
+            
+
 enamldef Editor(Scintilla): editor:
     hug_height = 'ignore'
     hug_width = 'ignore'
-    syntax << detect_syntax(doc.name)
+    syntax << detect_syntax(plugin, doc.name)
+    attr doc: Document = Document()
     attr editor_font: str << f"{plugin.font_size}pt {plugin.font_family}"
     
     func update_font(theme, font):
@@ -164,7 +327,7 @@ enamldef Editor(Scintilla): editor:
     theme  << update_font(THEMES[plugin.theme] if plugin else THEMES['tango'], 
                             editor_font)
     theme :: refresh_margin_colors()
-    settings = {
+    settings << {
         "tab_width": 4,
         "use_tabs": False,
         "indent": 4,
@@ -173,15 +336,20 @@ enamldef Editor(Scintilla): editor:
         "backspace_unindents": True,
         "autocompletion_threshold": 1,
         "autocompletion_case_sensitive": True,
-        "show_line_numbers": True,
+        "show_line_numbers": plugin.show_line_numbers,
+        "code_folding": plugin.code_folding,
     }
     autocomplete = 'all'
-    attr folding: bool = True
-    folding :: w.setFolding(w.CircledTreeFoldStyle if change['value'] else w.NoFoldStyle)
+    settings ::
+        w = self.proxy.widget
+        style = w.CircledTreeFoldStyle if plugin.code_folding else w.NoFoldStyle
+        w.setFolding(style)
+        
     activated :: 
         set_text(doc.source)
         w = self.proxy.widget
         w.indicatorReleased.connect(self.on_indicator_clicked)
+        w.setFolding(w.CircledTreeFoldStyle if plugin.code_folding else w.NoFoldStyle)
         refresh_margin_colors()
         
     func refresh_margin_colors():
@@ -191,8 +359,6 @@ enamldef Editor(Scintilla): editor:
         w.setMarginsBackgroundColor(bg)
         w.setFoldMarginColors(bg, bg)
         w.setMarginsForegroundColor(fg)
-        # Enable folding
-        w.setFolding(w.CircledTreeFoldStyle)
         
     text_changed :: timer.start()
     zoom << plugin.zoom if plugin else 0
@@ -227,8 +393,32 @@ enamldef EditorDockItem(DockItem): view:
     Container: 
         minimum_size = (480, 320)
         padding = 0
+        Conditional:
+            condition << editor.show_find_bar or editor.show_replace_bar
+            EditorFindBar:
+                editor << view.editor
+                show_replace << editor.show_replace_bar
+        Conditional:
+            condition << editor.show_goto_bar
+            EditorGotoBar:
+                editor << view.editor
         Editor: editor:
-            pass
+            attr show_find_bar: bool << False
+            attr show_replace_bar: bool << False
+            attr show_goto_bar: bool << False
+            doc := view.doc
+            KeyEvent:
+                pressed :: 
+                    e = change['value']
+                    print(e)
+                    k = e['key']
+                    if k == plugin.key_mapping.get('find', '\x06'):
+                        editor.show_find_bar = not editor.show_find_bar
+                    elif k == plugin.key_mapping.get('replace', '\x12'):
+                        editor.show_replace_bar = not editor.show_replace_bar
+                    elif k == plugin.key_mapping.get('goto', '\x0c'):
+                        editor.show_goto_bar = not editor.show_goto_bar
+        
     title_bar_right_clicked :: menu.popup()
     Menu: menu:
         Action:

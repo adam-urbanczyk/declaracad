@@ -35,8 +35,7 @@ def open_file(event):
     if not path:
         path = FileDialogEx.get_open_file_name(
             ui.window,
-            current_path=plugin.last_path,
-            name_filters=['*.enaml','*.py','*.c','*.cpp', '*.*'])
+            current_path=plugin.last_path)
         plugin.last_path = os.path.dirname(path)
     if path:
         event.parameters['path'] = path
@@ -121,6 +120,22 @@ def close_other_editors(event):
            if item.name != editor.name]
     dock.update_layout(ops) 
     plugin.documents = [editor.doc]
+    
+    
+def find_in_editor(event):
+    plugin = event.workbench.get_plugin('declaracad.editor')
+    editor = plugin.get_editor()
+    editor.show_find_bar = True
+
+def replace_in_editor(event):
+    plugin = event.workbench.get_plugin('declaracad.editor')
+    editor = plugin.get_editor()
+    editor.show_replace_bar = True
+    
+def goto_in_editor(event):
+    plugin = event.workbench.get_plugin('declaracad.editor')
+    editor = plugin.get_editor()
+    editor.show_goto_bar = True
 
 
 def plugin_factory():
@@ -264,6 +279,15 @@ enamldef EditorManifest(PluginManifest):
         Command:
             id = 'declaracad.editor.close_other_editors'
             handler = close_other_editors
+        Command:
+            id = 'declaracad.editor.find'
+            handler = find_in_editor
+        Command:
+            id = 'declaracad.editor.replace'
+            handler = replace_in_editor
+        Command:
+            id = 'declaracad.editor.goto_line'
+            handler = goto_in_editor
     
     Extension:
         id = 'actions'
@@ -307,7 +331,26 @@ enamldef EditorManifest(PluginManifest):
             before = 'settings'
             ItemGroup:
                 id = 'examples'
-
+        MenuItem:
+            path = '/edit'
+            label = 'Edit'
+            after = 'file'
+            before = 'examples'
+        ActionItem:
+            path = '/edit/find'
+            label = 'Find'
+            shortcut = 'Ctrl+F'
+            command = 'declaracad.editor.find'
+        ActionItem:
+            path = '/edit/replace'
+            label = 'Replace'
+            shortcut = 'Ctrl+R'
+            command = 'declaracad.editor.replace'
+        ActionItem:
+            path = '/edit/goto'
+            label = 'Go to line'
+            shortcut = 'Ctrl+L'
+            command = 'declaracad.editor.goto_line'
         Looper:
             iterable = get_examples().items()
             Conditional:
