@@ -24,7 +24,6 @@ from enaml.scintilla.themes import THEMES
 from enaml.scintilla.mono_font import MONO_FONT
 from enaml.application import timed_call
 from enaml.core.enaml_compiler import EnamlCompiler
-from enaml.core.parser import parse
 from enaml.workbench.core.execution_event import ExecutionEvent
 from enaml.layout.api import InsertItem, InsertTab, RemoveItem
 from types import ModuleType
@@ -224,7 +223,7 @@ class EditorPlugin(Plugin):
         doc = document or self.active_document
         for item in self.get_editor_items():
             if item.doc == doc:
-                return item.children[0].editor
+                return item.editor
     
     def get_editor_items(self):
         dock = self.get_dock_area()

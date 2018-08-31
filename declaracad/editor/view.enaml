@@ -11,13 +11,24 @@ Created on Dec 10, 2015
 """
 import os
 import re
-from enaml.widgets.api import (
-    Container, Timer, MultilineField, Menu, Action, PopupView, Label
-)
+import ast as python_ast
+
+from enaml.application import deferred_call
+from enaml.core import enaml_ast
+from enaml.core.api import Looper, Conditional
+from enaml.core.parser import parse
+from enaml.colors import parse_color
+from enaml.qt.q_resource_helpers import get_cached_qcolor
+from enaml.layout.api import RetractItem
 from enaml.scintilla.api import Scintilla, ScintillaIndicator, ScintillaMarker
 from enaml.scintilla.themes import THEMES
 from enaml.scintilla.mono_font import MONO_FONT
-from enaml.application import deferred_call
+from enaml.widgets.api import (
+    Container, Timer, MultilineField, Menu, Action, PopupView, Label
+)
+
+from enamlx.widgets.api import TreeView, TreeViewItem, TreeViewColumn
+
 from declaracad.core.api import DockItem
 from declaracad.core.utils import load_icon, load_image
 from .plugin import Document
@@ -135,64 +146,77 @@ enamldef ErrorPopup(PopupView):
             text = message
 
 
-enamldef Editor(Container): view:
-    padding = 0
-    alias editor
-    Scintilla: editor:
-        hug_height = 'ignore'
-        hug_width = 'ignore'
-        syntax << detect_syntax(doc.name)
-        attr editor_font: str << f"{plugin.font_size}pt {plugin.font_family}"
+enamldef Editor(Scintilla): editor:
+    hug_height = 'ignore'
+    hug_width = 'ignore'
+    syntax << detect_syntax(doc.name)
+    attr editor_font: str << f"{plugin.font_size}pt {plugin.font_family}"
+    
+    func update_font(theme, font):
+        theme['settings']['font'] = font
+        return theme
+    
+    func on_indicator_clicked(line, index, keys):            
+        ErrorPopup(self, 
+                    theme=self.theme,
+                    message="\n".join(doc.errors[-5:]).strip()).show()
+    
+    theme  << update_font(THEMES[plugin.theme] if plugin else THEMES['tango'], 
+                            editor_font)
+    theme :: refresh_margin_colors()
+    settings = {
+        "tab_width": 4,
+        "use_tabs": False,
+        "indent": 4,
+        "tab_indents": True,
+        "auto_indent": True,
+        "backspace_unindents": True,
+        "autocompletion_threshold": 1,
+        "autocompletion_case_sensitive": True,
+        "show_line_numbers": True,
+    }
+    autocomplete = 'all'
+    attr folding: bool = True
+    folding :: w.setFolding(w.CircledTreeFoldStyle if change['value'] else w.NoFoldStyle)
+    activated :: 
+        set_text(doc.source)
+        w = self.proxy.widget
+        w.indicatorReleased.connect(self.on_indicator_clicked)
+        refresh_margin_colors()
         
-        func update_font(theme, font):
-            theme['settings']['font'] = font
-            return theme
+    func refresh_margin_colors():
+        w = self.proxy.widget
+        bg = get_cached_qcolor(parse_color(theme['settings']['paper']))
+        fg = get_cached_qcolor(parse_color(theme['settings']['color']))
+        w.setMarginsBackgroundColor(bg)
+        w.setFoldMarginColors(bg, bg)
+        w.setMarginsForegroundColor(fg)
+        # Enable folding
+        w.setFolding(w.CircledTreeFoldStyle)
         
-        func on_indicator_clicked(line, index, keys):            
-            ErrorPopup(self, 
-                       theme=self.theme,
-                       message="\n".join(doc.errors[-5:]).strip()).show()
-        
-        theme  << update_font(THEMES[plugin.theme] if plugin else THEMES['tango'], 
-                              editor_font)
-        settings = {
-            "tab_width": 4,
-            "use_tabs": False,
-            "indent": 4,
-            "tab_indents": True,
-            "auto_indent": True,
-            "backspace_unindents": True,
-            "autocompletion_threshold": 1,
-            "autocompletion_case_sensitive": True,
-            "show_line_numbers": True,
-        }
-        autocomplete = 'all'
-        
-        activated :: 
-            set_text(doc.source)
-            self.proxy.widget.indicatorReleased.connect(self.on_indicator_clicked)
-        text_changed :: timer.start()
-        zoom << plugin.zoom if plugin else 0
-        indicators << create_indicators(doc.name, doc.errors) if doc else []
-        markers << [ScintillaMarker(
-                        line=i.start[0],
-                        image=load_image("exclamation" if i.color=="#FF0000"
-                                         else "error"))
-                        for i in indicators]
-        #warnings
-        Timer: timer:
-            interval = 350
-            single_shot = True
-            timeout ::
-                doc.cursor = editor.cursor_position
-                doc.source = editor.get_text()
-                editor.autocompletions = doc.suggestions
+    text_changed :: timer.start()
+    zoom << plugin.zoom if plugin else 0
+    indicators << create_indicators(doc.name, doc.errors) if doc else []
+    markers << [ScintillaMarker(
+                    line=i.start[0],
+                    image=load_image("exclamation" if i.color=="#FF0000"
+                                        else "error"))
+                    for i in indicators]
+    #warnings
+    Timer: timer:
+        interval = 350
+        single_shot = True
+        timeout ::
+            doc.cursor = editor.cursor_position
+            doc.source = editor.get_text()
+            editor.autocompletions = doc.suggestions
 
 
 
 enamldef EditorDockItem(DockItem): view:
     attr doc: Document = Document()
-    alias buffer: editor.editor.document
+    alias editor
+    alias buffer: editor.document
     title << format_title(plugin.documents, doc, doc.name, doc.unsaved)
     closed ::
         core = plugin.workbench.get_plugin("enaml.workbench.core")
@@ -200,8 +224,11 @@ enamldef EditorDockItem(DockItem): view:
                             {'document':doc, 'target': view.name})
     icon = load_icon('script_code')
     name = 'editor-item-{}'.format(id(self))
-    Editor: editor:
+    Container: 
         minimum_size = (480, 320)
+        padding = 0
+        Editor: editor:
+            pass
     title_bar_right_clicked :: menu.popup()
     Menu: menu:
         Action:
@@ -263,3 +290,75 @@ enamldef OutputDockItem(DockItem):
       padding = 0
       MultilineField:
           text << "\n".join(plugin.active_document.output)
+
+
+enamldef OutlineDockItem(DockItem): view:
+    title = "Outline"
+    name = 'code-outline-item'
+    icon = load_icon('chart_organisation')
+    func create_outline(source):
+        doc = plugin.active_document
+        
+        try:
+            ast = parse(source)
+        except Exception as e:
+            # We could set errors here?
+            return [e]
+        
+        nodes = []
+        # Walk ast and pull out nodes we're insterested in
+        for node in ast.body:
+            if isinstance(node, enaml_ast.EnamlDef):
+                nodes.append(node)
+            elif isinstance(node, enaml_ast.PythonModule):
+                for n in node.ast.body:                
+                    if isinstance(n, (python_ast.ClassDef, 
+                                      python_ast.FunctionDef)):
+                        nodes.append(n)
+        # Hack to workaround a segfault when the tree's items are emptied
+        if not nodes:
+            nodes.append(ast)
+        return nodes
+      
+    func format_node(node):
+        if isinstance(node, python_ast.FunctionDef):
+            return "tag", "def", node.name, "Function"
+        elif isinstance(node, python_ast.ClassDef):
+            return "brick", "class", node.name, ""
+        elif isinstance(node, enaml_ast.EnamlDef):
+            return "bricks", "enamldef", node.typename, node.base
+        elif isinstance(node, Exception):
+            return "exclamation", "error", str(node), str(node.__class__.__name__)
+        return "tag_blue", "", str(node), ""
+  
+    Container:
+        padding = 0
+        TreeView: tree:
+            horizontal_headers = ['Name', 'Type', "Line"]
+            horizontal_stretch = True
+            resize_mode = 'resize_to_contents'
+            items << create_outline(plugin.active_document.source)
+            Looper:
+                iterable << tree.items
+                TreeViewItem:
+                    attr obj << format_node(loop_item)
+                    icon << load_icon(obj[0])
+                    text << obj[2]
+                    double_clicked :: 
+                        editor = plugin.get_editor()
+                        # Go to the line
+                        widget = editor.proxy.widget
+                        widget.setCursorPosition(max(0,loop_item.lineno-2), 0)
+                        widget.ensureCursorVisible()
+                        # Retract the item if shown
+                        dock_area = view.parent
+                        dock_area.update_layout(RetractItem(item=view.name))
+                        
+                    TreeViewColumn:
+                        text << obj[3]
+                    TreeViewColumn:
+                        text << str(loop_item.lineno)
+                            
+                        
+                
+      

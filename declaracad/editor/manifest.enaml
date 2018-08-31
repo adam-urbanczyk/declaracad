@@ -186,6 +186,12 @@ def output_item_factory():
   return OutputDockItem
 
 
+def outline_item_factory():
+  with enaml.imports():
+    from .view import OutlineDockItem
+  return OutlineDockItem
+
+
 enamldef EditorManifest(PluginManifest):
     """ The manifest which is registered when the view is loaded.
 
@@ -211,6 +217,10 @@ enamldef EditorManifest(PluginManifest):
             plugin_id = 'declaracad.editor'
             factory = output_item_factory
             layout = 'bottom'
+        DockItem:
+            plugin_id = 'declaracad.editor'
+            factory = outline_item_factory
+            layout = 'left'
     Extension:
         id = 'settings'
         point = SETTINGS_PAGE_POINT
