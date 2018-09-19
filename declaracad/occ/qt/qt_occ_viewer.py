@@ -20,7 +20,7 @@ from ..widgets.occ_viewer import (
 )
 
 from enaml.qt import QtCore, QtGui
-from PyQt5 import QtOpenGL
+from enaml.qt.QtWidgets import QOpenGLWidget
 
 from enaml.qt.QtCore import Qt
 from enaml.qt.qt_control import QtControl
@@ -212,12 +212,12 @@ class Display(OCCViewer.Viewer3d):
         raise ValueError("Invalid color: '{}'".format(color))
 
 
-class QtBaseViewer(QtOpenGL.QGLWidget):
+class QtBaseViewer(QOpenGLWidget):
     """The base Qt Widget for an OCC viewer
     """
 
     def __init__(self, parent=None):
-        QtOpenGL.QGLWidget.__init__(self, parent)
+        super(QtBaseViewer, self).__init__(parent)
         self._display = None
         self._inited = False
 
@@ -351,7 +351,6 @@ class QtViewer3d(QtBaseViewer):
 
     def ZoomAll(self, evt):
         self._display.FitAll()
-        
 
     def wheelEvent(self, event):
         if self._fireEventCallback('mouse_scrolled', event):
