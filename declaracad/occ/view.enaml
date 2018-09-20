@@ -205,9 +205,15 @@ enamldef ViewerWindow(Window): window:
     
     #: IPC protocol for communication with parent process
     attr protocol = None
+    alias viewer
+    
     activated ::
         if frameless:
             self.proxy.widget.setWindowFlags(Qt.FramelessWindowHint)
+            
+    func set_backgound(color1, color2):
+        """ Set background gradient colors """
+        viewer.background_gradient = tuple(color1 + color2)
     
     func screenshot(filename):
         # Take a screenshot and save it 
@@ -271,14 +277,38 @@ enamldef ViewerWindow(Window): window:
                         bounding_box << viewer.bounding_box
 
 
-enamldef EmbeddedViewer(Conditional):
+enamldef RemoteViewer(Conditional): viewer:
     #: Process handle for communication with the child viewer
     attr renderer: ViewerProcess = ViewerProcess()
     condition << bool(renderer.window_id)
+    attr model
+    func update_backgound(change):
+        """ Updates the background color on the viewer """
+        model = viewer.model
+        color = model.viewer_background_top
+        if not color:
+            return
+        c1 = color.red, color.green, color.blue
+        if model.viewer_background_mode == 'solid':
+            c2 = c1
+        else:
+            color = model.viewer_background_bottom
+            if not color:
+                return
+            c2 = color.red, color.green, color.blue
+        renderer.set_backgound(c1, c2)
+    
+    func setup():
+        model = viewer.model
+        model.observe('viewer_background_mode', update_backgound)
+        model.observe('viewer_background_top', update_backgound)    
+        model.observe('viewer_background_bottom', update_backgound)
+        update_backgound({})
     
     #: Embedded viewer
-    EmbeddedWindow: 
+    EmbeddedWindow: window:
         window_id = renderer.window_id
+        activated :: viewer.setup()
 
 
 enamldef ViewerDockItem(DockItem): view:
@@ -305,8 +335,9 @@ enamldef ViewerDockItem(DockItem): view:
     closed :: renderer.terminate()
     Container: container:
         padding = 0
-        EmbeddedViewer: viewer:
-            pass
+        RemoteViewer: viewer:
+            model << plugin
+            
     title_bar_right_clicked :: menu.popup()
     Menu: menu:
         Action:

@@ -15,7 +15,9 @@ from enaml.workbench.core.api import Command
 from enaml.workbench.ui.api import ActionItem
 from enaml.layout.api import InsertItem
 from enaml.widgets.api import FileDialogEx
-from declaracad.ui.extensions import DOCK_ITEM_POINT, DockItem
+from declaracad.ui.extensions import (
+    DOCK_ITEM_POINT, DockItem, SETTINGS_PAGE_POINT, SettingsPage
+)
 
 
 def plugin_command(name, event):
@@ -65,6 +67,12 @@ def item_factory():
     return ViewerDockItem
 
 
+def settngs_page_factory():
+    with enaml.imports():
+        from .settings import ViewerSettingsPage
+    return ViewerSettingsPage
+
+
 enamldef ViewerManifest(PluginManifest):
     """ The manifest which is registered when the view is loaded.
 
@@ -96,6 +104,13 @@ enamldef ViewerManifest(PluginManifest):
             plugin_id = 'declaracad.viewer'
             factory = item_factory
             layout = 'main'
+    Extension:
+        id = 'settings'
+        point = SETTINGS_PAGE_POINT
+        SettingsPage:
+            name = "Viewer"
+            plugin_id = 'declaracad.viewer'
+            factory = settngs_page_factory
 
     Extension:
         id = 'menu'

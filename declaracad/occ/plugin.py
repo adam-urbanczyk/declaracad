@@ -18,7 +18,8 @@ import enaml
 import atexit
 from types import ModuleType
 from atom.api import (
-    Atom, ContainerList, Unicode, Float, Dict, Bool, Int, Instance, observe
+    Atom, ContainerList, Unicode, Float, Dict, Bool, Int, Instance, Enum, 
+    observe
 )
 from declaracad.core.api import Plugin, Model, log
 from declaracad.core.utils import ProcessLineReceiver, Deferred
@@ -27,6 +28,7 @@ from enaml.application import timed_call
 from enaml.core.parser import parse
 from enaml.core.import_hooks import EnamlCompiler
 from enaml.compat import exec_
+from enaml.colors import ColorMember
 
 from .part import Part
 
@@ -320,8 +322,15 @@ class ViewerProcess(ProcessLineReceiver):
             self.send_message(name, *args, **kwargs)
             return d
         return remote_viewer_call
+    
 
 class ViewerPlugin(Plugin):
+    
+    #: Background color
+    viewer_background_mode = Enum('gradient', 'solid').tag(config=True)
+    viewer_background_top = ColorMember('lightgrey').tag(config=True)
+    viewer_background_bottom = ColorMember('grey').tag(config=True)
+    
     
     def get_viewers(self):
         ViewerDockItem = viewer_factory()

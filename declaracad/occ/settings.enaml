@@ -1,0 +1,68 @@
+"""
+Copyright (c) 2017, Jairus Martin.
+
+Distributed under the terms of the GPL v3 License.
+
+The full license is in the file LICENSE, distributed with this software.
+
+Created on Dec 12, 2017
+
+@author: jrm
+"""
+import re
+import sys
+if sys.platform == 'win32':
+    from enaml import winutil
+from enaml.core.api import Looper
+from enaml.layout.api import align, hbox, spacer
+from enaml.core.api import Conditional
+from enaml.stdlib.mapped_view import MappedView
+from enaml.stdlib.dialog_buttons import DialogButtonBox, DialogButton
+from enaml.stdlib.task_dialog import (
+    TaskDialogBody, TaskDialogCommandArea,
+    TaskDialogContentArea, TaskDialogDetailsArea, TaskDialogFootnoteArea,
+    TaskDialogIconArea, TaskDialogInstructionArea, TaskDialogStyleSheet
+)
+from enaml.widgets.api import (
+    Dialog, Field, Label, PushButton, Form, ObjectCombo, SplitItem, Splitter,
+    Container, SpinBox, FileDialogEx, ObjectCombo, ColorDialog
+)
+
+
+enamldef ViewerSettingsPage(Container):
+    attr model
+    
+    func format_color(color):
+        if not color:
+            return "Not set"
+        return str(hex(color.argb)).replace('0x','#').upper()
+    
+    Form:
+        Label:
+            text = "Viewer Background"
+        ObjectCombo:
+            items = list(model.get_member('viewer_background_mode').items)
+            to_string = lambda it: it.title()
+            selected := model.viewer_background_mode
+        Label:
+            text = "Color"
+        PushButton:
+            text << format_color(model.viewer_background_top)
+            clicked :: 
+                dlg = ColorDialog(parent=self, current_color=model.viewer_background_top)
+                if dlg.exec_():
+                    model.viewer_background_top = dlg.selected_color
+        Conditional:
+            condition << model.viewer_background_mode == 'gradient'
+            Label:
+                text = "Second Color"
+            PushButton:
+                text << format_color(model.viewer_background_bottom)
+                clicked ::
+                    dlg = ColorDialog(parent=self, current_color=model.viewer_background_top)
+                    if dlg.exec_():
+                        model.viewer_background_bottom = dlg.selected_color
+                    
+
+
+

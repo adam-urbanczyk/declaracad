@@ -60,8 +60,24 @@ class ViewerProtocol(JSONRRCProtocol):
         return True
         
     def __getattr__(self, name):
+        """ Attempt to call handlers on the viewer directly if they exist.
+        
+        It will attempt to lookup a function of the Window object, if that
+        fails it will lookup the attr or function on the Viewer object. If
+        the attr on the viewer is not callable a handler will be created to
+        set the value.
+        
+        """
         if name.startswith("handle_"):
-            return getattr(self.view, name.lstrip("handle_"))
+            attr = name.lstrip("handle_")
+            handler = getattr(self.view, attr, None)
+            if handler is not None:
+                return handler
+            handler = getattr(self.view.viewer, attr)
+            if callable(handler):
+                return handler
+            return lambda v: setattr(self.view.viewer, attr, v)
+            
         
     def schedule_close(self):
         """ A watchdog so if the parent is killed the viewer will automatically
