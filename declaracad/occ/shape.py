@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Copyright (c) 2016-2018, Jairus Martin.
 
@@ -205,6 +206,25 @@ class ProxyLoadShape(ProxyShape):
         raise NotImplementedError
 
 
+class ProxyText(ProxyShape):
+    #: A reference to the shape declaration.
+    declaration = ForwardTyped(lambda: Text)
+
+    def set_text(self, text):
+        raise NotImplementedError
+
+    def set_font(self, font):
+        raise NotImplementedError
+    
+    def set_size(self, size):
+        raise NotImplementedError
+    
+    def set_style(self, style):
+        raise NotImplementedError
+    
+    def set_composite(self, composite):
+        raise NotImplementedError
+    
 class Shape(ToolkitObject):
     """ Abstract shape component that can be displayed on the screen 
     and represented by the framework. 
@@ -286,9 +306,11 @@ class Shape(ToolkitObject):
     position = d_(Coerced(tuple))
     
     def _default_position(self):
-        return tuple([
-            self.get_member(axis).get_slot(self) or 0.0 for axis in 'xyz'
-        ])
+        return (
+            self.get_member('x').get_slot(self) or 0.0,
+            self.get_member('y').get_slot(self) or 0.0,
+            self.get_member('z').get_slot(self) or 0.0,
+        )
     
     def _default_x(self):
         return self.position[0]
@@ -898,3 +920,53 @@ class LoadShape(Shape):
     def _update_proxy(self, change):
         """ Base class implementation is sufficient"""
         super(LoadShape, self)._update_proxy(change)
+
+class Text(Shape):
+    """ Create a shape from a text of a given font.
+    
+    Attributes
+    ----------
+    
+    text: String
+        The text to create
+    font: String
+        The font family to use
+    size: Float
+        The font size.
+    style: String
+        Font style
+    composite: Bool
+        Create a composite curve.
+        
+    
+    Examples
+    --------
+    
+    Text:
+        text = "Hello world!"
+        font = "Georgia"
+        position = (10, 100, 0)
+    
+    """
+    #: Proxy shape
+    proxy = Typed(ProxyText)
+
+    #: Text to display
+    text = d_(Str())
+
+    #: Font to use
+    font = d_(Str())
+    
+    #: Font size
+    size = d_(Float(12.0, strict=False))
+    
+    #: Font style
+    style = d_(Enum('regular', 'bold', 'italic', 'bold-italic'))
+    
+    #: Composite curve
+    composite = d_(Bool(True))
+
+    @observe('text', 'font', 'size', 'style', 'composite')
+    def _update_proxy(self, change):
+        """ Base class implementation is sufficient"""
+        super(Text, self)._update_proxy(change)

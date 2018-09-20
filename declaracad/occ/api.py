@@ -34,6 +34,6 @@ from .shape import (
     Shape, RawShape, LoadShape,
     Face,
     Box, Cylinder, Sphere, Cone, Wedge, Torus,
-    HalfSpace, Prism, Revol
+    HalfSpace, Prism, Revol, Text
 )
 

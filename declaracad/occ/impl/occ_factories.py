@@ -77,6 +77,11 @@ def occ_sweep_factory():
     return OccSweep
 
 
+def occ_text_factory():
+    from .occ_shape import OccText
+    return OccText
+
+
 def occ_torus_factory():
     from .occ_shape import OccTorus
     return OccTorus
@@ -255,6 +260,9 @@ OCC_FACTOIRES = {
     'Bezier': occ_bezier_factory,
     'BSpline': occ_bspline_factory,
     'Wire': occ_wire_factory,
+    
+    # Other
+    'Text': occ_text_factory,
 }
 
 #: Install it
