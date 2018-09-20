@@ -100,6 +100,7 @@ enamldef ModelViewer(OccViewer): viewer:
                     checkable = True
                     triggered :: 
                         if loop_item == viewer.display_mode:
+                            # Force it if already set
                             viewer.proxy.set_display_mode(loop_item)
                         else:
                             viewer.display_mode = loop_item        
@@ -123,6 +124,7 @@ enamldef ModelViewer(OccViewer): viewer:
                 iterable << viewer.get_member('selection_mode').items
                 Action:
                     text = loop_item.title()
+                    checkable = True
                     checked << viewer.selection_mode == loop_item
                     triggered :: viewer.selection_mode = loop_item
 
@@ -132,8 +134,14 @@ enamldef ModelViewer(OccViewer): viewer:
                 iterable << viewer.get_member('view_mode').items
                 Action:
                     text = loop_item.title()
+                    checkable = True
                     checked << viewer.view_mode == loop_item
-                    triggered :: viewer.view_mode = loop_item
+                    triggered :: 
+                        if viewer.view_mode == loop_item:
+                            # Force it if already set
+                            viewer.proxy.set_view_mode(loop_item)
+                        else:
+                            viewer.view_mode = loop_item
         Menu:
             title = 'Clip planes'
             Looper:
@@ -144,28 +152,37 @@ enamldef ModelViewer(OccViewer): viewer:
                 )
                 Action:
                     text = loop_item[0]
+                    attr axis = loop_item[1].index(1)
+                    checkable = True
+                    checked << axis in viewer.clipped_planes
                     triggered :: 
-                        # Create a plus and minus plane
-                        axis = loop_item[1].index(1)
-                        maxes = viewer.bbox[3:]
-                        
-                        d = loop_item[1]
-                        low_pln = OccViewerClippedPlane(
-                            parent=viewer, 
-                            direction=d,
-                            capping_color=loop_item[2],
-                        )
-                        
-                        # Create for other side by flipping direction and
-                        # positioning at the max
-                        high_pln = OccViewerClippedPlane(
-                            parent=viewer, 
-                            capping_color=loop_item[2],
-                            direction=tuple(-i for i in d),
-                            position=tuple(k*maxes[i] for i, k in enumerate(d))
-                        )
-                        plns = viewer.clipped_planes.copy()
-                        plns[axis] = (low_pln, high_pln)
+                        # Remove if it already exists
+                        if axis in clipped_planes:
+                            plns = viewer.clipped_planes.copy()
+                            del plns[axis]
+                        else:
+                            # Create a plus and minus plane
+                            maxes = viewer.bbox[3:]
+                            
+                            d = loop_item[1]
+                            low_pln = OccViewerClippedPlane(
+                                parent=viewer, 
+                                direction=d,
+                                capping_color=loop_item[2],
+                            )
+                            
+                            # Create for other side by flipping direction and
+                            # positioning at the max
+                            high_pln = OccViewerClippedPlane(
+                                parent=viewer, 
+                                capping_color=loop_item[2],
+                                direction=tuple(-i for i in d),
+                                position=tuple(k*maxes[i] for i, k in enumerate(d))
+                            )
+                            plns = viewer.clipped_planes.copy()
+                            plns[axis] = (low_pln, high_pln)
+                            
+                        # Update
                         viewer.clipped_planes = plns
             Action:
                 text = 'Clear all' 

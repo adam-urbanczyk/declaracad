@@ -241,25 +241,6 @@ class ProxyLoadShape(ProxyShape):
     def set_loader(self, loader):
         raise NotImplementedError
 
-
-class ProxyText(ProxyShape):
-    #: A reference to the shape declaration.
-    declaration = ForwardTyped(lambda: Text)
-
-    def set_text(self, text):
-        raise NotImplementedError
-
-    def set_font(self, font):
-        raise NotImplementedError
-    
-    def set_size(self, size):
-        raise NotImplementedError
-    
-    def set_style(self, style):
-        raise NotImplementedError
-    
-    def set_composite(self, composite):
-        raise NotImplementedError
     
 class Shape(ToolkitObject):
     """ Abstract shape component that can be displayed on the screen 
@@ -966,53 +947,3 @@ class LoadShape(Shape):
     def _update_proxy(self, change):
         """ Base class implementation is sufficient"""
         super(LoadShape, self)._update_proxy(change)
-
-class Text(Shape):
-    """ Create a shape from a text of a given font.
-    
-    Attributes
-    ----------
-    
-    text: String
-        The text to create
-    font: String
-        The font family to use
-    size: Float
-        The font size.
-    style: String
-        Font style
-    composite: Bool
-        Create a composite curve.
-        
-    
-    Examples
-    --------
-    
-    Text:
-        text = "Hello world!"
-        font = "Georgia"
-        position = (10, 100, 0)
-    
-    """
-    #: Proxy shape
-    proxy = Typed(ProxyText)
-
-    #: Text to display
-    text = d_(Str())
-
-    #: Font to use
-    font = d_(Str())
-    
-    #: Font size
-    size = d_(Float(12.0, strict=False))
-    
-    #: Font style
-    style = d_(Enum('regular', 'bold', 'italic', 'bold-italic'))
-    
-    #: Composite curve
-    composite = d_(Bool(True))
-
-    @observe('text', 'font', 'size', 'style', 'composite')
-    def _update_proxy(self, change):
-        """ Base class implementation is sufficient"""
-        super(Text, self)._update_proxy(change)

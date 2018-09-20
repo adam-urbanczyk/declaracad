@@ -10,7 +10,7 @@ Created on Sept 27, 2016
 @author: jrm
 """
 from atom.api import (
-    Bool, ContainerList, Float, Typed, ForwardTyped, observe
+    Bool, ContainerList, Float, Typed, ForwardTyped, Str, Enum, observe
 )
 from enaml.core.declarative import d_
 
@@ -116,7 +116,27 @@ class ProxyBSpline(ProxyLine):
 class ProxyBezier(ProxyLine):
     #: A reference to the shape declaration.
     declaration = ForwardTyped(lambda: Bezier)
+
+
+class ProxyText(ProxyShape):
+    #: A reference to the shape declaration.
+    declaration = ForwardTyped(lambda: Text)
+
+    def set_text(self, text):
+        raise NotImplementedError
+
+    def set_font(self, font):
+        raise NotImplementedError
     
+    def set_size(self, size):
+        raise NotImplementedError
+    
+    def set_style(self, style):
+        raise NotImplementedError
+    
+    def set_composite(self, composite):
+        raise NotImplementedError
+
 
 class ProxyWire(ProxyShape):
     declaration = ForwardTyped(lambda: Wire)
@@ -454,6 +474,7 @@ class Bezier(Line):
     """
     proxy = Typed(ProxyBezier)
 
+
 class Wire(Shape):
     """ A Wire is a Path or series of Segment, Arcs, etc... All child items
     must be connected or an error will be thrown.
@@ -481,3 +502,54 @@ class Wire(Shape):
     @observe('edges')
     def _update_proxy(self, change):
         super(Wire, self)._update_proxy(change)
+
+
+class Text(Shape):
+    """ Create a shape from a text of a given font.
+    
+    Attributes
+    ----------
+    
+    text: String
+        The text to create
+    font: String
+        The font family to use
+    size: Float
+        The font size.
+    style: String
+        Font style
+    composite: Bool
+        Create a composite curve.
+        
+    
+    Examples
+    --------
+    
+    Text:
+        text = "Hello world!"
+        font = "Georgia"
+        position = (10, 100, 0)
+    
+    """
+    #: Proxy shape
+    proxy = Typed(ProxyText)
+
+    #: Text to display
+    text = d_(Str())
+
+    #: Font to use
+    font = d_(Str())
+    
+    #: Font size
+    size = d_(Float(12.0, strict=False))
+    
+    #: Font style
+    style = d_(Enum('regular', 'bold', 'italic', 'bold-italic'))
+    
+    #: Composite curve
+    composite = d_(Bool(True))
+
+    @observe('text', 'font', 'size', 'style', 'composite')
+    def _update_proxy(self, change):
+        """ Base class implementation is sufficient"""
+        super(Text, self)._update_proxy(change)

@@ -12,8 +12,6 @@ Created on Sep 30, 2016
 import os
 from atom.api import Instance, Typed, Unicode, observe, set_default
 
-from OCC import Addons
-
 from OCC.Bnd import Bnd_Box
 from OCC.BRep import BRep_Builder
 from OCC.BRepBndLib import brepbndlib_Add
@@ -58,21 +56,12 @@ from OCC.StlAPI import StlAPI_Reader
 from ..shape import (
     ProxyShape, ProxyFace, ProxyBox, ProxyCone, ProxyCylinder,
     ProxyHalfSpace, ProxyPrism, ProxySphere, ProxyWedge,
-    ProxyTorus, ProxyRevol, ProxyRawShape, ProxyLoadShape, ProxyText, BBox
+    ProxyTorus, ProxyRevol, ProxyRawShape, ProxyLoadShape, BBox
 )
 
 
 def coerce_axis(value):
     return gp_Ax2(gp_Pnt(*value[0]), gp_Dir(*value[1]))
-
-#: Track registered fonts
-FONT_REGISTRY = set()
-FONT_ASPECTS = {
-    'regular': Addons.Font_FA_Regular,
-    'bold': Addons.Font_FA_Bold,
-    'italic': Addons.Font_FA_Italic,
-    'bold-italic': Addons.Font_FA_BoldItalic
-}
 
 
 class WireExplorer(object):
@@ -1021,41 +1010,4 @@ class OccLoadShape(OccShape, ProxyLoadShape):
         self.create_shape()
 
     def set_loader(self, loader):
-        self.create_shape()
-
-
-class OccText(OccShape, ProxyText):
-    #: Update the class reference
-    reference = set_default('https://dev.opencascade.org/doc/refman/html/'
-                            'class_topo_d_s___shape.html')
-    
-    #: The shape created
-    shape = Instance(TopoDS_Shape)
-    
-    def create_shape(self):
-        """ Create the shape by loading it from the given path. """
-        d = self.declaration
-        font = d.font
-        if font:
-            if os.path.exists(font) and font not in FONT_REGISTRY:
-                Addons.register_font(font)
-                FONT_REGISTRY.add(font)
-                
-        self.shape = Addons.text_to_brep(
-            d.text, font, FONT_ASPECTS.get(d.style), d.size, d.composite
-        )
-        
-    def set_text(self, text):
-        self.create_shape()
-        
-    def set_font(self, font):
-        self.create_shape()
-    
-    def set_size(self, size):
-        self.create_shape()
-        
-    def set_style(self, style):
-        self.create_shape()
-        
-    def set_composite(self, composite):
         self.create_shape()

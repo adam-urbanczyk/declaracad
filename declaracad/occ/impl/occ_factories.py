@@ -78,7 +78,7 @@ def occ_sweep_factory():
 
 
 def occ_text_factory():
-    from .occ_shape import OccText
+    from .occ_draw import OccText
     return OccText
 
 

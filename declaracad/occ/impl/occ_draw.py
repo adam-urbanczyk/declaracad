@@ -9,16 +9,11 @@ Created on Sep 30, 2016
 
 @author: jrm
 """
+import os
 from atom.api import Typed, Int, List, set_default
 from enaml.application import timed_call
 
-from ..draw import (
-    ProxyPoint, ProxyVertex, ProxyLine, ProxyCircle, ProxyEllipse, 
-    ProxyHyperbola, ProxyParabola, ProxyEdge, ProxyWire, 
-    ProxySegment, ProxyArc, ProxyPolygon, ProxyBSpline, ProxyBezier
-)
-from .occ_shape import OccShape, OccDependentShape, coerce_axis
-
+from OCC import Addons
 from OCC.BRepBuilderAPI import (
     BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeWire,
     BRepBuilderAPI_MakeVertex, BRepBuilderAPI_Transform, 
@@ -28,10 +23,27 @@ from OCC.BRepOffsetAPI import BRepOffsetAPI_MakeOffset
 from OCC.gce import gce_MakeLin
 from OCC.GC import GC_MakeSegment, GC_MakeArcOfCircle
 from OCC.gp import gp_Pnt, gp_Lin, gp_Circ, gp_Elips, gp_Hypr, gp_Parab
-from OCC.TopoDS import TopoDS_Vertex, topods
+from OCC.TopoDS import TopoDS_Shape, TopoDS_Vertex, topods
 from OCC.GeomAPI import GeomAPI_PointsToBSpline
 from OCC.Geom import Geom_BezierCurve, Geom_BSplineCurve
 from OCC.TColgp import TColgp_Array1OfPnt
+
+from ..draw import (
+    ProxyPoint, ProxyVertex, ProxyLine, ProxyCircle, ProxyEllipse, 
+    ProxyHyperbola, ProxyParabola, ProxyEdge, ProxyWire, 
+    ProxySegment, ProxyArc, ProxyPolygon, ProxyBSpline, ProxyBezier, ProxyText
+)
+from .occ_shape import OccShape, OccDependentShape, coerce_axis
+
+
+#: Track registered fonts
+FONT_REGISTRY = set()
+FONT_ASPECTS = {
+    'regular': Addons.Font_FA_Regular,
+    'bold': Addons.Font_FA_Bold,
+    'italic': Addons.Font_FA_Italic,
+    'bold-italic': Addons.Font_FA_BoldItalic
+}
 
 
 class OccPoint(OccShape, ProxyPoint):
@@ -289,6 +301,43 @@ class OccBezier(OccLine, ProxyBezier):
         self.shape = Geom_BezierCurve(pts)
 
 
+class OccText(OccShape, ProxyText):
+    #: Update the class reference
+    reference = set_default('https://dev.opencascade.org/doc/refman/html/'
+                            'class_topo_d_s___shape.html')
+    
+    #: The shape created
+    shape = Typed(TopoDS_Shape)
+    
+    def create_shape(self):
+        """ Create the shape by loading it from the given path. """
+        d = self.declaration
+        font = d.font
+        if font:
+            if os.path.exists(font) and font not in FONT_REGISTRY:
+                Addons.register_font(font)
+                FONT_REGISTRY.add(font)
+                
+        self.shape = Addons.text_to_brep(
+            d.text, font, FONT_ASPECTS.get(d.style), d.size, d.composite
+        )
+        
+    def set_text(self, text):
+        self.create_shape()
+        
+    def set_font(self, font):
+        self.create_shape()
+    
+    def set_size(self, size):
+        self.create_shape()
+        
+    def set_style(self, style):
+        self.create_shape()
+        
+    def set_composite(self, composite):
+        self.create_shape()
+        
+        
 class OccWire(OccShape, ProxyWire):
     #: Update the class reference
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'

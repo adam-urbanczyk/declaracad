@@ -25,6 +25,7 @@ from .draw import (
     Segment, Arc, Circle, Ellipse, Hyperbola,
     Parabola, Polygon,
     BSpline, Bezier,
+    Text,
     Wire
 )
 
@@ -34,6 +35,6 @@ from .shape import (
     Shape, RawShape, LoadShape,
     Face,
     Box, Cylinder, Sphere, Cone, Wedge, Torus,
-    HalfSpace, Prism, Revol, Text
+    HalfSpace, Prism, Revol
 )
 
