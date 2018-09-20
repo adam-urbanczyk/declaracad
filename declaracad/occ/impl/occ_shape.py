@@ -14,7 +14,9 @@ from atom.api import Instance, Typed, Unicode, observe, set_default
 
 from OCC import Addons
 
+from OCC.Bnd import Bnd_Box
 from OCC.BRep import BRep_Builder
+from OCC.BRepBndLib import brepbndlib_Add
 from OCC.BRepBuilderAPI import (
     BRepBuilderAPI_MakeShape, BRepBuilderAPI_MakeFace, BRepBuilderAPI_Transform
 )
@@ -25,6 +27,7 @@ from OCC.BRepPrimAPI import (
     BRepPrimAPI_MakeRevol,
 )
 from OCC.BRepTools import BRepTools_WireExplorer, breptools_Read
+
 
 from OCC.gp import gp_Pnt, gp_Dir, gp_Vec, gp_Ax1, gp_Ax2, gp_Ax3, gp_Trsf
 
@@ -55,7 +58,7 @@ from OCC.StlAPI import StlAPI_Reader
 from ..shape import (
     ProxyShape, ProxyFace, ProxyBox, ProxyCone, ProxyCylinder,
     ProxyHalfSpace, ProxyPrism, ProxySphere, ProxyWedge,
-    ProxyTorus, ProxyRevol, ProxyRawShape, ProxyLoadShape, ProxyText
+    ProxyTorus, ProxyRevol, ProxyRawShape, ProxyLoadShape, ProxyText, BBox
 )
 
 
@@ -70,6 +73,7 @@ FONT_ASPECTS = {
     'italic': Addons.Font_FA_Italic,
     'bold-italic': Addons.Font_FA_BoldItalic
 }
+
 
 class WireExplorer(object):
     """ Wire traversal """
@@ -599,6 +603,17 @@ class OccShape(ProxyShape):
 
     def parent_shape(self):
         return self.parent().shape
+    
+    def get_bounding_box(self):
+        shape = self.shape
+        if not shape:
+            return BBox()
+        bbox = Bnd_Box()
+        if hasattr(shape, 'Shape'):
+            brepbndlib_Add(shape.Shape(), bbox)
+        else:
+            brepbndlib_Add(shape, bbox)
+        return BBox(*bbox.Get())
 
 
 class OccDependentShape(OccShape):

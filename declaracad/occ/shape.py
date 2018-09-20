@@ -11,18 +11,51 @@ Created on Sep 30, 2016
 @author: jrm
 """
 from atom.api import (
-    Tuple, Instance, Bool, Str, Float, Property, Coerced, Typed, ForwardTyped, 
-    Enum, observe
+    Atom, Tuple, Instance, Bool, Str, Float, Property, Coerced, Typed,
+    ForwardTyped, Enum, observe
 )
 
 from contextlib import contextmanager
 from enaml.core.declarative import d_
+from enaml.colors import ColorMember
 from enaml.widgets.control import ProxyControl
 from enaml.widgets.toolkit_object import ToolkitObject
 
 #: TODO: This breaks the proxy pattern
 from OCC.TopoDS import TopoDS_Face, TopoDS_Shell, TopoDS_Shape
 
+
+class BBox(Atom):
+    xmin = Float()
+    ymin = Float()
+    zmin = Float()
+    xmax = Float()
+    ymax = Float()
+    zmax = Float()
+    
+    def _get_dx(self):
+        return self.xmax-self.xmin
+    
+    dx = Property(_get_dx, cached=True)
+    
+    def _get_dy(self):
+        return self.ymax-self.ymin
+    
+    dy = Property(_get_dy, cached=True)
+    
+    def _get_dz(self):
+        return self.zmax-self.zmin
+    
+    dz = Property(_get_dz, cached=True)
+    
+    def __init__(self, xmin=0, ymin=0, zmin=0, xmax=0, ymax=0, zmax=0):
+        super(BBox, self).__init__(xmin=xmin, ymin=ymin, zmin=zmin,
+                                   xmax=xmax, ymax=ymax, zmax=zmax)
+        
+    def __getitem__(self, key):
+        return (self.xmin, self.ymin, self.zmin, 
+                self.xmax, self.ymax, self.zmax)[key]
+    
 
 class ProxyShape(ProxyControl):
     #: A reference to the Shape declaration.
@@ -42,6 +75,9 @@ class ProxyShape(ProxyControl):
     
     def set_transparency(self, alpha):
         pass
+    
+    def get_bounding_box(self):
+        raise NotImplementedError
 
 
 class ProxyFace(ProxyShape):
@@ -248,7 +284,7 @@ class Shape(ToolkitObject):
         this shape.
     tolerance: Float
         The tolerance to use for operations that may require it.
-    color: string
+    color: Color
         A string representing the color of the shape.
     material: String
         A string represeting a pre-defined material which defines a color
@@ -280,7 +316,7 @@ class Shape(ToolkitObject):
     tolerance = d_(Float(10**-6, strict=False))
     
     #: Color
-    color = d_(Str()).tag(view=True, group='Display')
+    color = d_(ColorMember()).tag(view=True, group='Display')
 
     #: Texture material
     material = d_(Enum(None, 'aluminium', 'brass', 'bronze', 'charcoal',
@@ -370,6 +406,16 @@ class Shape(ToolkitObject):
     #: Shells of this shape
     shape_shells = Property(_get_shells, cached=True)
     
+    def _get_bounding_box(self):
+        if self.proxy.shape:
+            try:
+                return self.proxy.get_bounding_box()
+            except:
+                pass
+    
+    #: Bounding box of this shape
+    bbox = d_(Property(_get_bounding_box, cached=True))
+    
     @observe('color', 'transparency')
     def _update_proxy(self, change):
         super(Shape, self)._update_proxy(change)
@@ -377,9 +423,9 @@ class Shape(ToolkitObject):
             self.proxy.update_display(change)
     
     @observe('proxy.shape')
-    def _update_topo(self, change):
+    def _update_properties(self, change):
         """ Update the cached topology references when the shape changes. """
-        for k in ['shape_edges', 'shape_faces', 'shape_shells']:
+        for k in ('shape_edges', 'shape_faces', 'shape_shells', 'bbox'):
             self.get_member(k).reset(self)
             
     def render(self):
