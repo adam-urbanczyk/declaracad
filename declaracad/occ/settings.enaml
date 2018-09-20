@@ -27,6 +27,7 @@ from enaml.widgets.api import (
     Dialog, Field, Label, PushButton, Form, ObjectCombo, SplitItem, Splitter,
     Container, SpinBox, FileDialogEx, ObjectCombo, ColorDialog
 )
+from .widgets.api import OccViewer
 
 
 enamldef ViewerSettingsPage(Container):
@@ -41,28 +42,34 @@ enamldef ViewerSettingsPage(Container):
         Label:
             text = "Viewer Background"
         ObjectCombo:
-            items = list(model.get_member('viewer_background_mode').items)
+            items = list(model.get_member('background_mode').items)
             to_string = lambda it: it.title()
-            selected := model.viewer_background_mode
+            selected := model.background_mode
         Label:
             text = "Color"
         PushButton:
-            text << format_color(model.viewer_background_top)
+            text << format_color(model.background_top)
             clicked :: 
-                dlg = ColorDialog(parent=self, current_color=model.viewer_background_top)
+                dlg = ColorDialog(parent=self, current_color=model.background_top)
                 if dlg.exec_():
-                    model.viewer_background_top = dlg.selected_color
+                    model.background_top = dlg.selected_color
         Conditional:
-            condition << model.viewer_background_mode == 'gradient'
+            condition << model.background_mode == 'gradient'
             Label:
                 text = "Second Color"
             PushButton:
-                text << format_color(model.viewer_background_bottom)
+                text << format_color(model.background_bottom)
                 clicked ::
-                    dlg = ColorDialog(parent=self, current_color=model.viewer_background_top)
+                    dlg = ColorDialog(parent=self, current_color=model.background_top)
                     if dlg.exec_():
-                        model.viewer_background_bottom = dlg.selected_color
-                    
+                        model.background_bottom = dlg.selected_color
+        
+        Label:
+            text = "Trihedron display"
+        ObjectCombo:
+            items = list(OccViewer.trihedron_mode.items)
+            to_string = lambda it: it.replace("-", " ").title()
+            selected := model.trihedron_mode
 
 
 

@@ -13,12 +13,6 @@ import logging
 import traceback
 from atom.api import List, Dict, Typed, Int, Property, Bool
 
-from OCC.Display import OCCViewer
-from ..impl.occ_part import OccPart
-from ..widgets.occ_viewer import (
-    ProxyOccViewer, ViewerSelectionEvent, ProxyOccViewerClippedPlane
-)
-
 from enaml.qt import QtCore, QtGui
 from enaml.qt.QtWidgets import QOpenGLWidget
 
@@ -26,27 +20,22 @@ from enaml.qt.QtCore import Qt
 from enaml.qt.qt_control import QtControl
 from enaml.qt.qt_toolkit_object import QtToolkitObject
 from enaml.application import timed_call
-from OCC.BRepBuilderAPI import BRepBuilderAPI_MakeShape
-from OCC import Graphic3d
+
+from OCC import Graphic3d, Aspect, V3d
 from OCC.Bnd import Bnd_Box
 from OCC.BRepBndLib import brepbndlib_Add
+from OCC.BRepBuilderAPI import BRepBuilderAPI_MakeShape
+from OCC.Display import OCCViewer
 from OCC.gp import gp_Pnt, gp_Dir, gp_Ax3
+from OCC.Quantity import Quantity_Color, Quantity_TOC_RGB, Quantity_NOC_BLACK
 
+from ..impl.occ_part import OccPart
+from ..widgets.occ_viewer import (
+    ProxyOccViewer, ViewerSelectionEvent, ProxyOccViewerClippedPlane
+)
+from ..shape import BBox
 
 log = logging.getLogger('declaracad')
-
-
-def coerce_color(color):
-    transparency = None
-    if isinstance(color, str):
-        if color.startswith("#"):
-            r, g, b, a = Display.hex_color(color)
-            if a is not None:
-                transparency = a
-            color = OCCViewer.rgb_color(r, g, b)
-        else:
-            color = OCCViewer.get_color_from_name(color)
-    return color, transparency
 
 
 class Display(OCCViewer.Viewer3d):
@@ -146,9 +135,12 @@ class Display(OCCViewer.Viewer3d):
             #color well, so I set it to something less reflective
             shape_to_display.SetMaterial(OCCViewer.Graphic3d_NOM_NEON_GNC)
         if color:
-            color, _transparency = coerce_color(color)
-            if _transparency is not None:
-                transparency = _transparency
+            # Convert enaml color to OCC color
+            if color.alpha != 255:
+                transparency = 1-color.alpha/255.0
+            color = Quantity_Color(color.red/255.,
+                                   color.green/255.,
+                                   color.blue/255., Quantity_TOC_RGB)
             for shp in ais_shapes:
                 self.Context.SetColor(shp, color, False)
         if transparency:
@@ -168,48 +160,6 @@ class Display(OCCViewer.Viewer3d):
         else:
             return shape_to_display
 
-    @staticmethod
-    def hex_color(color):
-        """ Parse a color to rgba from formats
-        
-        Parameters
-        -----------
-        color: String
-            One of the folloing formats
-                #RGB
-                #RGBA
-                #RRGGBB
-                #RRGGBBA#
-        
-        Returns
-        --------
-        r,g,b,a: Tuple of floats
-            Color floats (0-1) for each. 
-            Note alpha will return None if not given. 
-            
-        """
-        c = color[1:]
-        if len(c) == 3:
-            return (int(c[0], 16)/16.0,
-                    int(c[1], 16)/16.0,
-                    int(c[2], 16)/16.0,
-                    None)
-        elif len(c) == 4:
-            return (int(c[0], 16)/16.0,
-                    int(c[1], 16)/16.0,
-                    int(c[2], 16)/16.0,
-                    int(c[3], 16)/16.0)
-        elif len(c) == 6:
-            return (int(c[0:2], 16)/255.0,
-                    int(c[2:4], 16)/255.0,
-                    int(c[4:6], 16)/255.0,
-                    None)
-        elif len(c) == 8:
-            return (int(c[0:2], 16)/255.0,
-                    int(c[2:4], 16)/255.0,
-                    int(c[4:6], 16)/255.0,
-                    int(c[6:])/255.0)
-        raise ValueError("Invalid color: '{}'".format(color))
 
 
 class QtBaseViewer(QOpenGLWidget):
@@ -264,6 +214,8 @@ class QtBaseViewer(QOpenGLWidget):
 class QtViewer3d(QtBaseViewer):
     def __init__(self, *args, **kwargs):
         super(QtViewer3d, self).__init__(*args, **kwargs)
+        self._lock_rotation = False
+        self._lock_zoom = False
         self._drawbox = False
         self._zoom_area = False
         self._select_area = False
@@ -355,16 +307,16 @@ class QtViewer3d(QtBaseViewer):
     def wheelEvent(self, event):
         if self._fireEventCallback('mouse_scrolled', event):
             return
-        try:  # PyQt4/PySide
-            delta = event.delta()
-        except:  # PyQt5
-            delta = event.angleDelta().y()
-        if delta > 0:
-            zoom_factor = 2
-        else:
-            zoom_factor = 0.5
-        self._display.Repaint()
-        self._display.ZoomFactor(zoom_factor)
+        if self._lock_zoom:
+            return
+        try:  
+            delta = event.angleDelta().y()  # PyQt5
+        except:  
+            delta = event.delta()  # PyQt4/PySide
+        zoom_factor = 1.25 if delta > 0 else 1/1.25
+        display = self._display
+        display.Repaint()
+        display.ZoomFactor(zoom_factor)
 
     def dragMoveEvent(self, event):
         if self._fireEventCallback('mouse_dragged', event):
@@ -438,7 +390,8 @@ class QtViewer3d(QtBaseViewer):
                 not modifiers == Qt.ShiftModifier):
             #dx = pt.x() - self.dragStartPos.x()
             #dy = pt.y() - self.dragStartPos.y()
-            self._display.Rotation(pt.x(), pt.y())
+            if not self._lock_rotation:
+                self._display.Rotation(pt.x(), pt.y())
             self._drawbox = False
         # DYNAMIC ZOOM
         elif (buttons == Qt.RightButton and
@@ -517,6 +470,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         self.set_selection_mode(d.selection_mode)
         self.set_view_mode(d.view_mode)
         self.set_antialiasing(d.antialiasing)
+        self.set_lock_rotation(d.lock_rotation)
+        self.set_lock_zoom(d.lock_zoom)
         self._update_raytracing_mode()
 
         #: Setup callbacks
@@ -622,7 +577,12 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         self.display.set_bg_gradient_color(*gradient)
         
     def set_trihedron_mode(self, mode):
-        self.display.display_trihedron()
+        attr = 'Aspect_TOTP_{}'.format(mode.upper().replace("-", "_"))
+        position = getattr(Aspect, attr)
+        self.display.View.TriedronDisplay(
+            position, Quantity_NOC_BLACK, 0.1, V3d.V3d_ZBUFFER)
+        if self.widget._inited:
+            self.display.Context.UpdateCurrentViewer()
         
     def set_selection_mode(self, mode):
         """ Call SetSelectionMode<mode> on the display. """
@@ -646,6 +606,12 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         if handler is not None:
             handler()
         self.display.FitAll()
+        
+    def set_lock_rotation(self, locked):
+        self.widget._lock_rotation = locked
+        
+    def set_lock_zoom(self, locked):
+        self.widget._lock_zoom = locked
         
     def zoom_factor(self, factor):
         self.display.ZoomFactor(factor)
@@ -774,7 +740,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             # Update bounding box
             # TODO: Is there an API for this?
             bbox = self.get_bounding_box(displayed_shapes.keys())
-            self.declaration.bounding_box = bbox
+            self.declaration.bbox = BBox(*bbox)
         except:
             log.error("Failed to display shapes: {}".format(
                 traceback.format_exc()))
@@ -860,7 +826,9 @@ class QtOccViewerClippedPlane(QtControl, ProxyOccViewerClippedPlane):
         display = self.display
         clip_plane = self.graphic
         if color:
-            c, t = coerce_color(color)
+            c = Quantity_Color(color.red/255.,
+                               color.green/255.,
+                               color.blue/255., Quantity_TOC_RGB)
             mat = clip_plane.CappingMaterial()
             mat.SetAmbientColor(c)
             mat.SetDiffuseColor(c)

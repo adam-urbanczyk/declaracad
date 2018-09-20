@@ -14,7 +14,10 @@ from atom.api import (
    Dict, Str, Float, set_default
 )
 from enaml.core.declarative import d_
+from enaml.colors import ColorMember
 from enaml.widgets.control import Control, ProxyControl
+
+from ..shape import BBox
 
 
 class ViewerSelectionEvent(Atom):
@@ -76,6 +79,12 @@ class ProxyOccViewer(ProxyControl):
     def set_antialiasing(self, enabled):
         raise NotImplementedError
     
+    def set_lock_rotation(self, locked):
+        raise NotImplementedError
+    
+    def set_lock_zoom(self, locked):
+        raise NotImplementedError
+    
     def fit_all(self):
         raise NotImplementedError
     
@@ -120,8 +129,7 @@ class OccViewer(Control):
     
     #: Bounding box of displayed shapes. A tuple of the following values
     #: (xmin, ymin, zmin, xmax, ymax, zmax). 
-    bounding_box = d_(Tuple(Float(strict=False), default=(0, 0, 0, 1, 1, 1)),
-                      writable=False)
+    bbox = d_(Typed(BBox), writable=False)
     
     #: Display mode
     display_mode = d_(Enum('shaded', 'hlr', 'wireframe'))
@@ -140,7 +148,8 @@ class OccViewer(Control):
     #reset_view = d_(Event(),writable=False)
     
     #: Show tahedron
-    trihedron_mode = d_(Enum('right-lower', 'disabled'))
+    trihedron_mode = d_(Enum('right-lower', 'right-upper', 'left-lower', 
+                             'left-upper'))
     
     #: Background gradient
     background_gradient = d_(Tuple(Int(), default=(206, 215, 222,
@@ -161,6 +170,12 @@ class OccViewer(Control):
     #: View expands freely in height by default.
     hug_height = set_default('ignore')
     
+    #: Lock rotation so the mouse cannot not rotate
+    lock_rotation = d_(Bool())
+    
+    #: Lock zoom so the mouse wheel cannot not zoom
+    lock_zoom = d_(Bool())
+    
     #: Events
     #: Raise StopIteration to indicate handling should stop
     key_pressed = d_(Event(), writable=False)
@@ -174,7 +189,8 @@ class OccViewer(Control):
     # -------------------------------------------------------------------------
     @observe('position', 'display_mode', 'view_mode', 'trihedron_mode',
              'selection_mode', 'background_gradient', 'double_buffer',
-             'shadows', 'reflections', 'antialiasing')
+             'shadows', 'reflections', 'antialiasing', 'lock_rotation', 
+             'lock_zoom')
     def _update_proxy(self, change):
         """ An observer which sends state change to the proxy.
         """
@@ -215,7 +231,7 @@ class OccViewerClippedPlane(Control):
     capping_hatched = d_(Bool(True))
     
     #: Color
-    capping_color = d_(Str())
+    capping_color = d_(ColorMember())
     
     #: Position
     position = d_(Tuple(Float(strict=False), default=(0, 0, 0)))

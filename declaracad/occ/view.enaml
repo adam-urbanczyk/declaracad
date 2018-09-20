@@ -97,7 +97,24 @@ enamldef ModelViewer(OccViewer): viewer:
                 Action:
                     text = loop_item.title()
                     checked << viewer.display_mode == loop_item
-                    triggered :: viewer.display_mode = loop_item        
+                    checkable = True
+                    triggered :: 
+                        if loop_item == viewer.display_mode:
+                            viewer.proxy.set_display_mode(loop_item)
+                        else:
+                            viewer.display_mode = loop_item        
+        Menu:
+            title = 'Navigation'
+            Action:
+                text = 'Lock rotation'
+                tool_tip = 'Disable rotation with the mouse or touchpad'
+                checkable = True
+                checked := viewer.lock_rotation
+            Action:
+                text = 'Lock zoom'
+                tool_tip = 'Disable zooming with the mouse or touchpad'
+                checkable = True
+                checked := viewer.lock_zoom
         Action:
             separator = True
         Menu:
@@ -130,7 +147,7 @@ enamldef ModelViewer(OccViewer): viewer:
                     triggered :: 
                         # Create a plus and minus plane
                         axis = loop_item[1].index(1)
-                        maxes = viewer.bounding_box[3:]
+                        maxes = viewer.bbox[3:]
                         
                         d = loop_item[1]
                         low_pln = OccViewerClippedPlane(
@@ -159,7 +176,7 @@ enamldef ClippedPlaneRow(Container):
     padding = 0
     attr plane
     attr high_plane
-    attr bounding_box
+    attr bbox
     attr axis << plane.direction.index(1)
     attr labels = {0: 'X', 1: 'Y', 2: 'Z'}
     
@@ -181,7 +198,7 @@ enamldef ClippedPlaneRow(Container):
             return int(vmin*scale), int(vmax*scale), scale
             
         # min, max, scale
-        attr bounds << compute_bounds(bounding_box[axis], bounding_box[axis+3])        
+        attr bounds << compute_bounds(bbox[axis], bbox[axis+3])        
         minimum << bounds[0]-1
         maximum << bounds[1]+1
         low_value << int(plane.position[axis]*bounds[2])
@@ -210,10 +227,6 @@ enamldef ViewerWindow(Window): window:
     activated ::
         if frameless:
             self.proxy.widget.setWindowFlags(Qt.FramelessWindowHint)
-            
-    func set_backgound(color1, color2):
-        """ Set background gradient colors """
-        viewer.background_gradient = tuple(color1 + color2)
     
     func screenshot(filename):
         # Take a screenshot and save it 
@@ -274,7 +287,7 @@ enamldef ViewerWindow(Window): window:
                     ClippedPlaneRow:
                         plane = loop_item[0]
                         high_plane = loop_item[1]
-                        bounding_box << viewer.bounding_box
+                        bbox << viewer.bbox
 
 
 enamldef RemoteViewer(Conditional): viewer:
@@ -285,25 +298,30 @@ enamldef RemoteViewer(Conditional): viewer:
     func update_backgound(change):
         """ Updates the background color on the viewer """
         model = viewer.model
-        color = model.viewer_background_top
+        color = model.background_top
         if not color:
             return
         c1 = color.red, color.green, color.blue
-        if model.viewer_background_mode == 'solid':
+        if model.background_mode == 'solid':
             c2 = c1
         else:
-            color = model.viewer_background_bottom
+            color = model.background_bottom
             if not color:
                 return
             c2 = color.red, color.green, color.blue
-        renderer.set_backgound(c1, c2)
+        renderer.set_background_gradient(tuple(c1+c2))
+        
+    func update_trihedron(change):
+        renderer.set_trihedron_mode(model.trihedron_mode)
     
     func setup():
         model = viewer.model
-        model.observe('viewer_background_mode', update_backgound)
-        model.observe('viewer_background_top', update_backgound)    
-        model.observe('viewer_background_bottom', update_backgound)
+        model.observe('background_mode', update_backgound)
+        model.observe('background_top', update_backgound)    
+        model.observe('background_bottom', update_backgound)
+        model.observe('trihedron_mode', update_trihedron)
         update_backgound({})
+        update_trihedron({})
     
     #: Embedded viewer
     EmbeddedWindow: window:
