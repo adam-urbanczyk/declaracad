@@ -16,6 +16,7 @@ import json
 import time
 import enaml
 import atexit
+import jsonpickle
 from types import ModuleType
 from atom.api import (
     Atom, ContainerList, Unicode, Float, Dict, Bool, Int, Instance, Enum, 
@@ -209,7 +210,7 @@ class ViewerProcess(ProcessLineReceiver):
             request['id'] = _id        
         
         log.debug(f'renderer | sent | {request}')
-        self.transport.write(json.dumps(request).encode()+b'\r\n')
+        self.transport.write(jsonpickle.dumps(request).encode()+b'\r\n')
     
     def _default_process(self):
         from twisted.internet import reactor
@@ -244,7 +245,7 @@ class ViewerProcess(ProcessLineReceiver):
         try:
             line = line.decode()
             log.debug(f"render | out | {line}")
-            response = json.loads(line)
+            response = jsonpickle.loads(line)
         except Exception as e:
             response = {}
         
@@ -327,9 +328,10 @@ class ViewerProcess(ProcessLineReceiver):
 class ViewerPlugin(Plugin):
     
     #: Background color
-    viewer_background_mode = Enum('gradient', 'solid').tag(config=True)
-    viewer_background_top = ColorMember('lightgrey').tag(config=True)
-    viewer_background_bottom = ColorMember('grey').tag(config=True)
+    background_mode = Enum('gradient', 'solid').tag(config=True)
+    background_top = ColorMember('lightgrey').tag(config=True)
+    background_bottom = ColorMember('grey').tag(config=True)
+    trihedron_mode = Unicode('right-lower').tag(config=True)
     
     
     def get_viewers(self):

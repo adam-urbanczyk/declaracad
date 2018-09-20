@@ -13,6 +13,7 @@ import os
 import sys
 import logging
 import traceback
+import jsonpickle
 from io import StringIO
 from contextlib import contextmanager
 
@@ -25,11 +26,6 @@ from enaml.application import timed_call
 from twisted.internet.defer import Deferred as TwistedDeferred
 from twisted.internet.protocol import ProcessProtocol
 from twisted.protocols.basic import LineReceiver
-
-try:
-    import ujson as json
-except ImportError:
-    import json
 
 # -----------------------------------------------------------------------------
 # Logger
@@ -114,13 +110,13 @@ class JSONRRCProtocol(Atom, LineReceiver):
     def send_message(self, message):
         response = {'jsonrpc': '2.0'}
         response.update(message)
-        self.transport.write(json.dumps(response).encode()+b'\r\n')
+        self.transport.write(jsonpickle.dumps(response).encode()+b'\r\n')
         
     def lineReceived(self, line):
         """ Process stdin as json-rpc request """
         response = {}
         try:
-            request = json.loads(line)
+            request = jsonpickle.loads(line)
         except Exception as e:
             self.send_message({"id": None,
                                'error': {'code': -32700,
