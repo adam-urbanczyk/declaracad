@@ -197,4 +197,4 @@ class DeclaracadPlugin(Plugin):
         log.debug("Updating settings pages: {}".format(settings_pages))
 
         self.settings_typemap = typemap
-        self.settings_pages = settings_pages
+        self.settings_pages = sorted(settings_pages, key=lambda p: p.name)
