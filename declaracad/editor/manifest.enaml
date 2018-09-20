@@ -136,7 +136,25 @@ def goto_in_editor(event):
     plugin = event.workbench.get_plugin('declaracad.editor')
     editor = plugin.get_editor()
     editor.show_goto_bar = True
+    
+    
+def comment_in_editor(event):
+    plugin = event.workbench.get_plugin('declaracad.editor')
+    editor = plugin.get_editor()
+    editor.comment_lines()
 
+
+def uncomment_in_editor(event):
+    plugin = event.workbench.get_plugin('declaracad.editor')
+    editor = plugin.get_editor()
+    editor.uncomment_lines()
+
+
+def toggle_comments_in_editor(event):
+    plugin = event.workbench.get_plugin('declaracad.editor')
+    editor = plugin.get_editor()
+    editor.toggle_comments()
+    
 
 def plugin_factory():
     from .plugin import EditorPlugin
@@ -288,6 +306,15 @@ enamldef EditorManifest(PluginManifest):
         Command:
             id = 'declaracad.editor.goto_line'
             handler = goto_in_editor
+        Command:
+            id = 'declaracad.editor.uncomment_lines'
+            handler = uncomment_in_editor
+        Command:
+            id = 'declaracad.editor.comment_lines'
+            handler = comment_in_editor
+        Command:
+            id = 'declaracad.editor.toggle_comments'
+            handler = toggle_comments_in_editor
     
     Extension:
         id = 'actions'
@@ -336,21 +363,44 @@ enamldef EditorManifest(PluginManifest):
             label = 'Edit'
             after = 'file'
             before = 'examples'
+            ItemGroup:
+                id = 'find'
+            ItemGroup:
+                id = 'comments'
         ActionItem:
             path = '/edit/find'
             label = 'Find'
             shortcut = 'Ctrl+F'
+            group = 'find'
             command = 'declaracad.editor.find'
         ActionItem:
             path = '/edit/replace'
             label = 'Replace'
             shortcut = 'Ctrl+R'
+            group = 'find'
             command = 'declaracad.editor.replace'
         ActionItem:
             path = '/edit/goto'
             label = 'Go to line'
             shortcut = 'Ctrl+L'
+            group = 'find'
             command = 'declaracad.editor.goto_line'
+        ActionItem:
+            path = '/edit/comment'
+            label = 'Comment'
+            group = 'comments'
+            command = 'declaracad.editor.comment_lines'
+        ActionItem:
+            path = '/edit/uncomment'
+            label = 'Uncomment'
+            group = 'comments'
+            command = 'declaracad.editor.uncomment_lines'
+        ActionItem:
+            path = '/edit/toggle_comments'
+            label = 'Toggle comments'
+            shortcut = 'Ctrl+/'
+            group = 'comments'
+            command = 'declaracad.editor.toggle_comments'
         Looper:
             iterable = get_examples().items()
             Conditional:
