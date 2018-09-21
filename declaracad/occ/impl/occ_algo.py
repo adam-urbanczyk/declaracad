@@ -481,7 +481,7 @@ class OccTransform(OccOperation, ProxyTransform):
                 t.SetMirror(gp_Ax1(gp_Pnt(*op.point),
                                    gp_Dir(op.x, op.y, op.z)))
             elif isinstance(op, Scale):
-                t.SetScale(gp_Pnt(*op.point), s)
+                t.SetScale(gp_Pnt(*op.point), op.s)
             result.Multiply(t)
         return result
     
