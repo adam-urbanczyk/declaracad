@@ -67,6 +67,7 @@ enamldef SettingsDialog(Dialog): dialog:
                         TreeView: tree:
                             horizontal_headers = ['Setting']
                             horizontal_stretch = True
+                            show_root = False
                             show_horizontal_header = False
                             show_vertical_header = False
                             items << plugin.settings_pages
