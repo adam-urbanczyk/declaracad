@@ -10,7 +10,8 @@ Created on Sept 27, 2016
 @author: jrm
 """
 from atom.api import (
-    Bool, ContainerList, Float, Typed, ForwardTyped, Str, Enum, observe
+    Bool, ContainerList, Float, Typed, ForwardTyped, Str, Enum, Property, 
+    observe
 )
 from enaml.core.declarative import d_
 
@@ -140,6 +141,14 @@ class ProxyText(ProxyShape):
 
 class ProxyWire(ProxyShape):
     declaration = ForwardTyped(lambda: Wire)
+
+
+class ProxySvg(ProxyShape):
+    #: A reference to the shape declaration.
+    declaration = ForwardTyped(lambda: Svg)
+
+    def set_source(self, source):
+        raise NotImplementedError
 
 
 class Point(Shape):
@@ -553,3 +562,42 @@ class Text(Shape):
     def _update_proxy(self, change):
         """ Base class implementation is sufficient"""
         super(Text, self)._update_proxy(change)
+        
+        
+class Svg(Shape):
+    """ Creates a wire from an SVG document.
+    
+    Attributes
+    ----------
+    
+    source: String
+        Path or svg text to parse
+            
+    Examples
+    --------
+    
+    Svg:
+        source = "path/to/file.svg"
+        position = (10, 100, 0)
+    
+    """
+    #: Proxy shape
+    proxy = Typed(ProxySvg)
+    
+    #: Source file or text
+    source = d_(Str())
+    
+    def _get_wires(self):
+        return self.proxy.wires
+    
+    shape_wires = Property(_get_wires, cached=True)
+    
+    @observe('source')
+    def _update_proxy(self, change):
+        """ Base class implementation is sufficient"""
+        super(Svg, self)._update_proxy(change)
+    
+    def _update_properties(self, change):
+        super(Svg, self)._update_properties(change)
+        self.get_member('shape_wires').reset(self)
+    

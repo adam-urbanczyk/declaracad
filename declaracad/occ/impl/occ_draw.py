@@ -11,7 +11,6 @@ Created on Sep 30, 2016
 """
 import os
 from atom.api import Typed, Int, List, set_default
-from enaml.application import timed_call
 
 from OCC import Addons
 from OCC.BRepBuilderAPI import (
@@ -20,7 +19,6 @@ from OCC.BRepBuilderAPI import (
     BRepBuilderAPI_MakePolygon
 )
 from OCC.BRepOffsetAPI import BRepOffsetAPI_MakeOffset
-from OCC.gce import gce_MakeLin
 from OCC.GC import GC_MakeSegment, GC_MakeArcOfCircle
 from OCC.gp import gp_Pnt, gp_Lin, gp_Circ, gp_Elips, gp_Hypr, gp_Parab
 from OCC.TopoDS import TopoDS_Shape, TopoDS_Vertex, topods
@@ -30,8 +28,8 @@ from OCC.TColgp import TColgp_Array1OfPnt
 
 from ..draw import (
     ProxyPoint, ProxyVertex, ProxyLine, ProxyCircle, ProxyEllipse, 
-    ProxyHyperbola, ProxyParabola, ProxyEdge, ProxyWire, 
-    ProxySegment, ProxyArc, ProxyPolygon, ProxyBSpline, ProxyBezier, ProxyText
+    ProxyHyperbola, ProxyParabola, ProxyEdge, ProxyWire, ProxySegment, ProxyArc, 
+    ProxyPolygon, ProxyBSpline, ProxyBezier, ProxyText
 )
 from .occ_shape import OccShape, OccDependentShape, coerce_axis
 
@@ -58,7 +56,6 @@ class OccPoint(OccShape, ProxyPoint):
         d = self.declaration
         # Not sure why but we need this
         # to force a sync of position and xyz
-        print(d, self, d.position, d.x, d.y, d.z)
         self.shape = gp_Pnt(*d.position)
         
     def set_position(self, position):
@@ -106,11 +103,10 @@ class OccLine(OccEdge, ProxyLine):
     def create_shape(self):
         d = self.declaration
         if len(d.points) == 2:
-            shape = gce_MakeLin(gp_Pnt(*d.points[0]),
-                                gp_Pnt(*d.points[1])).Value()
+            args = (gp_Pnt(*d.points[0]), gp_Pnt(*d.points[1]))
         else:
-            shape = gp_Lin(coerce_axis(d.axis))
-        self.make_edge(shape)
+            args = (gp_Lin(coerce_axis(d.axis)),)
+        self.make_edge(*args)
         
     def set_points(self, points):
         self.create_shape()
@@ -343,8 +339,6 @@ class OccWire(OccShape, ProxyWire):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_builder_a_p_i___make_wire.html')
 
-    _update_count = Int(0)
-    
     #: Make wire
     shape = Typed(BRepBuilderAPI_MakeWire)
     
@@ -391,4 +385,3 @@ class OccWire(OccShape, ProxyWire):
     def child_removed(self, child):
         super(OccEdge, self).child_removed(child)
         child.unobserve('shape', self.update_shape)
-        

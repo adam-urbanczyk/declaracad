@@ -593,8 +593,8 @@ class OccShape(ProxyShape):
     def parent_shape(self):
         return self.parent().shape
     
-    def get_bounding_box(self):
-        shape = self.shape
+    def get_bounding_box(self, shape=None):
+        shape = shape or self.shape
         if not shape:
             return BBox()
         bbox = Bnd_Box()
@@ -656,13 +656,27 @@ class OccFace(OccDependentShape, ProxyFace):
     #: A reference to the toolkit shape created by the proxy.
     shape = Typed(BRepBuilderAPI_MakeFace)
     
+    def set_wires(self, wires):
+        self.create_shape()
+    
     def update_shape(self, change):
-        wires = [c for c in self.children() if isinstance(c, OccShape)]
+        d = self.declaration
+        if d.wires:
+            wires = d.wires
+        else:
+            wires = [c for c in self.children() if isinstance(c, OccShape)]
+        if not wires:
+            raise ValueError("No wires or children available to "
+                             "create a face!")
         for i, wire in enumerate(wires):
-            if i == 0:
-                shape = BRepBuilderAPI_MakeFace(wire.shape.Wire())
+            if hasattr(wire, 'shape'):
+                args = (wire.shape.Wire(),)
             else:
-                shape.Add(wire.shape.Wire())
+                args = (wire,)
+            if i == 0:
+                shape = BRepBuilderAPI_MakeFace(*args)
+            else:
+                shape.Add(*args)
         self.shape = shape
 
 

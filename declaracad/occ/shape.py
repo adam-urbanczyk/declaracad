@@ -12,7 +12,7 @@ Created on Sep 30, 2016
 """
 from atom.api import (
     Atom, Tuple, Instance, Bool, Str, Float, Property, Coerced, Typed,
-    ForwardTyped, Enum, observe
+    ForwardTyped, List, Enum, observe
 )
 
 from contextlib import contextmanager
@@ -83,6 +83,9 @@ class ProxyShape(ProxyControl):
 class ProxyFace(ProxyShape):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: Face)
+    
+    def set_wires(self, wires):
+        raise NotImplementedError
 
 
 class ProxyBox(ProxyShape):
@@ -442,6 +445,9 @@ class Face(Shape):
 
     #: Reference to the implementation control
     proxy = Typed(ProxyFace)
+    
+    #: List of wires to use
+    wires = d_(List())
 
 
 class Box(Shape):

@@ -12,14 +12,9 @@ Created on Sep 28, 2016
 from enaml.qt.qt_factories import QT_FACTORIES
 
 
-def occ_face_factory():
-    from .occ_shape import OccFace
-    return OccFace
-
-
-def occ_box_factory():
-    from .occ_shape import OccBox
-    return OccBox
+def occ_arc_factory():
+    from .occ_draw import OccArc
+    return OccArc
 
 
 def occ_bezier_factory():
@@ -27,9 +22,29 @@ def occ_bezier_factory():
     return OccBezier
 
 
+def occ_box_factory():
+    from .occ_shape import OccBox
+    return OccBox
+
+
 def occ_bspline_factory():
     from .occ_draw import OccBSpline
     return OccBSpline
+
+
+def occ_chamfer_factory():
+    from .occ_algo import OccChamfer
+    return OccChamfer
+
+
+def occ_circle_factory():
+    from .occ_draw import OccCircle
+    return OccCircle
+
+
+def occ_common_factory():
+    from .occ_algo import OccCommon
+    return OccCommon
 
 
 def occ_cone_factory():
@@ -37,9 +52,34 @@ def occ_cone_factory():
     return OccCone
 
 
+def occ_cut_factory():
+    from .occ_algo import OccCut
+    return OccCut
+
+
 def occ_cylinder_factory():
     from .occ_shape import OccCylinder
     return OccCylinder
+
+
+def occ_ellipse_factory():
+    from .occ_draw import OccEllipse
+    return OccEllipse
+
+
+def occ_face_factory():
+    from .occ_shape import OccFace
+    return OccFace
+
+
+def occ_fillet_factory():
+    from .occ_algo import OccFillet
+    return OccFillet
+
+
+def occ_fuse_factory():
+    from .occ_algo import OccFuse
+    return OccFuse
 
 
 def occ_half_space_factory():
@@ -47,14 +87,64 @@ def occ_half_space_factory():
     return OccHalfSpace
 
 
+def occ_hyperbola_factory():
+    from .occ_draw import OccHyperbola
+    return OccHyperbola
+
+
+def occ_line_factory():
+    from .occ_draw import OccLine
+    return OccLine
+
+
+def occ_load_shape_factory():
+    from .occ_shape import OccLoadShape
+    return OccLoadShape
+
+
+def occ_offset_factory():
+    from .occ_algo import OccOffset
+    return OccOffset
+
+
 def occ_one_axis_factory():
     from .occ_shape import OccOneAxis
     return OccOneAxis
 
 
+def occ_parabola_factory():
+    from .occ_draw import OccParabola
+    return OccParabola
+
+
+def occ_part_factory():
+    from .occ_part import OccPart
+    return OccPart
+
+
+def occ_pipe_factory():
+    from .occ_algo import OccPipe
+    return OccPipe
+
+
+def occ_point_factory():
+    from .occ_draw import OccPoint
+    return OccPoint
+
+
+def occ_polygon_factory():
+    from .occ_draw import OccPolygon
+    return OccPolygon
+
+
 def occ_prism_factory():
     from .occ_shape import OccPrism
     return OccPrism
+
+
+def occ_raw_shape_factory():
+    from .occ_shape import OccRawShape
+    return OccRawShape
 
 
 def occ_revol_factory():
@@ -67,9 +157,19 @@ def occ_revolution_factory():
     return OccRevolution
 
 
+def occ_segment_factory():
+    from .occ_draw import OccSegment
+    return OccSegment
+
+
 def occ_sphere_factory():
     from .occ_shape import OccSphere
     return OccSphere
+
+
+def occ_svg_factory():
+    from .occ_svg import OccSvg
+    return OccSvg
 
 
 def occ_sweep_factory():
@@ -82,109 +182,9 @@ def occ_text_factory():
     return OccText
 
 
-def occ_torus_factory():
-    from .occ_shape import OccTorus
-    return OccTorus
-
-
-def occ_wedge_factory():
-    from .occ_shape import OccWedge
-    return OccWedge
-
-
-def occ_common_factory():
-    from .occ_algo import OccCommon
-    return OccCommon
-
-
-def occ_cut_factory():
-    from .occ_algo import OccCut
-    return OccCut
-
-
-def occ_fuse_factory():
-    from .occ_algo import OccFuse
-    return OccFuse
-
-
-def occ_point_factory():
-    from .occ_draw import OccPoint
-    return OccPoint
-
-
-def occ_vertex_factory():
-    from .occ_draw import OccVertex
-    return OccVertex
-
-
-def occ_line_factory():
-    from .occ_draw import OccLine
-    return OccLine
-
-
-def occ_segment_factory():
-    from .occ_draw import OccSegment
-    return OccSegment
-
-
-def occ_arc_factory():
-    from .occ_draw import OccArc
-    return OccArc
-
-
-def occ_circle_factory():
-    from .occ_draw import OccCircle
-    return OccCircle
-
-
-def occ_ellipse_factory():
-    from .occ_draw import OccEllipse
-    return OccEllipse
-
-
-def occ_hyperbola_factory():
-    from .occ_draw import OccHyperbola
-    return OccHyperbola
-
-
-def occ_parabola_factory():
-    from .occ_draw import OccParabola
-    return OccParabola
-
-
-def occ_polygon_factory():
-    from .occ_draw import OccPolygon
-    return OccPolygon
-
-
-def occ_wire_factory():
-    from .occ_draw import OccWire
-    return OccWire
-
-
-def occ_fillet_factory():
-    from .occ_algo import OccFillet
-    return OccFillet
-
-
-def occ_chamfer_factory():
-    from .occ_algo import OccChamfer
-    return OccChamfer
-
-
-def occ_offset_factory():
-    from .occ_algo import OccOffset
-    return OccOffset
-
-
 def occ_thick_solid_factory():
     from .occ_algo import OccThickSolid
     return OccThickSolid
-
-
-def occ_pipe_factory():
-    from .occ_algo import OccPipe
-    return OccPipe
 
 
 def occ_thru_sections_factory():
@@ -192,24 +192,30 @@ def occ_thru_sections_factory():
     return OccThruSections
 
 
+def occ_torus_factory():
+    from .occ_shape import OccTorus
+    return OccTorus
+
+
 def occ_transform_factory():
     from .occ_algo import OccTransform
     return OccTransform
 
 
-def occ_part_factory():
-    from .occ_part import OccPart
-    return OccPart
+def occ_vertex_factory():
+    from .occ_draw import OccVertex
+    return OccVertex
 
 
-def occ_raw_shape_factory():
-    from .occ_shape import OccRawShape
-    return OccRawShape
+def occ_wedge_factory():
+    from .occ_shape import OccWedge
+    return OccWedge
 
 
-def occ_load_shape_factory():
-    from .occ_shape import OccLoadShape
-    return OccLoadShape
+def occ_wire_factory():
+    from .occ_draw import OccWire
+    return OccWire
+
 
 #: Part
 OCC_FACTOIRES = {
@@ -260,9 +266,8 @@ OCC_FACTOIRES = {
     'Bezier': occ_bezier_factory,
     'BSpline': occ_bspline_factory,
     'Wire': occ_wire_factory,
-    
-    # Other
     'Text': occ_text_factory,
+    'Svg': occ_svg_factory,
 }
 
 #: Install it

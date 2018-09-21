@@ -25,7 +25,7 @@ from .draw import (
     Segment, Arc, Circle, Ellipse, Hyperbola,
     Parabola, Polygon,
     BSpline, Bezier,
-    Text,
+    Text, Svg,
     Wire
 )
 
