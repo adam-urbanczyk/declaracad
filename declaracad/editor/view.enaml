@@ -19,6 +19,7 @@ from enaml.core.api import Looper, Conditional
 from enaml.core.parser import parse
 from enaml.colors import parse_color
 from enaml.qt.q_resource_helpers import get_cached_qcolor
+from enaml.qt.QtCore import Qt
 from enaml.layout.api import RetractItem, vbox, hbox, align
 from enaml.scintilla.api import Scintilla, ScintillaIndicator, ScintillaMarker
 from enaml.scintilla.themes import THEMES
@@ -314,19 +315,15 @@ enamldef Editor(Scintilla): editor:
     syntax << detect_syntax(plugin, doc.name)
     attr doc: Document = Document()
     attr editor_font: str << f"{plugin.font_size}pt {plugin.font_family}"
+    attr error_popup = None
     
     func update_font(theme, font):
         theme['settings']['font'] = font
         return theme
     
-    func on_indicator_clicked(line, index, keys):            
-        ErrorPopup(self, 
-                    theme=self.theme,
-                    message="\n".join(doc.errors[-5:]).strip()).show()
-    
     theme  << update_font(THEMES[plugin.theme] if plugin else THEMES['tango'], 
                             editor_font)
-    theme :: refresh_margin_colors()
+    theme :: set_margin_colors()
     settings << {
         "tab_width": 4,
         "use_tabs": False,
@@ -338,27 +335,52 @@ enamldef Editor(Scintilla): editor:
         "autocompletion_case_sensitive": True,
         "show_line_numbers": plugin.show_line_numbers,
         "code_folding": plugin.code_folding,
+        "show_scrollbars": plugin.show_scrollbars # Not used but here so we update
     }
     autocomplete = 'all'
-    settings ::
-        w = self.proxy.widget
-        style = w.CircledTreeFoldStyle if plugin.code_folding else w.NoFoldStyle
-        w.setFolding(style)
-        
+    settings :: update_settings()
     activated :: 
         set_text(doc.source)
         w = self.proxy.widget
         w.indicatorReleased.connect(self.on_indicator_clicked)
-        w.setFolding(w.CircledTreeFoldStyle if plugin.code_folding else w.NoFoldStyle)
-        refresh_margin_colors()
+        update_settings()
         
-    func refresh_margin_colors():
+    func update_settings():
+        # Reload everything when the settings change
+        set_code_folding()
+        set_margin_colors()
+        set_show_scrollbars()
+    
+    func on_indicator_clicked(line, index, keys):  
+        if error_popup:
+            error_popup.hide()
+            editor.error_popup = None
+            return
+        editor.error_popup = ErrorPopup(
+            self, 
+            theme=self.theme,
+            message="\n".join(doc.errors[-5:]).strip()
+        )
+        editor.error_popup.show()
+    
+    func set_code_folding():
+        w = self.proxy.widget
+        style = w.CircledTreeFoldStyle if plugin.code_folding else w.NoFoldStyle
+        w.setFolding(style)
+    
+    func set_margin_colors():
         w = self.proxy.widget
         bg = get_cached_qcolor(parse_color(theme['settings']['paper']))
         fg = get_cached_qcolor(parse_color(theme['settings']['color']))
         w.setMarginsBackgroundColor(bg)
         w.setFoldMarginColors(bg, bg)
         w.setMarginsForegroundColor(fg)
+        
+    func set_show_scrollbars():
+        w = self.proxy.widget
+        policy = Qt.ScrollBarAsNeeded if plugin.show_scrollbars else Qt.ScrollBarAlwaysOff
+        w.setHorizontalScrollBarPolicy(policy)
+        w.setVerticalScrollBarPolicy(policy)
         
     func get_comment_token():
         if not doc.name:
@@ -458,7 +480,27 @@ enamldef Editor(Scintilla): editor:
             uncomment_lines()
         else:
             comment_lines()
+            
+    func cut():
+        self.proxy.widget.cut()
         
+    func copy():
+        self.proxy.widget.copy()
+        
+    func paste():
+        self.proxy.widget.paste()
+        
+    func undo():
+        self.proxy.widget.undo()
+        
+    func redo():
+        self.proxy.widget.redo()
+        
+    func select_all():
+        self.proxy.widget.selectAll(True)
+        
+    func deselect():
+        self.proxy.widget.selectAll(False)
         
     text_changed :: timer.start()
     zoom << plugin.zoom if plugin else 0
@@ -510,7 +552,7 @@ enamldef EditorDockItem(DockItem): view:
             KeyEvent:
                 pressed :: 
                     e = change['value']
-                    print(e)
+                    #print(e)
                     k = e['key']
                     if k == plugin.key_mapping.get('find', '\x06'):
                         editor.show_find_bar = not editor.show_find_bar

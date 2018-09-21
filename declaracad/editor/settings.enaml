@@ -88,6 +88,11 @@ enamldef EditorSettingsPage(Container):
         Label:
             pass
         CheckBox:
+            text = "Show scroll bars"
+            checked := model.show_scrollbars
+        Label:
+            pass
+        CheckBox:
             text = "Show line numbers"
             checked := model.show_line_numbers
         Label:

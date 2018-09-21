@@ -162,16 +162,3 @@ enamldef UIManifest(PluginManifest):
             label = 'Donate...'
             command = 'declaracad.ui.open_url'
             parameters = {'url': 'https://www.codelv.com/projects/declaracad/support/'}
-
-#         ActionItem:
-#             path = '/edit/undo'
-#             label = 'Undo'
-#             shortcut = 'Ctrl+Z'
-#             icon = menu_icon('arrow_undo')
-#             command = 'declaracad.ui.undo'
-#         ActionItem:
-#             path = '/edit/redo'
-#             label = 'Redo'
-#             shortcut = 'Ctrl+Y'
-#             icon = menu_icon('arrow_redo')
-#             command = 'declaracad.ui.redo'

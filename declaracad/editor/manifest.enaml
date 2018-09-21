@@ -127,33 +127,23 @@ def find_in_editor(event):
     editor = plugin.get_editor()
     editor.show_find_bar = True
 
+
 def replace_in_editor(event):
     plugin = event.workbench.get_plugin('declaracad.editor')
     editor = plugin.get_editor()
     editor.show_replace_bar = True
+    
     
 def goto_in_editor(event):
     plugin = event.workbench.get_plugin('declaracad.editor')
     editor = plugin.get_editor()
     editor.show_goto_bar = True
     
-    
-def comment_in_editor(event):
+
+def editor_action(event, action):
     plugin = event.workbench.get_plugin('declaracad.editor')
     editor = plugin.get_editor()
-    editor.comment_lines()
-
-
-def uncomment_in_editor(event):
-    plugin = event.workbench.get_plugin('declaracad.editor')
-    editor = plugin.get_editor()
-    editor.uncomment_lines()
-
-
-def toggle_comments_in_editor(event):
-    plugin = event.workbench.get_plugin('declaracad.editor')
-    editor = plugin.get_editor()
-    editor.toggle_comments()
+    getattr(editor, action)()
     
 
 def plugin_factory():
@@ -223,6 +213,14 @@ def outline_item_factory():
   with enaml.imports():
     from .view import OutlineDockItem
   return OutlineDockItem
+
+
+EDITOR_ACTIONS = [
+    'declaracad.editor.{}'.format(action) for action in (
+        'comment_lines', 'uncomment_lines', 'toggle_comments',
+        'undo', 'redo', 'cut', 'copy', 'paste', 'select_all', 'deselect',
+    )
+]
 
 
 enamldef EditorManifest(PluginManifest):
@@ -306,15 +304,11 @@ enamldef EditorManifest(PluginManifest):
         Command:
             id = 'declaracad.editor.goto_line'
             handler = goto_in_editor
-        Command:
-            id = 'declaracad.editor.uncomment_lines'
-            handler = uncomment_in_editor
-        Command:
-            id = 'declaracad.editor.comment_lines'
-            handler = comment_in_editor
-        Command:
-            id = 'declaracad.editor.toggle_comments'
-            handler = toggle_comments_in_editor
+        Looper:
+            iterable << EDITOR_ACTIONS
+            Command:
+                id = loop_item
+                handler = lambda e, a=loop_item.split('.')[-1]: editor_action(e, a)
     
     Extension:
         id = 'actions'
@@ -351,22 +345,70 @@ enamldef EditorManifest(PluginManifest):
             shortcut = 'Ctrl+Shift+S'
             group = 'document'
             command = 'declaracad.editor.save_file_as'
-        MenuItem:
-            path = '/examples'
-            label = 'Examples'
-            after = 'file'
-            before = 'settings'
-            ItemGroup:
-                id = 'examples'
+        #MenuItem:
+            #path = '/examples'
+            #label = 'Examples'
+            #after = 'file'
+            #before = 'settings'
+            #ItemGroup:
+                #id = 'examples'
         MenuItem:
             path = '/edit'
             label = 'Edit'
             after = 'file'
-            before = 'examples'
+            before = 'view'
+            ItemGroup:
+                id = 'history'
+            ItemGroup:
+                id = 'clipboard'
+            ItemGroup:
+                id = 'selection'
             ItemGroup:
                 id = 'find'
             ItemGroup:
                 id = 'comments'
+        ActionItem:
+            path = '/edit/undo'
+            label = 'Undo'
+            shortcut = 'Ctrl+Z'
+            group = 'history'
+            command = 'declaracad.editor.undo'
+        ActionItem:
+            path = '/edit/redo'
+            label = 'Redo'
+            shortcut = 'Ctrl+Shift+Z'
+            group = 'history'
+            command = 'declaracad.editor.redo'
+        ActionItem:
+            path = '/edit/cut'
+            label = 'Cut'
+            shortcut = 'Ctrl+X'
+            group = 'clipboard'
+            command = 'declaracad.editor.cut'
+        ActionItem:
+            path = '/edit/copy'
+            label = 'Copy'
+            shortcut = 'Ctrl+C'
+            group = 'clipboard'
+            command = 'declaracad.editor.copy'
+        ActionItem:
+            path = '/edit/paste'
+            label = 'Paste'
+            shortcut = 'Ctrl+V'
+            group = 'clipboard'
+            command = 'declaracad.editor.paste'
+        ActionItem:
+            path = '/edit/select_all'
+            label = 'Select all'
+            shortcut = 'Ctrl+A'
+            group = 'selection'
+            command = 'declaracad.editor.select_all'
+        ActionItem:
+            path = '/edit/deselect'
+            label = 'Deselect'
+            shortcut = 'Ctrl+Shift+A'
+            group = 'selection'
+            command = 'declaracad.editor.deselect'
         ActionItem:
             path = '/edit/find'
             label = 'Find'
@@ -401,22 +443,22 @@ enamldef EditorManifest(PluginManifest):
             shortcut = 'Ctrl+/'
             group = 'comments'
             command = 'declaracad.editor.toggle_comments'
-        Looper:
-            iterable = get_examples().items()
-            Conditional:
-                condition << bool(loop_item[0])
-                MenuItem:
-                    path = '/examples/{}'.format(loop_item[0].replace(" ",'-'))
-                    label = loop_item[0].split("/")[-1]
-                    group = 'examples' if len(loop_item[0].split("/")) == 0 else ""
-            Looper:
-                iterable = loop_item[1]
-                ActionItem:
-                    attr filename = loop_item.split("/")[-1]
-                    path = '/examples/{}'.format(loop_item.replace(" ",'-'))
-                    label = filename
-                    command = 'declaracad.editor.open_file'
-                    parameters = {'path': 'examples/{}'.format(loop_item), 'name': 'main.py'}
+        #Looper:
+            #iterable = get_examples().items()
+            #Conditional:
+                #condition << bool(loop_item[0])
+                #MenuItem:
+                    #path = '/examples/{}'.format(loop_item[0].replace(" ",'-'))
+                    #label = loop_item[0].split("/")[-1]
+                    #group = 'examples' if len(loop_item[0].split("/")) == 0 else ""
+            #Looper:
+                #iterable = loop_item[1]
+                #ActionItem:
+                    #attr filename = loop_item.split("/")[-1]
+                    #path = '/examples/{}'.format(loop_item.replace(" ",'-'))
+                    #label = filename
+                    #command = 'declaracad.editor.open_file'
+                    #parameters = {'path': 'examples/{}'.format(loop_item), 'name': 'main.py'}
             # MenuItem:
             #     path = '/tools'
             #     label = 'Tools'

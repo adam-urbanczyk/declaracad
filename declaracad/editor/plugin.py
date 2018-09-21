@@ -15,6 +15,7 @@ import re
 import jedi
 import enaml
 import traceback
+from textwrap import dedent
 from atom.api import (
     Enum, ContainerList, Unicode, Tuple, Bool, List, Int, Instance, Dict,
     observe
@@ -111,7 +112,8 @@ class EditorPlugin(Plugin):
     show_line_numbers = Bool(True).tag(config=True)
     code_folding = Bool(True).tag(config=True) 
     font_size = Int(12).tag(config=True)  #: Default is 12 pt
-    font_family = Unicode(MONO_FONT.split()[-1]).tag(config=True) 
+    font_family = Unicode(MONO_FONT.split()[-1]).tag(config=True)
+    show_scrollbars = Bool(True).tag(config=True)
     file_associations = Dict(default={
         'py': 'python',
         'pyx': 'python',
@@ -276,7 +278,16 @@ class EditorPlugin(Plugin):
         path = event.parameters.get('path')
         if not path:
             return
-        doc = Document(name=os.path.join(self.project_path, path))
+        doc = Document(
+            name=os.path.join(self.project_path, path),
+            source=dedent("""
+                # Created in DeclaraCAD
+                from declaracad.occ.api import *
+                
+                enamldef Assembly(Part):
+                    Box:
+                        pass
+                """).lstrip())
         self.documents.append(doc)
         self.active_document = doc
 
@@ -337,7 +348,10 @@ class EditorPlugin(Plugin):
         """ Save the currently active document to disk
         
         """
+        # Make sure it's in sync with the editor first
+        editor = self.get_editor()
         doc = self.active_document
+        doc.source = editor.get_text()
         assert doc.name, "Can't save a document without a name"
         file_dir = os.path.dirname(doc.name)
         if not os.path.exists(file_dir):
