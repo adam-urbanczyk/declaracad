@@ -84,7 +84,7 @@ class ProxyFace(ProxyShape):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: Face)
     
-    def set_wires(self, wires):
+    def set_wire(self, wire):
         raise NotImplementedError
 
 

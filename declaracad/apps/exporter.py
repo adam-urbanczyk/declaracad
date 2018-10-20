@@ -9,29 +9,34 @@ Created on Aug 4, 2018
 
 @author: jrm
 """
-import json
+import sys
+import time
+import jsonpickle
 import faulthandler
 faulthandler.enable()
 
 from declaracad import occ
 occ.install()
-from declaracad.occ.plugin import export_model, ExportOptions
+import enaml
 from enaml.qt.qt_application import QtApplication
 
 
 def main(**kwargs):
-    """ Runs export_model using the passed options.
+    """ Runs ModelExporter.export() using the passed options.
+    
+    Parameters
+    ----------
+    options: Dict
+        A jsonpickle dumped exporter
     
     """
     options = kwargs.pop('options')
-    
-    try:
-        options = json.loads(options)
-    except:
-        options = {'filename': options}
-    
-    options = ExportOptions(**options)
-    
+    exporter = jsonpickle.loads(options)
+    assert exporter, "Failed to load exporter from: {}".format(options)
     # An Application is required
     app = QtApplication()
-    export_model(options)
+    t0 = time.time()
+    print("Exporting {e.filename} to {e.path}...".format(e=exporter))
+    sys.stdout.flush()
+    exporter.export()
+    print("Success! Took {} seconds.".format(round(time.time()-t0, 2)))

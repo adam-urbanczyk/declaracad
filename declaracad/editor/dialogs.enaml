@@ -23,13 +23,14 @@ from enaml.widgets.api import (
 )
 from .plugin import EditorPlugin
 
+
 enamldef NewFileDialog(Dialog): dialog:
     title = 'New File'
     initial_size = (640, 320)
     attr plugin
     attr event
-    TaskDialogStyleSheet:
-            pass
+    #TaskDialogStyleSheet:
+    #        pass
     TaskDialogBody:
         TaskDialogInstructionArea:
             Label:

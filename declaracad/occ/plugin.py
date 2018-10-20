@@ -20,7 +20,7 @@ import jsonpickle
 from types import ModuleType
 from atom.api import (
     Atom, ContainerList, Unicode, Float, Dict, Bool, Int, Instance, Enum, 
-    observe
+    Constant, observe
 )
 from declaracad.core.api import Plugin, Model, log
 from declaracad.core.utils import ProcessLineReceiver, Deferred
@@ -69,81 +69,32 @@ def load_model(filename):
     return [Assembly()]
 
 
-def export_model(options):
-    """ Export a DeclaraCAD model from an enaml file to an STL based on the
-    given options.
-    
-    Parameters
-    ----------
-    options: declaracad.occ.plugin.ExportOptions
-    
-    """
-    print("Exporting {o.filename} to {o.path}...".format(o=options))
-    sys.stdout.flush()
-    if not isinstance(options, ExportOptions):
-        raise TypeError("Expected ExportOptions got: {}".format(options))
-    
-    t0 = time.time()
-    
-    from OCC.TopoDS import TopoDS_Compound
-    from OCC.BRep import BRep_Builder
-    from OCC.StlAPI import StlAPI_Writer
-    from OCC.BRepMesh import BRepMesh_IncrementalMesh
-    
-    exporter = StlAPI_Writer()
-    exporter.SetASCIIMode(not options.binary)
-
-    # Make a compound of compounds (if needed)
-    compound = TopoDS_Compound()
-    builder = BRep_Builder()
-    builder.MakeCompound(compound)
-    
-    # Load the enaml model file
-    parts = load_model(options.filename)
-    
-    for part in parts:
-        # Render the part from the declaration
-        shape = part.render()
-        
-        # Must mesh the shape firsts
-        if hasattr(shape, 'Shape'):
-            builder.Add(compound, shape.Shape())
-        else:
-            builder.Add(compound, shape)
-
-    #: Build the mesh
-    mesh = BRepMesh_IncrementalMesh(
-        compound,
-        options.linear_deflection,
-        options.relative,
-        options.angular_deflection
-    )
-    mesh.Perform()
-    if not mesh.IsDone():
-        raise RuntimeError("Failed to create the mesh")
-
-    exporter.Write(compound, options.path)
-    if not os.path.exists(options.path):
-        raise RuntimeError("Failed to write shape")
-    print("Success! Took {} seconds.".format(round(time.time()-t0, 2)))
-
-
-class ExportOptions(Atom):
+class ModelExporter(Atom):
+    extension = ''
     path = Unicode()
     filename = Unicode()
-    linear_deflection = Float(0.05, strict=False)
-    angular_deflection = Float(0.5, strict=False)
-    relative = Bool()
-    binary = Bool()
     
     def _default_path(self):
-        return "{}.stl".format(os.path.splitext(self.filename)[0])
+        ext = self.extension.lower()
+        filename = os.path.splitext(self.filename)[0]
+        return "{}.{}".format(filename, ext)
     
-    def format(self):
-        """ Return formatted option values for the exporter app to parse """
-        return json.dumps(self.__getstate__())
+    def export(self):
+        """ Export a DeclaraCAD model from an enaml file to a 3D model format
+        with the given options.
+        
+        """
+        raise NotImplementedError
     
+    @classmethod
+    def get_options_view(cls):
+        """ Return the options view used to define the paramters that can be 
+        used by this exporter.
+        
+        """
+        raise NotImplementedError
     
+
 class ScreenshotOptions(Atom):
     #: Path to save
     path = Unicode()
@@ -333,6 +284,8 @@ class ViewerPlugin(Plugin):
     background_bottom = ColorMember('grey').tag(config=True)
     trihedron_mode = Unicode('right-lower').tag(config=True)
     
+    #: Exporters
+    exporters = ContainerList()
     
     def get_viewers(self):
         ViewerDockItem = viewer_factory()
@@ -352,17 +305,30 @@ class ViewerPlugin(Plugin):
                 return viewer
             elif viewer.name == name:
                 return viewer
+            
+    def _default_exporters(self):
+        """ TODO: push to an ExtensionPoint """
+        from .exporters.stl.exporter import StlExporter
+        from .exporters.step.exporter import StepExporter
+        return [StlExporter, StepExporter]
 
     def export(self, event):
         """ Export the current model to stl """
         from twisted.internet import reactor
+        options = event.parameters.get('options')
+        if not options:
+            raise ValueError("An export `options` parameter is required")
         
-        if 'options' not in event.parameters:
-            editor = self.workbench.get_plugin('declaracad.editor')
-            options = ExportOptions(filename=editor.active_document.name)
-        else:
-            options = event.parameters.get('options')
-        cmd = [sys.executable, 'main.py', 'export', options.format()]
+        
+        # Pickle the configured exporter and send it over
+        cmd = [sys.executable]
+        if not sys.executable.endswith('declarcad'):
+            cmd.append('main.py')
+            
+        data = jsonpickle.dumps(options)
+        assert data != 'null', f"Exporter failed to serialize: {options}"
+        cmd.extend(['export', data])
+        
         log.debug(" ".join(cmd))
         protocol = ProcessLineReceiver()
         reactor.spawnProcess(

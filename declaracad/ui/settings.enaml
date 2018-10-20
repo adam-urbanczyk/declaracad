@@ -40,13 +40,14 @@ enamldef SystemSettingsPage(Container):
             items = list(model.get_member('dock_style').items)
             selected := model.dock_style
 
+
 enamldef SettingsDialog(Dialog): dialog:
     title = 'Settings'
     initial_size = (720, 480)
     attr plugin
     attr event
-    TaskDialogStyleSheet:
-            pass
+    #TaskDialogStyleSheet:
+    #        pass
     TaskDialogBody:
         TaskDialogInstructionArea:
             Label:

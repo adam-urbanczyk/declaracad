@@ -23,5 +23,5 @@ setup(
     packages=find_packages(),
     install_requires=['enaml', 'jsonpickle', 'qtconsole',
                       'QScintilla', 'numpydoc', 'markdown', 'enamlx',
-                      'qt5reactor', 'pyserial'],
+                      'qt5reactor', 'pyserial', 'lxml'],
 )

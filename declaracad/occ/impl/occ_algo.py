@@ -278,8 +278,9 @@ class OccOffset(OccOperation, ProxyOffset):
             shape.Perform(d.offset)
             self.shape = shape
         else:
+            
             self.shape = BRepOffsetAPI_MakeOffsetShape(
-                s.shape.Shape(),
+                s.shape.Shape() if hasattr(s.shape, 'Shape') else s.shape,
                 d.offset,
                 d.tolerance,
                 self.offset_modes[d.offset_mode],

@@ -20,6 +20,9 @@ with enaml.imports():
     from enaml.stdlib.dock_area_styles import available_styles
 
 
+ALL_STYLES = ['system'] + available_styles()
+
+
 class DeclaracadPlugin(Plugin):
     #: Project site
     wiki_page = Unicode("https;//www.codelv.com/projects/declaracad")
@@ -27,7 +30,7 @@ class DeclaracadPlugin(Plugin):
     #: Dock items to add
     dock_items = List(DockItem)
     dock_layout = Instance(AreaLayout)
-    dock_style = Enum(*reversed(available_styles())).tag(config=True)
+    dock_style = Enum(*reversed(ALL_STYLES)).tag(config=True)
 
     #: Settings pages to add
     settings_pages = List(extensions.SettingsPage)

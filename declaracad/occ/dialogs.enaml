@@ -23,13 +23,18 @@ from enaml.stdlib.task_dialog import (
     TaskDialogContentArea, TaskDialogDetailsArea, TaskDialogFootnoteArea,
     TaskDialogIconArea, TaskDialogInstructionArea, TaskDialogStyleSheet
 )
+from enaml.stdlib.mapped_view import MappedView
 from enaml.widgets.api import (
     Dialog, Field, Label, PushButton, RadioButton, CheckBox, Html,
     ProgressBar, ObjectCombo, Form, Container, SpinBox, FileDialogEx,
     MultilineField, ImageView
 )
 from enamlx.widgets.api import DoubleSpinBox
-from .plugin import ScreenshotOptions, ExportOptions, log
+from .plugin import ScreenshotOptions, ModelExporter, log
+
+
+enamldef ExportOptionsForm(Form):
+    attr model: ModelExporter
 
 
 enamldef ExportDialog(Dialog): dialog:
@@ -39,25 +44,31 @@ enamldef ExportDialog(Dialog): dialog:
     attr event
     attr protocol = None
     attr show_advanced: bool = False
-    attr options: ExportOptions = create_default_options()
-
+    attr options: ModelExporter = create_default_options()
     func create_default_options():
         editor = plugin.workbench.get_plugin('declaracad.editor')
         doc = editor.active_document
-        return ExportOptions(filename=doc.name)
+        Exporter = export_type.selected
+        return Exporter(filename=doc.name)
 
-    TaskDialogStyleSheet:
-            pass
+    #TaskDialogStyleSheet:
+    #        pass
     TaskDialogBody:
         TaskDialogInstructionArea:
             Label:
                 style_class = 'task-dialog-instructions'
-                text = 'Export model to STL'
+                text = 'Export model'
         TaskDialogContentArea:
             Label:
                 style_class = 'task-dialog-content'
                 text = 'Enter the new file name'
             Form:
+                Label:
+                    text = "Type"
+                ObjectCombo: export_type:
+                    items = list(plugin.exporters)
+                    to_string = lambda e: e.extension
+                    selected :: dialog.options = create_default_options()
                 Label:
                     text = "Name"
                 Container:
@@ -70,52 +81,29 @@ enamldef ExportDialog(Dialog): dialog:
                         text << os.path.abspath(options.path)
                         text ::
                             path = change['value']
-                            if not path.endswith(".stl"):
-                                path += '.stl'
+                            ext = f'.{options.extension}'
+                            if not path.endswith(ext):
+                                path += ext
                             options.path = path
                     PushButton: browse:
                         text = "Browse"
                         clicked ::
                             path = FileDialogEx.get_save_file_name(self,
-                                        current_path=options.path, name_filters=['*.stl'])
+                                        current_path=options.path, 
+                                        name_filters=[f'*.{options.extension}'])
                             if path:
-                                if not path.endswith(".stl"):
-                                    path += '.stl'
+                                ext = f'.{options.extension}'
+                                if not path.endswith(ext):
+                                    path += ext
                                 options.path = path
         TaskDialogDetailsArea: details:
             visible << dialog.show_advanced or dialog.protocol is not None
             Conditional:
                 condition << dialog.show_advanced
-                Form:
-                    Label:
-                        text = "Linear deflection"
-                        tool_tip = "Lower means higher quality (1.0 low ... 0.05 high)"
-                    DoubleSpinBox:
-                        value := options.linear_deflection
-                        minimum = 0.0000001
-                        single_step = 0.01
-                        maximum = 100
-                    Label:
-                        text = "Angular deflection"
-                        tool_tip = "Lower means higher quality (1.0 low ... 0.05 high)"
-                    DoubleSpinBox:
-                        value := options.angular_deflection
-                        minimum = 0.0000001
-                        single_step = 0.01
-                        maximum = 100
-                    CheckBox:
-                        text = "Binary mode"
-                        tool_tip = "Export as binary (checked) or ascii (unchecked)"
-                        checked := options.binary
-                    CheckBox:
-                        text = "Relative deflection"
-                        tool_tip = textwrap.dedent("""
-                        If checked, deflection used for discretization of each edge will be
-                        <lin_deflection> * <size of edge>. Deflection used for the faces will be the
-                        maximum deflection of their edges
-                        """).strip()
-
-                        checked := options.relative
+                MappedView:
+                    model << dialog.options
+                    typemap << {e: e.get_options_view() 
+                                for e in plugin.exporters}
             Conditional:
                 condition << dialog.protocol is not None
                 MultilineField:

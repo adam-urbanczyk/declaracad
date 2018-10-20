@@ -320,7 +320,6 @@ enamldef Editor(Scintilla): editor:
     func update_font(theme, font):
         theme['settings']['font'] = font
         return theme
-    
     theme  << update_font(THEMES[plugin.theme] if plugin else THEMES['tango'], 
                             editor_font)
     theme :: set_margin_colors()

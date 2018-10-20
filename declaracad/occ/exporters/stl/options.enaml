@@ -1,0 +1,50 @@
+"""
+Copyright (c) 2017-2018, Jairus Martin.
+
+Distributed under the terms of the GPL v3 License.
+
+The full license is in the file LICENSE, distributed with this software.
+
+Created on Oct 10, 2018
+
+@author: jrm
+"""
+import os
+import textwrap
+from enaml.widgets.api import Field, Label, CheckBox, Form
+from enamlx.widgets.api import DoubleSpinBox
+from .exporter import StlExporter
+
+
+enamldef OptionsForm(Form):
+    attr model: StlExporter
+    Label:
+        text = "Linear deflection"
+        tool_tip = "Lower means higher quality (1.0 low ... 0.05 high)"
+    DoubleSpinBox:
+        value := model.linear_deflection
+        minimum = 0.0000001
+        single_step = 0.01
+        maximum = 100
+    Label:
+        text = "Angular deflection"
+        tool_tip = "Lower means higher quality (1.0 low ... 0.05 high)"
+    DoubleSpinBox:
+        value := model.angular_deflection
+        minimum = 0.0000001
+        single_step = 0.01
+        maximum = 100
+    CheckBox:
+        text = "Binary mode"
+        tool_tip = "Export as binary (checked) or ascii (unchecked)"
+        checked := model.binary
+    CheckBox:
+        text = "Relative deflection"
+        tool_tip = textwrap.dedent("""
+        If checked, deflection used for discretization of each edge will be
+        <lin_deflection> * <size of edge>. Deflection used for the faces 
+        will be the maximum deflection of their edges
+        """).strip()
+
+        checked := model.relative
+

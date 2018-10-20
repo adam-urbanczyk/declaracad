@@ -1,0 +1,78 @@
+"""
+Copyright (c) 2017-2018, Jairus Martin.
+
+Distributed under the terms of the GPL v3 License.
+
+The full license is in the file LICENSE, distributed with this software.
+
+Created on Dec 13, 2017
+
+@author: jrm
+"""
+from enaml.widgets.api import Field, Label, CheckBox, ObjectCombo, Form
+from enamlx.widgets.api import DoubleSpinBox
+from .exporter import StepExporter
+
+
+enamldef OptionsForm(Form):
+    attr model: StepExporter
+    
+    func get_help(name):
+        m = model.get_member(name)
+        if not m.metadata:
+            return ''
+        return m.metadata.get('help', '')
+    
+    Label:
+        text = "Schema"
+        tool_tip << get_help('schema')
+    ObjectCombo:
+        items << list(model.get_member('schema').items)
+        selected := model.schema
+    Label:
+        text = "Product Name"
+        tool_tip << get_help('product_name')
+    Field:
+        text := model.product_name
+    Label:
+        text = "Units"
+        tool_tip << get_help('units')
+    ObjectCombo:
+        items << list(model.get_member('units').items)
+        selected := model.units
+    Label:
+        text = "Precision mode"
+        tool_tip << get_help('precision_mode')
+    ObjectCombo:
+        items << list(model.get_member('precision_mode').items)
+        selected := model.precision_mode
+    Label:
+        text = "Precision value"
+        tool_tip << get_help('precision_val')
+    DoubleSpinBox:
+        value := model.precision_val
+        minimum = 0.0000001
+        single_step = 0.0001
+        maximum = 10000
+        #decimals = 10 # enamlx needs a release
+        activated :: self.proxy.widget.setDecimals(10)
+    Label:
+        text = "Assembly mode"
+        tool_tip << get_help('assembly_mode')
+    ObjectCombo:
+        items << list(model.get_member('assembly_mode').items)
+        selected := model.assembly_mode
+    Label:
+        text = "Surface curve mode"
+        tool_tip << get_help('surfacecurve_mode')
+    ObjectCombo:
+        items << list(model.get_member('surfacecurve_mode').items)
+        selected := model.surfacecurve_mode
+    Label:
+        text = "Vertex mode"
+        tool_tip << get_help('vertex_mode')
+    ObjectCombo:
+        items << list(model.get_member('vertex_mode').items)
+        selected := model.vertex_mode
+
+
