@@ -36,7 +36,8 @@ You can also embed any shape built using [pythonocc](https://github.com/tpaviot/
 
 #### Viewer
 
-Declaracad uses pythonocc's Qt Viewer and supports basic rotate, pan, zoom.  Each view is rendered in a separate process. 
+Declaracad uses pythonocc's Qt Viewer and supports basic rotate, pan, zoom.  
+Each view is rendered in a separate process. 
 
 Clipping planes are now supported.
 
@@ -50,7 +51,7 @@ Multiple editor views are supported. Basic error checking hinting is implemented
 
 
 Currently there is no import support from other 3d types into editable code, 
-but models can be loaded for display and exported to stl files or images.
+but models can be loaded for display and exported to STL, STEP, or images.
 
 ![DeclaraCAD - loading models](https://user-images.githubusercontent.com/380158/34421112-4fcd664e-ebdb-11e7-8f75-ae7c2354dfa7.gif)
 
@@ -58,7 +59,7 @@ Importing 2D paths from SVG (ex Adobe Illustrator, Inkscape, etc..) is possible
  
 ![DeclaraCAD import from svg](https://user-images.githubusercontent.com/380158/34210286-5db22d4a-e563-11e7-9b86-6c2f5db73c96.gif)
     
-Models can be exported to an stl file for imported into other programs (ex Simplify3D, FreeCAD, etc..)
+Models can be exported to STL or STEP formats for use in other programs (ex Simplify3D, FreeCAD, etc..)
 
 ![DeclaraCAD export to stl](https://user-images.githubusercontent.com/380158/34184975-d911c43c-e4f0-11e7-88ca-b52e6557ae83.gif)
 
