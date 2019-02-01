@@ -21,7 +21,7 @@ setup(
         'declaracad = declaracad:main',
     ]},
     packages=find_packages(),
-    install_requires=['enaml', 'jsonpickle', 'qtconsole',
+    install_requires=['enaml>=0.10.3', 'jsonpickle', 'qtconsole',
                       'QScintilla', 'numpydoc', 'markdown', 'enamlx',
                       'qt5reactor', 'pyserial', 'lxml'],
 )
