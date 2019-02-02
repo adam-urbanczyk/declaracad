@@ -54,10 +54,10 @@ class Document(Model):
 
     #: Any unsaved changes
     unsaved = Bool(False)
-    
+
     #: Any linting errors
     errors = List()
-    
+
     #: Any script output
     output = ContainerList()
 
@@ -88,7 +88,7 @@ class Document(Model):
                     self.unsaved = f.read() != self.source
             except:
                 pass
-            
+
     def _update_suggestions(self, change):
         """ Determine code completion suggestions for the current cursor
         position in the document.
@@ -110,7 +110,7 @@ class EditorPlugin(Plugin):
     theme = Enum('friendly', *THEMES.keys()).tag(config=True)
     zoom = Int(0).tag(config=True)  #: Relative to default
     show_line_numbers = Bool(True).tag(config=True)
-    code_folding = Bool(True).tag(config=True) 
+    code_folding = Bool(True).tag(config=True)
     font_size = Int(12).tag(config=True)  #: Default is 12 pt
     font_family = Unicode(MONO_FONT.split()[-1]).tag(config=True)
     show_scrollbars = Bool(True).tag(config=True)
@@ -127,7 +127,7 @@ class EditorPlugin(Plugin):
         'jsx': 'javascript',
         'md': 'markdown',
     }).tag(config=True)
-    
+
     #: Key mappings
     key_mapping = Dict(default={
         'find': '\x06',  # Ctrl+F
@@ -138,7 +138,7 @@ class EditorPlugin(Plugin):
     #: Editor sys path
     sys_path = List().tag(config=True)
     _area_saves_pending = Int()
-    
+
     def start(self):
         """ Make sure the documents all open on startup """
         super(EditorPlugin, self).start()
@@ -152,10 +152,10 @@ class EditorPlugin(Plugin):
     def _update_area_layout(self, change):
         """ When a document is opened or closed, add or remove it
         from the currently active TabLayout.
-        
+
         The layout update is deferred so it fires after the items are
         updated by the Looper.
-        
+
         """
         if change['type'] == 'create':
             return
@@ -201,15 +201,15 @@ class EditorPlugin(Plugin):
                 if item.doc == doc:
                     removed_targets.append(item.name)
                     ops.append(RemoveItem(item=item.name))
-        
+
         # Remove ops
         area.update_layout(ops)
-        
+
         # Add each one at a time
-        targets = [item.name for item in area.dock_items() 
-                   if (item.name.startswith("editor-item") and 
+        targets = [item.name for item in area.dock_items()
+                   if (item.name.startswith("editor-item") and
                    item.name not in removed_targets)]
-        
+
         # Sort documents so active is last so it's on top when we restore
         # from a previous state
         for doc in sorted(added, key=lambda d: int(d == self.active_document)):
@@ -220,7 +220,7 @@ class EditorPlugin(Plugin):
                 op = InsertItem(item=item.name)
             targets.append(item.name)
             area.update_layout(op)
-        
+
         # Now save it
         self.save_dock_area(change)
 
@@ -238,21 +238,21 @@ class EditorPlugin(Plugin):
         timed_call(350, do_save)
 
     def get_dock_area(self):
-        """ Alias to the `declaracad.ui` plugins `get_dock_area()` 
-        
+        """ Alias to the `declaracad.ui` plugins `get_dock_area()`
+
         """
         ui = self.workbench.get_plugin('declaracad.ui')
         return ui.get_dock_area()
 
     def get_editor(self, document=None):
-        """ Get the editor item for the currently active document 
-        
+        """ Get the editor item for the currently active document
+
         """
         doc = document or self.active_document
         for item in self.get_editor_items():
             if item.doc == doc:
                 return item.editor
-    
+
     def get_editor_items(self):
         dock = self.get_dock_area()
         EditorDockItem = editor_item_factory()
@@ -273,7 +273,7 @@ class EditorPlugin(Plugin):
 
     def new_file(self, event):
         """ Create a new file with the given path
-        
+
         """
         path = event.parameters.get('path')
         if not path:
@@ -283,7 +283,7 @@ class EditorPlugin(Plugin):
             source=dedent("""
                 # Created in DeclaraCAD
                 from declaracad.occ.api import *
-                
+
                 enamldef Assembly(Part):
                     Box:
                         pass
@@ -295,13 +295,13 @@ class EditorPlugin(Plugin):
         """ Close the file with the given path and remove it from
         the document list. If multiple documents with the same file
         are open this only closes the first one it finds.
-        
+
         """
         if isinstance(event, ExecutionEvent):
             path = event.parameters.get('path')
         else:
             path = event
-        
+
         # Default to current document
         if path is None:
             path = self.active_document.name
@@ -322,8 +322,8 @@ class EditorPlugin(Plugin):
             self.active_document = self.documents[0]
 
     def open_file(self, event):
-        """ Open a file from the local filesystem 
-        
+        """ Open a file from the local filesystem
+
         """
         path = event.parameters['path']
 
@@ -346,7 +346,7 @@ class EditorPlugin(Plugin):
 
     def save_file(self, event):
         """ Save the currently active document to disk
-        
+
         """
         # Make sure it's in sync with the editor first
         editor = self.get_editor()
@@ -363,7 +363,7 @@ class EditorPlugin(Plugin):
     def save_file_as(self, event):
         """ Save the currently active document as the given name
         overwriting and creating the directory path if necessary.
-        
+
         """
         doc = self.active_document
         path = event.parameters['path']
@@ -383,12 +383,12 @@ class EditorPlugin(Plugin):
              'active_document.unsaved')
     def refresh_view(self, change):
         """ Refresh the compiled view object.
-    
+
         This method will (re)compile the view for the given view text
         and update the 'compiled_view' attribute. If a compiled model
         is available and the view has a member named 'model', the model
         will be applied to the view.
-    
+
         """
         plugin = self.workbench.get_plugin('declaracad.viewer')
         doc = self.active_document
@@ -397,8 +397,9 @@ class EditorPlugin(Plugin):
             return
         for viewer in plugin.get_viewers():
             viewer.renderer.filename = doc.name
+            viewer.renderer.set_source("")  # Clear source so it loads from disk
             viewer.renderer.version += 1
-            
+
     # -------------------------------------------------------------------------
     # Code inspection API
     # -------------------------------------------------------------------------
@@ -414,7 +415,7 @@ class EditorPlugin(Plugin):
     def autocomplete(self, source, cursor):
         """ Return a list of autocomplete suggestions for the given text.
         Results are based on the modules loaded.
-        
+
         Parameters
         ----------
             source: str
@@ -427,7 +428,7 @@ class EditorPlugin(Plugin):
                 List of autocompletion strings
         """
         try:
-            #: TODO: Move to separate process 
+            #: TODO: Move to separate process
             line, column = cursor
             script = jedi.Script(source, line+1, column,
                                  sys_path=self.sys_path)

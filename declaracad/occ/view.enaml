@@ -26,7 +26,7 @@ from enaml.widgets.api import (
 )
 
 from .widgets.api import OccViewer, OccViewerClippedPlane
-from .plugin import ViewerProcess, load_model
+from .plugin import ViewerProcess, load_model, EmptyFileError
 
 
 def expand_dict(p):
@@ -39,7 +39,7 @@ enamldef ModelViewer(OccViewer): viewer:
     attr p0 = None
     attr clipped_planes: dict = {} # Map axis to tuple of (lower, upper)
     Include:
-        
+
         objects << list(expand_dict(clipped_planes))
 #     on_mouse_press::
 #         display, event = change['value']
@@ -71,7 +71,7 @@ enamldef ModelViewer(OccViewer): viewer:
     #    display, event = change['value']
     #    print 'mouse_release',event
     #    raise StopIteration
-    
+
     Menu:
         context_menu = True
         Action:
@@ -98,12 +98,12 @@ enamldef ModelViewer(OccViewer): viewer:
                     text = loop_item.title()
                     checked << viewer.display_mode == loop_item
                     checkable = True
-                    triggered :: 
+                    triggered ::
                         if loop_item == viewer.display_mode:
                             # Force it if already set
                             viewer.proxy.set_display_mode(loop_item)
                         else:
-                            viewer.display_mode = loop_item        
+                            viewer.display_mode = loop_item
         Menu:
             title = 'Navigation'
             Action:
@@ -136,7 +136,7 @@ enamldef ModelViewer(OccViewer): viewer:
                     text = loop_item.title()
                     checkable = True
                     checked << viewer.view_mode == loop_item
-                    triggered :: 
+                    triggered ::
                         if viewer.view_mode == loop_item:
                             # Force it if already set
                             viewer.proxy.set_view_mode(loop_item)
@@ -146,8 +146,8 @@ enamldef ModelViewer(OccViewer): viewer:
             title = 'Clip planes'
             Looper:
                 iterable = (
-                    ('X', (1, 0, 0), 'red'), 
-                    ('Y', (0, 1, 0), 'blue',), 
+                    ('X', (1, 0, 0), 'red'),
+                    ('Y', (0, 1, 0), 'blue',),
                     ('Z', (0, 0, 1), 'green')
                 )
                 Action:
@@ -155,7 +155,7 @@ enamldef ModelViewer(OccViewer): viewer:
                     attr axis = loop_item[1].index(1)
                     checkable = True
                     checked << axis in viewer.clipped_planes
-                    triggered :: 
+                    triggered ::
                         # Remove if it already exists
                         if axis in clipped_planes:
                             plns = viewer.clipped_planes.copy()
@@ -163,32 +163,32 @@ enamldef ModelViewer(OccViewer): viewer:
                         else:
                             # Create a plus and minus plane
                             maxes = viewer.bbox[3:]
-                            
+
                             d = loop_item[1]
                             low_pln = OccViewerClippedPlane(
-                                parent=viewer, 
+                                parent=viewer,
                                 direction=d,
                                 capping_color=loop_item[2],
                             )
-                            
+
                             # Create for other side by flipping direction and
                             # positioning at the max
                             high_pln = OccViewerClippedPlane(
-                                parent=viewer, 
+                                parent=viewer,
                                 capping_color=loop_item[2],
                                 direction=tuple(-i for i in d),
                                 position=tuple(k*maxes[i] for i, k in enumerate(d))
                             )
                             plns = viewer.clipped_planes.copy()
                             plns[axis] = (low_pln, high_pln)
-                            
+
                         # Update
                         viewer.clipped_planes = plns
             Action:
-                text = 'Clear all' 
+                text = 'Clear all'
                 triggered :: viewer.clipped_planes = {}
-                    
-                    
+
+
 enamldef ClippedPlaneRow(Container):
     padding = 0
     attr plane
@@ -196,16 +196,16 @@ enamldef ClippedPlaneRow(Container):
     attr bbox
     attr axis << plane.direction.index(1)
     attr labels = {0: 'X', 1: 'Y', 2: 'Z'}
-    
-    constraints = [hbox(label, cbx, sldr), 
+
+    constraints = [hbox(label, cbx, sldr),
                    align('v_center', label, cbx, sldr)]
     func set_position(plane, value):
         p = list(plane.position)
         p[axis] = value
         plane.position = tuple(p)
-    Label: label:        
+    Label: label:
         text << labels.get(axis, 'Custom')
-    CheckBox: cbx:    
+    CheckBox: cbx:
         checked := plane.enabled
         checked >> high_plane.enabled
     DualSlider: sldr:
@@ -213,52 +213,57 @@ enamldef ClippedPlaneRow(Container):
             # Divide the value into 100 items
             scale = 100/(vmax - vmin)
             return int(vmin*scale), int(vmax*scale), scale
-            
+
         # min, max, scale
-        attr bounds << compute_bounds(bbox[axis], bbox[axis+3])        
+        attr bounds << compute_bounds(bbox[axis], bbox[axis+3])
         minimum << bounds[0]-1
         maximum << bounds[1]+1
         low_value << int(plane.position[axis]*bounds[2])
         low_value :: set_position(plane, change['value']/bounds[2])
         high_value << int(high_plane.position[axis]*bounds[2])
         high_value :: set_position(high_plane, change['value']/bounds[2])
-            
+
 
 enamldef ViewerWindow(Window): window:
     #: File to load
     attr filename: str = "-"
-    
+
+    #: Source code to load. If empty the file will be read from disk
+    attr source: str = ""
+
     #: Rendered shapes
     attr models: list = []
-    
-    #: Rendered version
+
+    #: Rendered version. Use this to manually trigger re-renders when the source
+    #: code changes.
     attr version: int = 1
-    
+
     #: Hide window frame (when embedding)
     attr frameless: bool = False
-    
+
     #: IPC protocol for communication with parent process
     attr protocol = None
     alias viewer
-    
+
     activated ::
         if frameless:
             self.proxy.widget.setWindowFlags(Qt.FramelessWindowHint)
-    
+
     func screenshot(filename):
-        # Take a screenshot and save it 
+        # Take a screenshot and save it
         if filename:
             path, ext = os.path.splitext(filename.lower())
             if ext not in ('.bmp', '.png', '.jpeg', '.tiff'):
                 raise ValueError("Filename must be a .jpeg, .png, .bmp, or .tiff")
             viewer.take_screenshot(filename)
         return filename
-    
+
     func load_source():
-        if filename != "-": 
+        if filename != "-":
             with capture_output() as stdout:
                 try:
-                    result = load_model(filename)
+                    # Load the models from source code or disk
+                    result = load_model(filename, source)
                     for shape in result:
                         shape.render()
                     if protocol and protocol.transport:
@@ -266,6 +271,11 @@ enamldef ViewerWindow(Window): window:
                     # Clear clipped planes
                     viewer.clipped_planes = {}
                     return result
+                except EmptyFileError as e:
+                    # When opening an empty / unsaved file, clear the display
+                    viewer.clear_display()
+                    if protocol and protocol.transport:
+                        protocol.send_message({'id': 'render_success'})
                 except Exception as e:
                     # Notify the client that we got an error
                     if protocol and protocol.transport:
@@ -294,10 +304,11 @@ enamldef ViewerWindow(Window): window:
                         'id': 'shape_selection'
                     })
             Include:
+                # Load the 3d models and include them in the viewer
                 objects << load_source() if filename and version else []
         Conditional:
             condition << bool(viewer.clipped_planes)
-            
+
             Container:
                 Looper:
                     iterable << viewer.clipped_planes.values()
@@ -327,19 +338,19 @@ enamldef RemoteViewer(Conditional): viewer:
                 return
             c2 = color.red, color.green, color.blue
         renderer.set_background_gradient(tuple(c1+c2))
-        
+
     func update_trihedron(change):
         renderer.set_trihedron_mode(model.trihedron_mode)
-    
+
     func setup():
         model = viewer.model
         model.observe('background_mode', update_backgound)
-        model.observe('background_top', update_backgound)    
+        model.observe('background_top', update_backgound)
         model.observe('background_bottom', update_backgound)
         model.observe('trihedron_mode', update_trihedron)
         update_backgound({})
         update_trihedron({})
-    
+
     #: Embedded viewer
     EmbeddedWindow: window:
         window_id = renderer.window_id
@@ -350,21 +361,21 @@ enamldef ViewerDockItem(DockItem): view:
     name = "3d-viewer-{}".format(id(self))
     title = "Viewer"
     alias renderer: viewer.renderer
-    activated :: 
+    activated ::
         renderer.observe('errors', handle_errors)
         renderer.observe('output', handle_output)
-    
+
     func handle_errors(change):
         editor_plugin = plugin.workbench.get_plugin('declaracad.editor')
         editor_plugin.active_document.errors = change['value'].split("\n")
-        
+
     func handle_output(change):
         editor_plugin = plugin.workbench.get_plugin('declaracad.editor')
         if change['type'] in ('create', 'update'):
             editor_plugin.active_document.output = change['value']
         elif change['type'] == 'container':
             editor_plugin.active_document.output.append(change['item'])
-                                                
+
     icon = load_icon("bricks")
     stretch = 1
     closed :: renderer.terminate()
@@ -372,7 +383,7 @@ enamldef ViewerDockItem(DockItem): view:
         padding = 0
         RemoteViewer: viewer:
             model << plugin
-            
+
     title_bar_right_clicked :: menu.popup()
     Menu: menu:
         Action:
@@ -402,4 +413,4 @@ enamldef ViewerDockItem(DockItem): view:
                 core = plugin.workbench.get_plugin("enaml.workbench.core")
                 core.invoke_command('declaracad.viewer.screenshot',
                                     {'target': view.name})
-                
+

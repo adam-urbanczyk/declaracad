@@ -40,7 +40,7 @@ def screenshot(event):
     with enaml.imports():
         from .dialogs import ScreenCaptureDialog
     ScreenCaptureDialog(ui.window, plugin=plugin, event=event).exec_()
-    
+
 
 def new_viewer(event):
     editor_plugin = event.workbench.get_plugin('declaracad.editor')
@@ -53,7 +53,7 @@ def new_viewer(event):
     item = ViewerDockItem(dock, plugin=viewer_plugin)
     doc = editor_plugin.active_document
     item.renderer.filename = doc.name
-    dock.update_layout(InsertItem(item=item.name, position=position, 
+    dock.update_layout(InsertItem(item=item.name, position=position,
                                   target=target))
 
 def plugin_factory():
@@ -89,6 +89,9 @@ enamldef ViewerManifest(PluginManifest):
             id = 'declaracad.viewer.fit_all'
             handler = lambda event:plugin_command('fit_all', event)
         Command:
+            id = 'declaracad.viewer.run'
+            handler = lambda event:plugin_command('run', event)
+        Command:
             id = 'declaracad.viewer.export'
             handler = export
         Command:
@@ -115,6 +118,12 @@ enamldef ViewerManifest(PluginManifest):
     Extension:
         id = 'menu'
         point = 'enaml.workbench.ui.actions'
+        ActionItem:
+            path = '/file/run'
+            label = 'Run'
+            shortcut = 'F2'
+            group = 'impexp'
+            command = 'declaracad.viewer.run'
         ActionItem:
             path = '/file/export'
             label = 'Export model...'

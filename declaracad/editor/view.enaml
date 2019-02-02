@@ -89,7 +89,7 @@ def detect_syntax(plugin, path):
 def create_indicators(filename, errors):
     """ Create error indicators by reading the traceback """
     results = []
-    
+
     for line in errors:
         try:
             # From traceback
@@ -108,12 +108,12 @@ def create_indicators(filename, errors):
             except:
                 continue
 
-            
+
             color = "#FF0000"
             try:
                 c = int(tag[2])
                 start = (l-1, 0)
-                stop = (l-1, c)                
+                stop = (l-1, c)
             except:
                 start = (l-1, 0)
                 stop = (l, 0)
@@ -130,8 +130,8 @@ def create_indicators(filename, errors):
 enamldef ErrorPopup(PopupView):
     attr message: str = ""
     attr theme: dict = {"settings": {
-        "color": "#000000", 
-        "paper": "#ffffff", 
+        "color": "#000000",
+        "paper": "#ffffff",
     }}
     anchor_mode = 'cursor'
     background << theme.get('settings', {}).get('paper', '#ffffff')
@@ -163,7 +163,7 @@ enamldef EditorGotoBar(Container): bar:
         text = 'Go to line:'
         align = 'right'
     SpinBox: sb:
-        activated :: 
+        activated ::
             self.set_focus()
             self.proxy.widget.selectAll()
         value << editor.cursor_position[0]
@@ -172,7 +172,7 @@ enamldef EditorGotoBar(Container): bar:
             pressed ::
                 e = change['value']
                 if e['key'] == '\r':
-                    deferred_call(go_to_line) 
+                    deferred_call(go_to_line)
     PushButton: pb:
         icon = load_icon('control_play')
         clicked :: go_to_line()
@@ -180,17 +180,17 @@ enamldef EditorGotoBar(Container): bar:
             pressed ::
                 e = change['value']
                 if e['key'] == '\r':
-                    go_to_line() 
+                    go_to_line()
     PushButton: cb:
         icon = load_icon('cancel')
         clicked :: editor.show_goto_bar = False
-        
+
 
 enamldef EditorFindBar(Container): bar:
     attr editor
     attr show_replace: bool = False
-    
-    func make_constraints(show_replace): 
+
+    func make_constraints(show_replace):
         constraints = [
             align('v_center', lbl, search, pb1, pb2, pb3, pb4),
             pb1.height == pb2.height == pb3.height ==  pb4.height == search.height,
@@ -206,7 +206,7 @@ enamldef EditorFindBar(Container): bar:
             ])
         constraints.append(layout)
         return constraints
-    
+
     constraints << make_constraints(show_replace)
     hug_height = 'strong'
     func find_text(**opts):
@@ -214,7 +214,7 @@ enamldef EditorFindBar(Container): bar:
             w = editor.proxy.widget
             w.selectAll(False)
             w.findFirst(
-                search.text, 
+                search.text,
                 opts.get('re', pb7.checked),
                 opts.get('cs', pb6.checked),
                 opts.get('wo', pb8.checked),
@@ -245,7 +245,7 @@ enamldef EditorFindBar(Container): bar:
         submit_triggers = ['auto_sync', 'return_pressed']
         activated :: search.set_focus()
         KeyEvent:
-            pressed :: 
+            pressed ::
                 e = change['value']
                 k = e['key']
                 if k == plugin.key_mapping.get('find', '\x06'):
@@ -257,13 +257,13 @@ enamldef EditorFindBar(Container): bar:
     PushButton: pb1:
         icon = load_icon("control_rewind")
         tool_tip = 'Find previous'
-        clicked :: 
+        clicked ::
             find_text(forward=False)
             editor.proxy.widget.findNext()
     PushButton: pb2:
         icon = load_icon("control_fastforward")
         tool_tip = 'Find next'
-        clicked :: 
+        clicked ::
             find_text(forward=True)
             editor.proxy.widget.findNext()
     PushButton: pb3:
@@ -306,8 +306,8 @@ enamldef EditorFindBar(Container): bar:
         tool_tip = 'Match words'
         checkable = True
         toggled :: find_text()
-        
-            
+
+
 
 enamldef Editor(Scintilla): editor:
     hug_height = 'ignore'
@@ -316,11 +316,11 @@ enamldef Editor(Scintilla): editor:
     attr doc: Document = Document()
     attr editor_font: str << f"{plugin.font_size}pt {plugin.font_family}"
     attr error_popup = None
-    
+
     func update_font(theme, font):
         theme['settings']['font'] = font
         return theme
-    theme  << update_font(THEMES[plugin.theme] if plugin else THEMES['tango'], 
+    theme  << update_font(THEMES[plugin.theme] if plugin else THEMES['tango'],
                             editor_font)
     theme :: set_margin_colors()
     settings << {
@@ -338,35 +338,35 @@ enamldef Editor(Scintilla): editor:
     }
     autocomplete = 'all'
     settings :: update_settings()
-    activated :: 
+    activated ::
         set_text(doc.source)
         w = self.proxy.widget
         w.indicatorReleased.connect(self.on_indicator_clicked)
         update_settings()
-        
+
     func update_settings():
         # Reload everything when the settings change
         set_code_folding()
         set_margin_colors()
         set_show_scrollbars()
-    
-    func on_indicator_clicked(line, index, keys):  
+
+    func on_indicator_clicked(line, index, keys):
         if error_popup:
             error_popup.hide()
             editor.error_popup = None
             return
         editor.error_popup = ErrorPopup(
-            self, 
+            self,
             theme=self.theme,
             message="\n".join(doc.errors[-5:]).strip()
         )
         editor.error_popup.show()
-    
+
     func set_code_folding():
         w = self.proxy.widget
         style = w.CircledTreeFoldStyle if plugin.code_folding else w.NoFoldStyle
         w.setFolding(style)
-    
+
     func set_margin_colors():
         w = self.proxy.widget
         bg = get_cached_qcolor(parse_color(theme['settings']['paper']))
@@ -374,13 +374,13 @@ enamldef Editor(Scintilla): editor:
         w.setMarginsBackgroundColor(bg)
         w.setFoldMarginColors(bg, bg)
         w.setMarginsForegroundColor(fg)
-        
+
     func set_show_scrollbars():
         w = self.proxy.widget
         policy = Qt.ScrollBarAsNeeded if plugin.show_scrollbars else Qt.ScrollBarAlwaysOff
         w.setHorizontalScrollBarPolicy(policy)
         w.setVerticalScrollBarPolicy(policy)
-        
+
     func get_comment_token():
         if not doc.name:
             return ''
@@ -390,7 +390,7 @@ enamldef Editor(Scintilla): editor:
         elif ext in ('.c', '.cpp', '.js', '.jsx', '.ts', '.ino'):
             return '//'
         return ''
-        
+
     func comment_lines():
         """ Adds a comment to the given lines """
         token = get_comment_token()
@@ -402,19 +402,19 @@ enamldef Editor(Scintilla): editor:
             start_line, start_col, end_line, end_col = w.getSelection()
             w.setSelection(start_line, 0, end_line, len(w.text(end_line))-1)
             lines = w.selectedText().split("\n")
-            
+
             # Determine min whitespace of selected lines
             col = min([len(l)-len(l.lstrip()) for l in lines if l.strip()])
-            
+
             # Insert comment token and ignoring empty lines
             if col == 0:
                 lines = [token+l if l.strip() else l for l in lines]
             else:
                 lines = [l[0:col]+token+l[col:] if l.strip() else l for l in lines]
-                
+
             # Replace with commented text
             w.replaceSelectedText("\n".join(lines))
-            
+
             # Restore selection
             if lines[-1].strip(): # If we modified the last line
                 end_col += len(token)
@@ -425,12 +425,12 @@ enamldef Editor(Scintilla): editor:
             col = len(text)-len(text.lstrip())
             if not text.lstrip().startswith(token):
                 w.insertAt(token, start_line, col)
-            
+
             # Restore cursor pos
-            if col < start_col: 
+            if col < start_col:
                 start_col += len(token)
             w.setCursorPosition(start_line, start_col)
-                
+
     func uncomment_lines():
         """ Remove comments from selected or current lines """
         token = get_comment_token()
@@ -447,11 +447,11 @@ enamldef Editor(Scintilla): editor:
                     line = line.replace(token, '', 1)
                 lines.append(line)
             w.replaceSelectedText('\n'.join(lines))
-            
+
             # If the last line was edited decrease end_col
             if startswith_comment:
                 end_col -= len(token)
-            
+
             w.setSelection(start_line, start_col, end_line, end_col)
         else:
             start_line, start_col = w.getCursorPosition()
@@ -459,11 +459,11 @@ enamldef Editor(Scintilla): editor:
             if text.lstrip().startswith(token):
                 # Select full ine
                 w.setSelection(start_line, 0, start_line, len(text)-1)
-                
+
                 # Replace
                 w.replaceSelectedText(text.replace(token, '', 1).rstrip("\n"))
                 w.setCursorPosition(start_line, start_col)
-    
+
     func toggle_comments():
         """ Toggle comments """
         token = get_comment_token()
@@ -479,28 +479,28 @@ enamldef Editor(Scintilla): editor:
             uncomment_lines()
         else:
             comment_lines()
-            
+
     func cut():
         self.proxy.widget.cut()
-        
+
     func copy():
         self.proxy.widget.copy()
-        
+
     func paste():
         self.proxy.widget.paste()
-        
+
     func undo():
         self.proxy.widget.undo()
-        
+
     func redo():
         self.proxy.widget.redo()
-        
+
     func select_all():
         self.proxy.widget.selectAll(True)
-        
+
     func deselect():
         self.proxy.widget.selectAll(False)
-        
+
     text_changed :: timer.start()
     zoom << plugin.zoom if plugin else 0
     indicators << create_indicators(doc.name, doc.errors) if doc else []
@@ -531,7 +531,7 @@ enamldef EditorDockItem(DockItem): view:
                             {'document':doc, 'target': view.name})
     icon = load_icon('script_code')
     name = 'editor-item-{}'.format(id(self))
-    Container: 
+    Container:
         minimum_size = (480, 320)
         padding = 0
         Conditional:
@@ -549,7 +549,7 @@ enamldef EditorDockItem(DockItem): view:
             attr show_goto_bar: bool << False
             doc := view.doc
             KeyEvent:
-                pressed :: 
+                pressed ::
                     e = change['value']
                     #print(e)
                     k = e['key']
@@ -559,7 +559,7 @@ enamldef EditorDockItem(DockItem): view:
                         editor.show_replace_bar = not editor.show_replace_bar
                     elif k == plugin.key_mapping.get('goto', '\x0c'):
                         editor.show_goto_bar = not editor.show_goto_bar
-        
+
     title_bar_right_clicked :: menu.popup()
     Menu: menu:
         Action:
@@ -629,28 +629,28 @@ enamldef OutlineDockItem(DockItem): view:
     icon = load_icon('chart_organisation')
     func create_outline(source):
         doc = plugin.active_document
-        
+
         try:
             ast = parse(source)
         except Exception as e:
             # We could set errors here?
             return [e]
-        
+
         nodes = []
         # Walk ast and pull out nodes we're insterested in
         for node in ast.body:
             if isinstance(node, enaml_ast.EnamlDef):
                 nodes.append(node)
             elif isinstance(node, enaml_ast.PythonModule):
-                for n in node.ast.body:                
-                    if isinstance(n, (python_ast.ClassDef, 
+                for n in node.ast.body:
+                    if isinstance(n, (python_ast.ClassDef,
                                       python_ast.FunctionDef)):
                         nodes.append(n)
         # Hack to workaround a segfault when the tree's items are emptied
         if not nodes:
             nodes.append(ast)
         return nodes
-      
+
     func format_node(node):
         if isinstance(node, python_ast.FunctionDef):
             return "tag", "def", node.name, "Function"
@@ -661,7 +661,7 @@ enamldef OutlineDockItem(DockItem): view:
         elif isinstance(node, Exception):
             return "exclamation", "error", str(node), str(node.__class__.__name__)
         return "tag_blue", "", str(node), ""
-  
+
     Container:
         padding = 0
         TreeView: tree:
@@ -675,7 +675,7 @@ enamldef OutlineDockItem(DockItem): view:
                     attr obj << format_node(loop_item)
                     icon << load_icon(obj[0])
                     text << obj[2]
-                    double_clicked :: 
+                    double_clicked ::
                         editor = plugin.get_editor()
                         # Go to the line
                         widget = editor.proxy.widget
@@ -684,12 +684,12 @@ enamldef OutlineDockItem(DockItem): view:
                         # Retract the item if shown
                         dock_area = view.parent
                         dock_area.update_layout(RetractItem(item=view.name))
-                        
+
                     TreeViewColumn:
                         text << obj[3]
                     TreeViewColumn:
                         text << str(loop_item.lineno)
-                            
-                        
-                
-      
+
+
+
+
