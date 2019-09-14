@@ -13,8 +13,8 @@ from atom.api import Typed
 from ..part import ProxyPart
 from .occ_shape import OccDependentShape, OccShape
 
-from OCC.TopoDS import TopoDS_Compound
-from OCC.BRep import BRep_Builder
+from OCCT.TopoDS import TopoDS_Compound
+from OCCT.BRep import BRep_Builder
 
 
 class OccPart(OccDependentShape, ProxyPart):
@@ -23,7 +23,7 @@ class OccPart(OccDependentShape, ProxyPart):
 
     #: The compound shape
     shape = Typed(TopoDS_Compound, ())
-    
+
     @property
     def shapes(self):
         return [child for child in self.children()

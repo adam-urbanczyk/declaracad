@@ -21,8 +21,8 @@ def application_factory():
     app = QtApplication()
 
     #: Install twisted support into the Qt event loop
-    import qt5reactor
-    qt5reactor.install()
+    import qreactor
+    qreactor.install()
 
     return app
 

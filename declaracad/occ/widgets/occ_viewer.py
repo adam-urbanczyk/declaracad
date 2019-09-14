@@ -1,5 +1,5 @@
 """
-Copyright (c) 2016-2018, Jairus Martin.
+Copyright (c) 2016-2019, Jairus Martin.
 
 Distributed under the terms of the GPL v3 License.
 
@@ -11,13 +11,28 @@ Created on Sep 26, 2016
 """
 from atom.api import (
    Atom, Event, List, Tuple, Bool, Int, Enum, Typed, ForwardTyped, observe,
-   Dict, Str, Float, set_default
+   Coerced, Dict, Str, Float, set_default
 )
 from enaml.core.declarative import d_
-from enaml.colors import ColorMember
+from enaml.colors import Color, ColorMember, parse_color
 from enaml.widgets.control import Control, ProxyControl
 
 from ..shape import BBox
+
+
+def gradient_coercer(arg):
+    """ Coerce a colors to a gradient
+
+    """
+    if not isinstance(arg, (tuple, list)):
+        c1, c2 = [arg, arg]
+    else:
+        c1, c2 = arg
+    if not isinstance(c1, Color):
+        c1 = parse_color(c1)
+    if not isinstance(c2, Color):
+        c2 = parse_color(c2)
+    return (c1, c2)
 
 
 class ViewerSelectionEvent(Atom):
@@ -98,29 +113,6 @@ class ProxyOccViewer(ProxyControl):
         raise NotImplementedError
 
 
-class ProxyOccViewerClippedPlane(ProxyControl):
-    #: A reference to the ClippedPlane declaration.
-    declaration = ForwardTyped(lambda: OccViewerClippedPlane)
-
-    def set_enabled(self, enabled):
-        raise NotImplementedError
-
-    def set_capping(self, enabled):
-        raise NotImplementedError
-
-    def set_capping_hashed(self, enabled):
-        raise NotImplementedError
-
-    def set_capping_color(self, color):
-        raise NotImplementedError
-
-    def set_position(self, position):
-        raise NotImplementedError
-
-    def set_direction(self, direction):
-        raise NotImplementedError
-
-
 class OccViewer(Control):
     """ A widget to view OpenCascade shapes.
     """
@@ -151,9 +143,11 @@ class OccViewer(Control):
     trihedron_mode = d_(Enum('right-lower', 'right-upper', 'left-lower',
                              'left-upper'))
 
-    #: Background gradient
-    background_gradient = d_(Tuple(Int(), default=(206, 215, 222,
-                                                   128, 128, 128)))
+    #: Background gradient this is corecred from a of strings
+    background_gradient = d_(Coerced(tuple, coercer=gradient_coercer))
+
+    def _default_background_gradient(self):
+        return (parse_color('white'), parse_color('silver'))
 
     #: Display shadows
     shadows = d_(Bool(False))
@@ -221,37 +215,3 @@ class OccViewer(Control):
         this or they'll be rerendered.
         """
         self.proxy.clear_display()
-
-
-class OccViewerClippedPlane(Control):
-    #: A reference to the ProxySpinBox object.
-    proxy = Typed(ProxyOccViewerClippedPlane)
-
-    #: Enabled
-    enabled = d_(Bool(True))
-
-    #: Capping
-    capping = d_(Bool(True))
-
-    #: Hatched
-    capping_hatched = d_(Bool(True))
-
-    #: Color
-    capping_color = d_(ColorMember())
-
-    #: Position
-    position = d_(Tuple(Float(strict=False), default=(0, 0, 0)))
-
-    #: Direction
-    direction = d_(Tuple(Float(strict=False), default=(1, 0, 0)))
-
-    # -------------------------------------------------------------------------
-    # Observers
-    # -------------------------------------------------------------------------
-    @observe('position', 'direction', 'enabled', 'capping', 'capping_hatched',
-             'capping_color')
-    def _update_proxy(self, change):
-        """ An observer which sends state change to the proxy.
-        """
-        # The superclass handler implementation is sufficient.
-        super(OccViewerClippedPlane, self)._update_proxy(change)

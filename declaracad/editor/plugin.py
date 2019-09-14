@@ -29,7 +29,6 @@ from enaml.core.enaml_compiler import EnamlCompiler
 from enaml.workbench.core.execution_event import ExecutionEvent
 from enaml.layout.api import InsertItem, InsertTab, RemoveItem
 from types import ModuleType
-from future.utils import exec_
 from glob import glob
 
 

@@ -12,6 +12,9 @@ Created on Dec 6, 2015
 from argparse import ArgumentParser
 
 
+version = '0.4.0dev'
+
+
 def launch_exporter(args):
     from declaracad.apps import exporter
     exporter.main(**args.__dict__)
@@ -35,17 +38,17 @@ def main():
     viewer.add_argument("file", help="File to view")
     viewer.add_argument("-f", "--frameless", action='store_true',
                         help="Frameless viewer")
-    
+
     exporter = subparsers.add_parser("export", help="Export the given file")
     exporter.set_defaults(func=launch_exporter)
     exporter.add_argument("options", help="File to export or json string of "
                                           "ExportOption parameters")
     args = parser.parse_args()
-    
+
     # Start the app
     launcher = getattr(args, 'func', launch_workbench)
     launcher(args)
-    
-        
+
+
 if __name__ == '__main__':
     main()

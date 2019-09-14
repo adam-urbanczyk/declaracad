@@ -245,6 +245,8 @@ enamldef ViewerWindow(Window): window:
     attr protocol = None
     alias viewer
 
+    initial_size = (960, 480)
+
     activated ::
         if frameless:
             self.proxy.widget.setWindowFlags(Qt.FramelessWindowHint)
@@ -326,18 +328,16 @@ enamldef RemoteViewer(Conditional): viewer:
     func update_backgound(change):
         """ Updates the background color on the viewer """
         model = viewer.model
-        color = model.background_top
-        if not color:
+        c1 = model.background_top
+        if not c1:
             return
-        c1 = color.red, color.green, color.blue
         if model.background_mode == 'solid':
             c2 = c1
         else:
-            color = model.background_bottom
-            if not color:
+            c2 = model.background_bottom
+            if not c2:
                 return
-            c2 = color.red, color.green, color.blue
-        renderer.set_background_gradient(tuple(c1+c2))
+        renderer.set_background_gradient((c1, c2))
 
     func update_trihedron(change):
         renderer.set_trihedron_mode(model.trihedron_mode)

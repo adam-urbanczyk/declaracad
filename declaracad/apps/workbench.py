@@ -1,5 +1,5 @@
 """
-Copyright (c) 2017, Jairus Martin.
+Copyright (c) 2017-2019, Jairus Martin.
 
 Distributed under the terms of the GPL v3 License.
 
@@ -38,14 +38,14 @@ with enaml.imports():
 # Required on Qt 5.10+
 try:
     from enaml.qt import QtWebEngineWidgets
-except ImportError:
+except:
     pass
 
 
 def main(**kwargs):
     # Make sure ^C keeps working
     signal.signal(signal.SIGINT, signal.SIG_DFL)
-    
+
     # Start the workbench
     workbench = DeclaracadWorkbench()
     workbench.register(DeclaracadManifest())
@@ -57,7 +57,7 @@ def main(**kwargs):
     workbench.register(ToolboxManifest())
     workbench.register(CncManifest())
     workbench.run()
-        
-        
+
+
 if __name__ == '__main__':
     main()

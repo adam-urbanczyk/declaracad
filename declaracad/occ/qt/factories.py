@@ -18,7 +18,7 @@ def occ_viewer_factory():
 
 
 def occ_viewer_clipped_plane_factory():
-    from .qt_occ_viewer import QtOccViewerClippedPlane
+    from .qt_occ_clipped_plane import QtOccViewerClippedPlane
     return QtOccViewerClippedPlane
 
 

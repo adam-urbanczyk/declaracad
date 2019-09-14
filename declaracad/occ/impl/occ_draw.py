@@ -12,23 +12,23 @@ Created on Sep 30, 2016
 import os
 from atom.api import Typed, Int, List, set_default
 
-from OCC import Addons
-from OCC.BRepBuilderAPI import (
+#from OCCT import Addons
+from OCCT.BRepBuilderAPI import (
     BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeWire,
-    BRepBuilderAPI_MakeVertex, BRepBuilderAPI_Transform, 
+    BRepBuilderAPI_MakeVertex, BRepBuilderAPI_Transform,
     BRepBuilderAPI_MakePolygon
 )
-from OCC.BRepOffsetAPI import BRepOffsetAPI_MakeOffset
-from OCC.GC import GC_MakeSegment, GC_MakeArcOfCircle
-from OCC.gp import gp_Pnt, gp_Lin, gp_Circ, gp_Elips, gp_Hypr, gp_Parab
-from OCC.TopoDS import TopoDS_Shape, TopoDS_Vertex, topods
-from OCC.GeomAPI import GeomAPI_PointsToBSpline
-from OCC.Geom import Geom_BezierCurve, Geom_BSplineCurve
-from OCC.TColgp import TColgp_Array1OfPnt
+from OCCT.BRepOffsetAPI import BRepOffsetAPI_MakeOffset
+from OCCT.GC import GC_MakeSegment, GC_MakeArcOfCircle
+from OCCT.gp import gp_Pnt, gp_Lin, gp_Circ, gp_Elips, gp_Hypr, gp_Parab
+from OCCT.TopoDS import TopoDS_Shape, TopoDS_Vertex
+from OCCT.GeomAPI import GeomAPI_PointsToBSpline
+from OCCT.Geom import Geom_BezierCurve, Geom_BSplineCurve
+from OCCT.TColgp import TColgp_Array1OfPnt
 
 from ..draw import (
-    ProxyPoint, ProxyVertex, ProxyLine, ProxyCircle, ProxyEllipse, 
-    ProxyHyperbola, ProxyParabola, ProxyEdge, ProxyWire, ProxySegment, ProxyArc, 
+    ProxyPoint, ProxyVertex, ProxyLine, ProxyCircle, ProxyEllipse,
+    ProxyHyperbola, ProxyParabola, ProxyEdge, ProxyWire, ProxySegment, ProxyArc,
     ProxyPolygon, ProxyBSpline, ProxyBezier, ProxyText
 )
 from .occ_shape import OccShape, OccDependentShape, coerce_axis
@@ -36,12 +36,12 @@ from .occ_shape import OccShape, OccDependentShape, coerce_axis
 
 #: Track registered fonts
 FONT_REGISTRY = set()
-FONT_ASPECTS = {
-    'regular': Addons.Font_FA_Regular,
-    'bold': Addons.Font_FA_Bold,
-    'italic': Addons.Font_FA_Italic,
-    'bold-italic': Addons.Font_FA_BoldItalic
-}
+FONT_ASPECTS = {}
+    #'regular': Addons.Font_FA_Regular,
+    #'bold': Addons.Font_FA_Bold,
+    #'italic': Addons.Font_FA_Italic,
+    #'bold-italic': Addons.Font_FA_BoldItalic
+#}
 
 
 class OccPoint(OccShape, ProxyPoint):
@@ -51,13 +51,13 @@ class OccPoint(OccShape, ProxyPoint):
 
     #: A reference to the toolkit shape created by the proxy.
     shape = Typed(gp_Pnt)
-    
+
     def create_shape(self):
         d = self.declaration
         # Not sure why but we need this
         # to force a sync of position and xyz
         self.shape = gp_Pnt(*d.position)
-        
+
     def set_position(self, position):
         self.create_shape()
 
@@ -69,18 +69,18 @@ class OccVertex(OccShape, ProxyVertex):
 
     #: A reference to the toolkit shape created by the proxy.
     shape = Typed(TopoDS_Vertex)
-    
+
     def create_shape(self):
         d = self.declaration
         v = BRepBuilderAPI_MakeVertex(gp_Pnt(d.x, d.y, d.z))
         self.shape = v.Vertex()
-        
+
     def set_x(self, x):
         self.create_shape()
-        
+
     def set_y(self, y):
-        self.create_shape()    
-        
+        self.create_shape()
+
     def set_z(self, z):
         self.create_shape()
 
@@ -90,7 +90,7 @@ class OccEdge(OccShape, ProxyEdge):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_builder_a_p_i___make_edge.html')
     shape = Typed(BRepBuilderAPI_MakeEdge)
-    
+
     def make_edge(self, *args):
         self.shape = BRepBuilderAPI_MakeEdge(*args)
 
@@ -107,10 +107,10 @@ class OccLine(OccEdge, ProxyLine):
         else:
             args = (gp_Lin(coerce_axis(d.axis)),)
         self.make_edge(*args)
-        
+
     def set_points(self, points):
         self.create_shape()
-        
+
 
 class OccSegment(OccLine, ProxySegment):
     #: Update the class reference
@@ -118,7 +118,7 @@ class OccSegment(OccLine, ProxySegment):
                             'class_g_c___make_segment.html')
 
     shape = List(BRepBuilderAPI_MakeEdge)
-    
+
     def create_shape(self):
         d = self.declaration
         points = [gp_Pnt(*p) for p in d.points]
@@ -166,13 +166,13 @@ class OccArc(OccLine, ProxyArc):
                              "- radius and 2 points\n\t"
                              "- radius, alpha1 and one point\n\t"
                              "- raidus, alpha1 and alpha2")
-                
+
     def set_radius(self, r):
         self.create_shape()
-    
+
     def set_alpha1(self, a):
         self.create_shape()
-    
+
     def set_alpha2(self, a):
         self.create_shape()
 
@@ -185,7 +185,7 @@ class OccCircle(OccEdge, ProxyCircle):
     def create_shape(self):
         d = self.declaration
         self.make_edge(gp_Circ(coerce_axis(d.axis), d.radius))
-        
+
     def set_radius(self, r):
         self.create_shape()
 
@@ -194,15 +194,15 @@ class OccEllipse(OccEdge, ProxyEllipse):
     #: Update the class reference
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'classgp___elips.html')
-    
+
     def create_shape(self):
         d = self.declaration
         self.make_edge(gp_Elips(coerce_axis(d.axis), d.major_radius,
                                 d.minor_radius))
-        
+
     def set_major_radius(self, r):
         self.create_shape()
-        
+
     def set_minor_radius(self, r):
         self.create_shape()
 
@@ -216,10 +216,10 @@ class OccHyperbola(OccEdge, ProxyHyperbola):
         d = self.declaration
         self.make_edge(gp_Hypr(coerce_axis(d.axis), d.major_radius,
                                d.minor_radius))
-        
+
     def set_major_radius(self, r):
         self.create_shape()
-        
+
     def set_minor_radius(self, r):
         self.create_shape()
 
@@ -228,11 +228,11 @@ class OccParabola(OccEdge, ProxyParabola):
     #: Update the class reference
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'classgp___parab.html')
-    
+
     def create_shape(self):
         d = self.declaration
         self.make_edge(gp_Parab(coerce_axis(d.axis), d.focal_length))
-        
+
     def set_focal_length(self, l):
         self.create_shape()
 
@@ -243,7 +243,7 @@ class OccPolygon(OccLine, ProxyPolygon):
                             'class_b_rep_builder_a_p_i___make_polygon.html')
 
     shape = Typed(BRepBuilderAPI_MakePolygon)
-    
+
     def create_shape(self):
         d = self.declaration
         shape = BRepBuilderAPI_MakePolygon()
@@ -252,7 +252,7 @@ class OccPolygon(OccLine, ProxyPolygon):
         if d.closed:
             shape.Close()
         self.shape = shape
-        
+
     def set_closed(self, closed):
         self.create_shape()
 
@@ -263,7 +263,7 @@ class OccBSpline(OccLine, ProxyBSpline):
                             'class_geom___b_spline_curve.html')
 
     shape = Typed(Geom_BSplineCurve)
-    
+
     def create_shape(self):
         d = self.declaration
         if not d.points:
@@ -271,26 +271,26 @@ class OccBSpline(OccLine, ProxyBSpline):
         # Poles and weights
         pts = TColgp_Array1OfPnt(1, len(d.points))
         set_value = pts.SetValue
-        
+
         # TODO: Support weights
         for i, p in enumerate(d.points):
             set_value(i+1, gp_Pnt(*p))
-        
+
         self.shape = GeomAPI_PointsToBSpline(pts).Curve().GetObject()
-        
-        
+
+
 class OccBezier(OccLine, ProxyBezier):
     #: Update the class reference
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_geom___bezier_curve.html')
 
     shape = Typed(Geom_BezierCurve)
-    
+
     def create_shape(self):
         d = self.declaration
         pts = TColgp_Array1OfPnt(1, len(d.points))
         set_value = pts.SetValue
-        
+
         # TODO: Support weights
         for i, p in enumerate(d.points):
             set_value(i+1, gp_Pnt(*p))
@@ -301,39 +301,39 @@ class OccText(OccShape, ProxyText):
     #: Update the class reference
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_topo_d_s___shape.html')
-    
+
     #: The shape created
     shape = Typed(TopoDS_Shape)
-    
+
     def create_shape(self):
         """ Create the shape by loading it from the given path. """
         d = self.declaration
         font = d.font
         if font:
             if os.path.exists(font) and font not in FONT_REGISTRY:
-                Addons.register_font(font)
+                #Addons.register_font(font)
                 FONT_REGISTRY.add(font)
-                
+
         self.shape = Addons.text_to_brep(
             d.text, font, FONT_ASPECTS.get(d.style), d.size, d.composite
         )
-        
+
     def set_text(self, text):
         self.create_shape()
-        
+
     def set_font(self, font):
         self.create_shape()
-    
+
     def set_size(self, size):
         self.create_shape()
-        
+
     def set_style(self, style):
         self.create_shape()
-        
+
     def set_composite(self, composite):
         self.create_shape()
-        
-        
+
+
 class OccWire(OccShape, ProxyWire):
     #: Update the class reference
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
@@ -341,17 +341,17 @@ class OccWire(OccShape, ProxyWire):
 
     #: Make wire
     shape = Typed(BRepBuilderAPI_MakeWire)
-    
+
     def create_shape(self):
         pass
-    
+
     def init_layout(self):
         self.update_shape({})
         for child in self.children():
             self.child_added(child)
-            
+
     def shape_to_wire(self, shape):
-        
+
         if hasattr(shape, 'Wire'):
             return shape.Wire()
         elif hasattr(shape, 'Edge'):
@@ -360,9 +360,9 @@ class OccWire(OccShape, ProxyWire):
             return topods.Wire(shape.Shape())
         elif hasattr(shape, 'GetHandle'): # Curves
             return BRepBuilderAPI_MakeEdge(shape.GetHandle()).Edge()
-        
+
         raise ValueError("Cannot build Wire from shape: {}".format(shape))
-        
+
     def update_shape(self, change):
         d = self.declaration
         shape = BRepBuilderAPI_MakeWire()
@@ -374,14 +374,14 @@ class OccWire(OccShape, ProxyWire):
                     shape.Add(convert(item))
             else:
                 shape.Add(convert(c.shape))
-                    
+
         assert shape.IsDone(), 'Edges must be connected'
         self.shape = shape
-        
+
     def child_added(self, child):
         super(OccWire, self).child_added(child)
         child.observe('shape', self.update_shape)
-        
+
     def child_removed(self, child):
         super(OccEdge, self).child_removed(child)
         child.unobserve('shape', self.update_shape)
