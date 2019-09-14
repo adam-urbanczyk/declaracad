@@ -15,12 +15,11 @@ from atom.api import List, Dict, Typed, Int, Value, Property, Bool
 
 from enaml.qt import QtCore, QtGui
 from enaml.qt.QtWidgets import QOpenGLWidget
-
-from enaml.qt.QtCore import Qt
+from enaml.qt.QtCore import Qt, QRect
+from enaml.qt.QtGui import QPainter
 from enaml.qt.qt_control import QtControl
 from enaml.qt.qt_toolkit_object import QtToolkitObject
 from enaml.application import deferred_call, timed_call
-
 
 
 from OCCT import Aspect, Graphic3d, TopAbs, V3d
@@ -213,6 +212,7 @@ class QtViewer3d(QOpenGLWidget):
         self._rightisdown = False
         self._selection = None
         self._drawtext = True
+        self._select_pen = QtGui.QPen(QtGui.QColor(0, 0, 0), 1)
         self._callbacks = {
             'key_pressed': [],
             'mouse_dragged': [],
@@ -257,12 +257,11 @@ class QtViewer3d(QOpenGLWidget):
         if self._fire_event('key_pressed', event):
             return
         code = event.key()
-        if code in self._key_map:
-            self._key_map[code]()
-        else:
-            msg = "key: {0}\nnot mapped to any function".format(code)
-
-            log.info(msg)
+        #if code in self._key_map:
+        #    self._key_map[code]()
+        #else:
+        #    msg = "key: {0}\nnot mapped to any function".format(code)
+        #    log.info(msg)
 
     def focusInEvent(self, event):
         if self._inited:
@@ -273,22 +272,23 @@ class QtViewer3d(QOpenGLWidget):
             self.proxy.v3d_view.Redraw()
 
     def paintEvent(self, event):
-        if self._inited:
-            self.proxy.ais_context.UpdateCurrentViewer()
-            # important to allow overpainting of the OCC OpenGL context in Qt
-            #self.swapBuffers()
-        else:
+        if not self._inited:
             self.proxy.init_window()
             self._inited = True
+            return
+
+        self.proxy.ais_context.UpdateCurrentViewer()
+        # important to allow overpainting of the OCC OpenGL context in Qt
 
         if self._drawbox:
             self.makeCurrent()
-            painter = QtGui.QPainter(self)
-            painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 0), 1))
-            rect = QtCore.QRect(*self._drawbox)
-            painter.drawRect(rect)
+            painter = QPainter(self)
+            painter.setPen(self._select_pen)
+            painter.drawRect(QRect(*self._drawbox))
             painter.end()
             self.doneCurrent()
+
+        #self.swapBuffers()
 
     def wheelEvent(self, event):
         if self._fire_event('mouse_scrolled', event):
@@ -306,7 +306,6 @@ class QtViewer3d(QOpenGLWidget):
     def dragMoveEvent(self, event):
         if self._fire_event('mouse_dragged', event):
             return
-        pass
 
     def _fire_event(self, name, event):
         handled = False
@@ -827,7 +826,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             ais_context.NextSelected()
 
         if shift:
-            ais_context.UpdateSelected()
+            ais_context.UpdateSelected(True)
 
         # Set selection
         d.selection(ViewerSelectionEvent(selection=selection))

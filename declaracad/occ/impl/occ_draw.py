@@ -1,5 +1,5 @@
 """
-Copyright (c) 2016-2018, Jairus Martin.
+Copyright (c) 2016-2019, Jairus Martin.
 
 Distributed under the terms of the GPL v3 License.
 
@@ -12,19 +12,22 @@ Created on Sep 30, 2016
 import os
 from atom.api import Typed, Int, List, set_default
 
-#from OCCT import Addons
 from OCCT.BRepBuilderAPI import (
     BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeWire,
     BRepBuilderAPI_MakeVertex, BRepBuilderAPI_Transform,
     BRepBuilderAPI_MakePolygon
 )
 from OCCT.BRepOffsetAPI import BRepOffsetAPI_MakeOffset
+from OCCT.Font import Font_BRepTextBuilder, Font_FontAspect, Font_FontMgr
 from OCCT.GC import GC_MakeSegment, GC_MakeArcOfCircle
 from OCCT.gp import gp_Pnt, gp_Lin, gp_Circ, gp_Elips, gp_Hypr, gp_Parab
-from OCCT.TopoDS import TopoDS_Shape, TopoDS_Vertex
+from OCCT.TopoDS import TopoDS, TopoDS_Shape, TopoDS_Vertex
 from OCCT.GeomAPI import GeomAPI_PointsToBSpline
 from OCCT.Geom import Geom_BezierCurve, Geom_BSplineCurve
 from OCCT.TColgp import TColgp_Array1OfPnt
+from OCCT.TCollection import TCollection_HAsciiString
+from OCCT.NCollection import NCollection_Utf16String
+#from OCCT.NCollection import NCollection_UtfString
 
 from ..draw import (
     ProxyPoint, ProxyVertex, ProxyLine, ProxyCircle, ProxyEllipse,
@@ -35,13 +38,14 @@ from .occ_shape import OccShape, OccDependentShape, coerce_axis
 
 
 #: Track registered fonts
+FONT_MANAGER = Font_FontMgr.GetInstance_()
 FONT_REGISTRY = set()
-FONT_ASPECTS = {}
-    #'regular': Addons.Font_FA_Regular,
-    #'bold': Addons.Font_FA_Bold,
-    #'italic': Addons.Font_FA_Italic,
-    #'bold-italic': Addons.Font_FA_BoldItalic
-#}
+FONT_ASPECTS = {
+    'regular': Font_FontAspect.Font_FA_Regular,
+    'bold': Font_FontAspect.Font_FA_Bold,
+    'italic': Font_FontAspect.Font_FA_Italic,
+    'bold-italic': Font_FontAspect.Font_FA_BoldItalic
+}
 
 
 class OccPoint(OccShape, ProxyPoint):
@@ -262,8 +266,6 @@ class OccBSpline(OccLine, ProxyBSpline):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_geom___b_spline_curve.html')
 
-    shape = Typed(Geom_BSplineCurve)
-
     def create_shape(self):
         d = self.declaration
         if not d.points:
@@ -276,15 +278,14 @@ class OccBSpline(OccLine, ProxyBSpline):
         for i, p in enumerate(d.points):
             set_value(i+1, gp_Pnt(*p))
 
-        self.shape = GeomAPI_PointsToBSpline(pts).Curve().GetObject()
+        self.shape = BRepBuilderAPI_MakeEdge(
+            GeomAPI_PointsToBSpline(pts).Curve())
 
 
 class OccBezier(OccLine, ProxyBezier):
     #: Update the class reference
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_geom___bezier_curve.html')
-
-    shape = Typed(Geom_BezierCurve)
 
     def create_shape(self):
         d = self.declaration
@@ -294,7 +295,7 @@ class OccBezier(OccLine, ProxyBezier):
         # TODO: Support weights
         for i, p in enumerate(d.points):
             set_value(i+1, gp_Pnt(*p))
-        self.shape = Geom_BezierCurve(pts)
+        self.shape = BRepBuilderAPI_MakeEdge(Geom_BezierCurve(pts))
 
 
 class OccText(OccShape, ProxyText):
@@ -302,21 +303,27 @@ class OccText(OccShape, ProxyText):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_topo_d_s___shape.html')
 
+    builder = Typed(Font_BRepTextBuilder, ())
+
     #: The shape created
     shape = Typed(TopoDS_Shape)
+
+    # font = Typed(Font_SystemFont)
 
     def create_shape(self):
         """ Create the shape by loading it from the given path. """
         d = self.declaration
-        font = d.font
-        if font:
-            if os.path.exists(font) and font not in FONT_REGISTRY:
-                #Addons.register_font(font)
-                FONT_REGISTRY.add(font)
+        font_family = d.font
+        if font_family and os.path.exists(font_family) \
+                and font_family not in FONT_REGISTRY:
+            FONT_MANAGER.RegisterFont(font_family, True)
+            FONT_REGISTRY.add(font_family)
 
-        self.shape = Addons.text_to_brep(
-            d.text, font, FONT_ASPECTS.get(d.style), d.size, d.composite
-        )
+        font_style = FONT_ASPECTS.get(d.style)
+        font_name = TCollection_HAsciiString(font_family)
+        font = FONT_MANAGER.FindFont(font_name, font_style, int(d.size))
+        text = NCollection_Utf16String(d.text.encode('utf-16'))
+        self.shape = self.builder.Perform(font, text)
 
     def set_text(self, text):
         self.create_shape()
@@ -357,7 +364,7 @@ class OccWire(OccShape, ProxyWire):
         elif hasattr(shape, 'Edge'):
             return shape.Edge()
         elif hasattr(shape, 'Shape'):  # Transforms
-            return topods.Wire(shape.Shape())
+            return TopoDS.Wire_(shape.Shape())
         elif hasattr(shape, 'GetHandle'): # Curves
             return BRepBuilderAPI_MakeEdge(shape.GetHandle()).Edge()
 
