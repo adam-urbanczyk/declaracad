@@ -8,11 +8,6 @@ matrix:
 
 
 before_script:
-  # We need a (fake) display on Travis so I need to start a X server.
-  - export DISPLAY=:99.0
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-        /sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -screen 0 1400x900x24 -ac +extension GLX +render;
-    fi
   # And OpenGL support
   - sudo apt update -qq -y
   - export DEBIAN_FRONTEND=noninteractive
@@ -41,9 +36,12 @@ before_script:
   # Install testing utils
   - pip install pytest pytest-coverage pytest-qt codecov
 
+  # Make sure glxgears works to ensure GL is ok
+  - xvfb-run -s "-screen 0 640x480x24 +extension GLX +extension RENDER" glxinfo
+
 script:
   - python setup.py develop
-  - py.test tests --cov declaracad --cov-report xml -v
+  - xvfb-run -s "-screen 0 640x480x24 +extension GLX +extension RENDER" py.test tests --cov declaracad --cov-report xml -v
 
 after_script:
   - cat ~/.config/declaracad/logs/*.txt
