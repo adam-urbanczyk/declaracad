@@ -1,0 +1,52 @@
+matrix:
+  fast_finish: true
+  include:
+    - os: linux
+      dist: xenial
+      env:
+        - PYTHON=3.6
+
+
+before_script:
+  # We need a (fake) display on Travis so I need to start a X server.
+  - export DISPLAY=:99.0
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+        /sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -screen 0 1400x900x24 -ac +extension GLX +render;
+    fi
+
+  # Install miniconda
+  - travis_retry wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  - conda info -a
+
+  # Install conda build and anaconda-client
+  - conda install anaconda-client conda-build -q
+
+  # Install python
+  - conda install python=$PYTHON pyqt -q
+
+  # Install depencencies
+  - conda install -c trelau -c conda-forge occt enaml qtconsole pyflakes numpydoc markdown jsonpickle -q
+  - pip install QScintilla enamlx qt-reactor
+
+  # Install testing utils
+  - pip install pytest pytest-coverage pytest-qt codecov
+
+script:
+  - python setup.py develop
+  - py.test tests --cov declaracad --cov-report xml -v
+
+after_script:
+  - cat ~/.config/declaracad/logs/*.txt
+
+after_success:
+  - codecov
+
+  # Build install package
+  - conda-build recipe
+
+

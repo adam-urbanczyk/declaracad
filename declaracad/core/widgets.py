@@ -87,10 +87,10 @@ class EmbeddedWindow(RawWidget):
     #: Expand by default
     hug_width = set_default('ignore')
     hug_height = set_default('ignore')
-    
+
     #: Window ID of embedded application
     window_id = d_(Int())
-    
+
     def create_widget(self, parent):
         window = QWindow.fromWinId(self.window_id)
         return QWidget.createWindowContainer(window, parent=parent)

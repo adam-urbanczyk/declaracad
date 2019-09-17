@@ -840,11 +840,8 @@ class Revol(Shape):
 
     Revol:
         Wire:
-            Segment:
-                Looper:
-                    iterable = [(0,0,0), (0,2,5),  (0,5,0), (0,0,0)]
-                    Point:
-                        position = loop_item
+            Polygon:
+                points = [(0,0,0), (0,2,5),  (0,5,0), (0,0,0)]
 
     """
     #: Proxy shape

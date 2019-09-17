@@ -309,7 +309,7 @@ class Topology(Atom):
     def number_of_ordered_edges_from_wire(self, wire):
         return self._number_of_topo(self.ordered_edges_from_wire(wire))
 
-    def _map_shapes_and_ancestors(self, topoTypeA, topoTypeB, topological_entity):
+    def _map_shapes_and_ancestors(self, topo_type_a, topo_type_b, topological_entity):
         '''
         using the same method
         @param topoTypeA:
@@ -318,15 +318,17 @@ class Topology(Atom):
         '''
         topo_set = set()
         _map = TopTools_IndexedDataMapOfShapeListOfShape()
-        TopExp.MapShapesAndAncestors_(self.myShape, topoTypeA, topoTypeB, _map)
+        TopExp.MapShapesAndAncestors_(
+            self.shape, topo_type_a, topo_type_b, map)
         results = _map.FindFromKey(topological_entity)
         if results.IsEmpty():
             yield None
 
         topology_iterator = TopTools_ListIteratorOfListOfShape(results)
+        factory = self.topo_factory[topo_type_b]
         while topology_iterator.More():
 
-            topo_entity = self.topo_factory[topoTypeB](topology_iterator.Value())
+            topo_entity = factory(topology_iterator.Value())
 
             # return the entity if not in set
             # to assure we're not returning entities several times
@@ -554,9 +556,7 @@ class OccShape(ProxyShape):
     def _default_topology(self):
         shape = self.shape
         topo_shape = shape.Shape() if hasattr(shape, 'Shape') else shape
-        if isinstance(shape, TopoDS_Shape):
-            return Topology(shape=topo_shape)
-        return None
+        return Topology(shape=topo_shape)
 
     @observe('shape')
     def update_topology(self, change):
