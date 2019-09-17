@@ -1,15 +1,27 @@
 # declaracad
 
+[![Build Status](https://travis-ci.org/codelv/declaracad.svg?branch=master)](https://travis-ci.org/codelv/declaracad)
+
 A declarative parametric 3D modeling program built using [OpenCascade](https://github.com/tpaviot/pythonocc-core)
 and [enaml](https://github.com/nucleic/enaml/).
+
+
+> Warning: This is a very early in development and unstable application!
+
 
 ![DeclaraCAD](https://user-images.githubusercontent.com/380158/43459223-d3ddf346-949a-11e8-8b3c-efe60e88818c.gif)
 
 It's similar to [OpenSCAD](http://www.openscad.org/)
 in that everything is intended to be defined programatically. However the
-language being used is enaml (a superset of python) instead of javascript.  Python users/developers will find this very easy and intuitive.
+language being used is enaml (a superset of python) instead of javascript.
+Python users/developers will find this very easy and intuitive.
 
-It's intended to be used along side of [pythonocc](https://github.com/tpaviot/pythonocc-core), using either OCC apis directly or the declarative abstractions. You can easily combind parts from various sources into assemblies.
+It's intended to be used along side of an OCC python binding (either pythonocc or pyOCCT)
+using either OCC apis directly or the declarative abstractions. You can easily
+combind parts from various sources into assemblies.
+
+Now uses [pyOCCT](https://github.com/LaughlinResearch/pyOCCT) but was originally
+based on [pythonocc](https://github.com/tpaviot/pythonocc-core) (and I highly recommend pyOCCT!),
 
 
 See [the project site](https://www.codelv.com/projects/declaracad/) (coming soon).
