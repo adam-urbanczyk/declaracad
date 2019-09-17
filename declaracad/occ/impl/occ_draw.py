@@ -56,6 +56,9 @@ class OccPoint(OccShape, ProxyPoint):
     #: A reference to the toolkit shape created by the proxy.
     shape = Typed(gp_Pnt)
 
+    def _default_topology(self):
+        return None
+
     def create_shape(self):
         d = self.declaration
         # Not sure why but we need this
@@ -121,18 +124,18 @@ class OccSegment(OccLine, ProxySegment):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_g_c___make_segment.html')
 
-    shape = List(BRepBuilderAPI_MakeEdge)
+    shape = Typed(BRepBuilderAPI_MakeWire)
 
     def create_shape(self):
         d = self.declaration
         points = [gp_Pnt(*p) for p in d.points]
         if len(points) < 2:
             raise ValueError("A segment requires at least two points")
-        edges = []
+        shape = BRepBuilderAPI_MakeWire()
         for i in range(1, len(points)):
             segment = GC_MakeSegment(points[i-1], points[i]).Value()
-            edges.append(BRepBuilderAPI_MakeEdge(segment))
-        self.shape = edges
+            shape.Add(BRepBuilderAPI_MakeEdge(segment).Edge())
+        self.shape = shape
 
 
 class OccArc(OccLine, ProxyArc):
