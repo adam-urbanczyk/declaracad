@@ -1,0 +1,29 @@
+# Created in DeclaraCAD
+from math import sin, cos, radians
+from declaracad.occ.api import *
+
+
+enamldef Hexagon(Polygon):
+    attr radius = 1
+    points = [(radius*cos(radians(a)), radius*sin(radians(a)), 0)
+               for a in range(0, 420, 60)]
+
+enamldef Nut(Transform):
+    pass
+
+enamldef Assembly(Part):
+    attr thickness = 1
+    Fillet:
+        radius = thickness/10
+        edges = prism.topology.edges[0:1]
+        Prism: prism:
+            vector = (0, 0, thickness)
+            Face:
+                Wire:
+                    Hexagon:
+                        radius = 2
+
+    #Cylinder:
+    #    height = 13
+    #    radius = 2
+

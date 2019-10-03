@@ -1,0 +1,65 @@
+import os
+import re
+from declaracad.occ.api import (
+    Part, Wire, Circle, Ellipse, Segment, Point, Polygon, Pipe, Face,
+    Box, Cut, Cone
+)
+from enaml.core.api import Looper, Include
+
+
+def split_gcode_commands(path):
+    # Very simple parser
+    cmds = []
+    x, y, z, g = 0, 0, 0, 0
+    with open(path) as f:
+        for line in f:
+            cmd = re.split(r';|\(|%', line)[0]
+            if not cmd:
+                continue
+            try:
+                cmd = {c[0]: float(c[1:]) for c in cmd.split()}
+            except ValueError as e:
+                print("Failed to parse: %s" % cmd)
+                raise e
+            g = cmd.get('G', g)
+            x = cmd.get('X', x)
+            y = cmd.get('Y', y)
+            z = cmd.get('Z', z)
+            cmd['P'] = (x, y, z)
+            cmd['G'] = g
+            cmds.append(cmd)
+    # Split into separate wires
+    wires = []
+    for cmd in cmds:
+        G = cmd.get('G')
+        if G == 0:
+            wires.append([])
+        elif G == 1:
+            wires[-1].append(cmd)
+        # TODO: Arcs
+    wires = [w for w in wires if len(w)>1]
+    return wires
+
+
+enamldef Assembly(Part): part:
+    name = "G-Code Example"
+
+    # File to load
+    attr gcode_file = os.path.join(
+        os.path.dirname(__file__), 'data',
+        #'boomerangv4.ncc'
+        'Griffin Relief.ncc'
+    )
+
+    # Parsed paths
+    attr paths = split_gcode_commands(gcode_file)
+    Looper:
+        iterable << paths
+        Wire:
+            Polygon:
+                color = 'green'
+                points << [cmd.get('P') for cmd in loop_item]
+
+
+
+

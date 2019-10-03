@@ -45,11 +45,6 @@ def workspace_factory(workbench):
     return space
 
 
-def plugin_factory():
-    from declaracad.core.plugin import CorePlugin
-    return CorePlugin()
-
-
 enamldef DeclaracadManifest(PluginManifest):
     """ The plugin manifest for the primary example plugin.
 
@@ -59,8 +54,6 @@ enamldef DeclaracadManifest(PluginManifest):
 
     """
     id = 'declaracad.core'
-
-    factory = plugin_factory
 
     Extension:
         id = 'default_application_factory'

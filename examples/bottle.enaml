@@ -1,3 +1,9 @@
+"""
+See https://dev.opencascade.org/doc/overview/html/occt__tutorial.html
+for more details on how this works.
+
+"""
+
 from declaracad.occ.api import (
     Cylinder, Prism, Face, Segment, Arc, Wire, Point,
     Fuse, ThickSolid, Fillet, Transform, Part, Mirror
@@ -6,17 +12,17 @@ from declaracad.occ.api import (
 
 enamldef Assembly(Part): part:
     name = "Bottle"
-    
+
     #: "Parametric" properties of this shape
     attr height = 7.0
     attr width = 5.0
     attr thickness = 3.0
-    
+
     #: Actual shape
     ThickSolid:
         material = 'diamond'
         # Hollows out the bottle
-        #closing_faces << [neck.shape_faces[0]]
+        #faces << [neck.shape_faces[0]]
         offset << thickness/50.0
         Fuse:
             # Fuse the bottle to the neck
@@ -27,7 +33,7 @@ enamldef Assembly(Part): part:
                 radius << thickness/4.0
                 height << part.height/10.0
             Fillet: bottle:
-                # Bottle, with filleted edges 
+                # Bottle, with filleted edges
                 radius << thickness/12.0
                 Prism:
                     # Create a solid from the bottle face
@@ -40,8 +46,8 @@ enamldef Assembly(Part): part:
                                 Segment: s1:
                                     points << [ (-width/2.0, 0, 0), (-width/2.0, -thickness/4.0, 0)]
                                 Arc:
-                                    points = [s1.points[-1], 
-                                                    (0, -thickness/2.0, 0) , 
+                                    points = [s1.points[-1],
+                                                    (0, -thickness/2.0, 0) ,
                                                     s2.points[-1]]
                                 Segment: s2:
                                     points = [(width/2.0, 0, 0), (width/2.0, -thickness/4.0, 0) ]

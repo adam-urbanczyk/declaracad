@@ -1,11 +1,11 @@
 """
-Copyright (c) 2015, Jairus Martin.
-Distributed under the terms of the MIT License.
-The full license is in the file COPYING.txt, distributed with this software.
-Created on Sep 26, 2016
+Copyright (c) 2016-2019, Jairus Martin.
 
-Based on https://github.com/tpaviot/pythonocc-core/
-            blob/master/src/addons/Display/qtDisplay.py
+Distributed under the terms of the GPL v3 License.
+
+The full license is in the file LICENSE, distributed with this software.
+
+Created on Sep 26, 2016
 
 """
 import sys
@@ -24,7 +24,8 @@ from enaml.application import deferred_call, timed_call
 
 from OCCT import Aspect, Graphic3d, TopAbs, V3d
 from OCCT.AIS import (
-    AIS_InteractiveContext, AIS_Shape, AIS_Shaded, AIS_WireFrame
+    AIS_InteractiveContext, AIS_Shape, AIS_Shaded, AIS_WireFrame,
+    AIS_ColoredDrawer
 )
 from OCCT.Aspect import (
     Aspect_DisplayConnection, Aspect_TOTP_LEFT_LOWER, Aspect_GFM_VER
@@ -39,8 +40,9 @@ from OCCT.BRepBuilderAPI import (
 from OCCT.Geom import Geom_Curve, Geom_Surface
 from OCCT.gp import gp_Pnt, gp_Dir, gp_Ax3
 from OCCT.Graphic3d import (
-    Graphic3d_MaterialAspect, Graphic3d_RM_RASTERIZATION,
-    Graphic3d_StereoMode_QuadBuffer, Graphic3d_RenderingParams
+    Graphic3d_MaterialAspect, Graphic3d_StereoMode_QuadBuffer,
+    Graphic3d_RM_RASTERIZATION, Graphic3d_RM_RAYTRACING,
+    Graphic3d_RenderingParams,
 )
 
 from OCCT.MeshVS import (
@@ -49,13 +51,19 @@ from OCCT.MeshVS import (
 )
 from OCCT.OpenGl import OpenGl_GraphicDriver
 from OCCT.Quantity import Quantity_Color, Quantity_NOC_BLACK
+from OCCT.Prs3d import Prs3d_Drawer
 from OCCT.TopoDS import TopoDS_Shape
 from OCCT.V3d import V3d_Viewer, V3d_View, V3d_TypeOfOrientation
 
-from .utils import color_to_quantity_color
-from ..impl.occ_part import OccPart
-from ..widgets.occ_viewer import ProxyOccViewer, ViewerSelectionEvent
-from ..shape import BBox
+from declaracad.occ.qt.utils import (
+    color_to_quantity_color, material_to_material_aspect
+)
+from declaracad.occ.impl.occ_part import OccPart
+from declaracad.occ.impl.occ_shape import OccShape
+from declaracad.occ.widgets.occ_viewer import (
+    ProxyOccViewer, ViewerSelectionEvent
+)
+from declaracad.occ.shape import BBox
 
 from declaracad.core.utils import log
 
@@ -63,8 +71,8 @@ if sys.platform == 'win32':
     from OCCT.WNT import WNT_Window
     V3d_Window = WNT_Window
 elif sys.platform == 'darwin':
-    from OCCT.Cocoa import CocoaWindow
-    V3d_Window = CocoaWindow
+    from OCCT.Cocoa import Cocoa_Window
+    V3d_Window = Cocoa_Window
 else:
     from OCCT.XwWindow import Xw_Window
     V3d_Window = Xw_Window
@@ -79,6 +87,13 @@ V3D_VIEW_MODES = {
     'back': V3d.V3d_Ypos,
     'iso': V3d.V3d_XposYnegZpos
 }
+
+V3D_DISPLAY_MODES = {
+    'shaded': AIS_Shaded,
+    'wireframe': AIS_WireFrame
+}
+
+BLACK = Quantity_Color(Quantity_NOC_BLACK)
 
 #class Display(OCCViewer.Viewer3d):
 
@@ -248,10 +263,10 @@ class QtViewer3d(QOpenGLWidget):
             return ctypes.pythonapi.PyCObject_AsVoidPtr(win_id)
         return win_id
 
-    def resizeEvent(self, e):
+    def resizeEvent(self, event):
         if self._inited:
             self.proxy.v3d_view.MustBeResized()
-        return super().resizeEvent(e)
+        return super().resizeEvent(event)
 
     def keyPressEvent(self, event):
         if self._fire_event('key_pressed', event):
@@ -266,20 +281,22 @@ class QtViewer3d(QOpenGLWidget):
     def focusInEvent(self, event):
         if self._inited:
             self.proxy.v3d_view.Redraw()
+        return super().focusInEvent(event)
 
     def focusOutEvent(self, event):
         if self._inited:
             self.proxy.v3d_view.Redraw()
+        return super().focusOutEvent(event)
 
     def paintEvent(self, event):
         if not self._inited:
             self.proxy.init_window()
             self._inited = True
-            return
 
         self.proxy.ais_context.UpdateCurrentViewer()
         # important to allow overpainting of the OCC OpenGL context in Qt
 
+    def drawBox(self):
         if self._drawbox:
             self.makeCurrent()
             painter = QPainter(self)
@@ -287,8 +304,7 @@ class QtViewer3d(QOpenGLWidget):
             painter.drawRect(QRect(*self._drawbox))
             painter.end()
             self.doneCurrent()
-
-        #self.swapBuffers()
+        #return super().paintEvent(event)
 
     def wheelEvent(self, event):
         if self._fire_event('mouse_scrolled', event):
@@ -349,11 +365,11 @@ class QtViewer3d(QOpenGLWidget):
 
         elif event.button() == Qt.RightButton:
             if self._zoom_area:
-                [xmin, ymin, dx, dy] = self._drawbox
+                xmin, ymin, dx, dy = self._drawbox
                 view.WindowFit(xmin, ymin, xmin + dx, ymin + dy)
                 self._zoom_area = False
 
-    def DrawBox(self, event):
+    def draw_box(self, event):
         tolerance = 2
         pt = event.pos()
         dx = pt.x() - self.dragStartPos.x()
@@ -395,11 +411,11 @@ class QtViewer3d(QOpenGLWidget):
         # ZOOM WINDOW
         elif (buttons == Qt.RightButton and modifiers == Qt.ShiftModifier):
             self._zoom_area = True
-            self.DrawBox(event)
+            self.draw_box(event)
         # SELECT AREA
         elif (buttons == Qt.LeftButton and modifiers == Qt.ShiftModifier):
             self._select_area = True
-            self.DrawBox(event)
+            self.draw_box(event)
         else:
             self._drawbox = False
             ais_context = self.proxy.ais_context
@@ -417,6 +433,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     #: Displayed Shapes
     _displayed_shapes = Dict()
     _ais_shapes = List()
+    _selected_shapes = List()
 
     #: Shapes
     shapes = Property(lambda self: self.get_shapes(), cached=True)
@@ -430,8 +447,9 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     v3d_view = Typed(V3d_View)
 
     ais_context = Typed(AIS_InteractiveContext)
-
+    prs3d_drawer = Typed(Prs3d_Drawer)
     v3d_window = Typed(V3d_Window)
+
 
     #def _get_display(self):
         #return self.widget._display
@@ -456,26 +474,23 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         graphics_driver = OpenGl_GraphicDriver(self.display_connection)
         viewer = self.v3d_viewer = V3d_Viewer(graphics_driver)
         view = self.v3d_view = viewer.CreateView()
-        self.ais_context = AIS_InteractiveContext(viewer)
+        ais_context = self.ais_context = AIS_InteractiveContext(viewer)
+        self.prs3d_drawer = ais_context.DefaultDrawer()
 
         viewer.SetDefaultLights()
         viewer.SetLightOn()
 
         # background gradient
         self.set_background_gradient(d.background_gradient)
+        self.set_draw_boundaries(d.draw_boundaries)
         self.set_trihedron_mode(d.trihedron_mode)
         self.set_display_mode(d.display_mode)
+        self.set_hlr(d.hlr)
         self.set_selection_mode(d.selection_mode)
         self.set_view_mode(d.view_mode)
         self.set_lock_rotation(d.lock_rotation)
         self.set_lock_zoom(d.lock_zoom)
         self._update_rendering_params()
-
-        #: Setup callbacks
-        #display.register_select_callback(self.on_selection)
-
-        #widget.finalize_display()
-        #self.init_window()
 
         self.init_signals()
 
@@ -490,7 +505,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     def init_layout(self):
         super().init_layout()
         for child in self.children():
-            self.child_added(child)
+            self.child_added(child, update=False)
+        self.update_display()
 
     def init_window(self):
         """ Initialize the window when this widget is first painted
@@ -511,20 +527,21 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         self.v3d_view.SetWindow(window)
         self.v3d_window = window
 
-    def child_added(self, child):
-        if not isinstance(child, QtToolkitObject):
-            self.get_member('shapes').reset(self)
-            child.observe('shape', self.update_display)
+    def child_added(self, child, update=True):
+        if not isinstance(child, OccShape):
+            return super().child_added(child)
+        self.get_member('shapes').reset(self)
+        child.observe('shape', self.update_display)
+        if update:
             self.update_display()
-        else:
-            super().child_added(child)
 
-    def child_removed(self, child):
-        if not isinstance(child, QtToolkitObject):
-            self.get_member('shapes').reset(self)
-            child.unobserve('shape', self.update_display)
-        else:
-            super().child_removed(child)
+    def child_removed(self, child, update=True):
+        if not isinstance(child, OccShape):
+            return super().child_removed(child)
+        self.get_member('shapes').reset(self)
+        child.unobserve('shape', self.update_display)
+        if update:
+            self.update_display()
 
     # -------------------------------------------------------------------------
     # Viewer API
@@ -560,7 +577,10 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         (x, y, z): Tuple
             A 3d coordinate
         """
-        return self.display.View.Convert(*point)
+        return self.v3d_view.Convert(point[0], point[1], point[2], 0, 0)
+
+    def set_draw_boundaries(self, enabled):
+        self.prs3d_drawer.SetFaceBoundaryDraw(enabled)
 
     def set_antialiasing(self, enabled):
         self._update_rendering_params()
@@ -569,6 +589,9 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         self._update_rendering_params()
 
     def set_reflections(self, enabled):
+        self._update_rendering_params()
+
+    def set_raytracing(self, enabled):
         self._update_rendering_params()
 
     def _update_rendering_params(self, **params):
@@ -583,8 +606,13 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         d = self.declaration
         view = self.v3d_view
         rendering_params = view.ChangeRenderingParams()
+        if d.raytracing:
+            method = Graphic3d_RM_RAYTRACING
+        else:
+            method = Graphic3d_RM_RASTERIZATION
+
         defaults = dict(
-            Method=Graphic3d_RM_RASTERIZATION,
+            Method=method,
             RaytracingDepth=3,
             IsShadowEnabled=d.shadows,
             IsReflectionEnabled=d.reflections,
@@ -607,8 +635,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     def set_trihedron_mode(self, mode):
         attr = 'Aspect_TOTP_{}'.format(mode.upper().replace("-", "_"))
         position = getattr(Aspect, attr)
-        color = Quantity_Color(Quantity_NOC_BLACK)
-        self.v3d_view.TriedronDisplay(position, color, 0.1, V3d.V3d_ZBUFFER)
+        self.v3d_view.TriedronDisplay(position, BLACK, 0.1, V3d.V3d_ZBUFFER)
         self.ais_context.UpdateCurrentViewer()
 
     def set_selection_mode(self, mode):
@@ -623,19 +650,22 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         ais_context = self.ais_context
         ais_context.CloseAllContexts(False)
         ais_context.OpenLocalContext()
-        mode = getattr(TopAbs, 'TopAbs_%s' % mode.upper(), None)
-        if mode is None:
-            mode = TopAbs.TopAbs_SHAPE
+        attr = 'TopAbs_%s' % mode.upper()
+        mode = getattr(TopAbs, attr, TopAbs.TopAbs_SHAPE)
         ais_context.ActivateStandardMode(mode)
         ais_context.UpdateSelected(True)
 
     def set_display_mode(self, mode):
-        if mode == 'shaded':
-            self.ais_context.SetDisplayMode(AIS_Shaded, True)
-        #elif mode == 'hlr':
-        #    self.v3d_view.SetComputedMode(True)
-        elif mode == 'wireframe':
-            self.ais_context.SetDisplayMode(AIS_WireFrame, True)
+        mode = V3D_DISPLAY_MODES.get(mode)
+        if mode is None:
+            return
+        self.ais_context.SetDisplayMode(mode, True)
+        self.v3d_view.Redraw()
+
+    def set_hlr(self, enabled):
+        view = self.v3d_view
+        view.SetComputedMode(enabled)
+        view.Redraw()
 
     def set_view_mode(self, mode):
         """ Set the view mode or (or direction)
@@ -650,7 +680,6 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         if mode is None:
             return
         self.v3d_view.SetProj(mode)
-        self.fit_all()
 
     def set_lock_rotation(self, locked):
         self.widget._lock_rotation = locked
@@ -668,17 +697,18 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         view.Redraw()
 
     def fit_selection(self):
-        if not self.selected_shapes:
+        if not self._selected_shapes:
             return
 
         # Compute bounding box of the selection
-        bbox = self.get_bounding_box(self.display.selected_shapes)
+        view = self.v3d_view
+        pad = 20
+        bbox = self.get_bounding_box(self._selected_shapes)
         xmin, ymin = self.get_screen_coordinate(bbox[0:3])
         xmax, ymax = self.get_screen_coordinate(bbox[3:6])
         cx, cy = int(xmin+(xmax-xmin)/2), int(ymin+(ymax-ymin)/2)
-        self.display.MoveTo(cx, cy)
-        pad = 20
-        self.display.ZoomArea(xmin-pad, ymin-pad, xmax+pad, ymax+pad)
+        self.ais_context.MoveTo(cx, cy, view, True)
+        view.WindowFit(xmin-pad, ymin-pad, xmax+pad, ymax+pad)
 
     def take_screenshot(self, filename):
         return self.v3d_view.Dump(filename)
@@ -710,8 +740,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             The enaml color
         transparency: float
             The transparency (0 to 1).
-
-        material: OCCT.Graphic3d.Graphic3d_NameOfMaterial
+        material: String
             The material to render the shape.
 
         Returns
@@ -729,7 +758,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             ais_shape.SetTransparency(transparency)
 
         if material is not None:
-            ma = Graphic3d_MaterialAspect(material)
+            ma = material_to_material_aspect(material)
             ais_shape.SetMaterial(ma)
 
         self.ais_context.Display(ais_shape, update)
@@ -789,9 +818,9 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         mesh_vs.AddBuilder(prs_builder)
         mesh_vs_drawer = mesh_vs.GetDrawer()
         mesh_vs_drawer.SetBoolean(MeshVS_DA_DisplayNodes, False)
-        mesh_vs_drawer.SetColor(MeshVS_DA_EdgeColor, self._black)
+        mesh_vs_drawer.SetColor(MeshVS_DA_EdgeColor, BLACK)
         mesh_vs.SetDisplayMode(mode)
-        self.context.Display(mesh_vs, True)
+        self.ais_context.Display(mesh_vs, True)
         return mesh_vs
 
 
@@ -816,32 +845,23 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
         # Lookup the shape declrations based on the selection context
         selection = []
+        shapes = []
         displayed_shapes = self._displayed_shapes
         while ais_context.MoreSelected():
             if ais_context.HasSelectedShape():
-                ais_shape = ais_context.SelectedShape()
-                shape = displayed_shapes.get(ais_shape)
-                if shape:
-                    selection.append(shape.declaration)
+                topods_shape = ais_context.SelectedShape()
+                occ_shape = displayed_shapes.get(topods_shape)
+                if occ_shape:
+                    shapes.append(topods_shape)
+                    selection.append(occ_shape.declaration)
             ais_context.NextSelected()
 
         if shift:
             ais_context.UpdateSelected(True)
 
         # Set selection
+        self._selected_shapes = shapes
         d.selection(ViewerSelectionEvent(selection=selection))
-
-#     def _queue_update(self,change):
-#         self._update_count +=1
-#         timed_call(0,self._check_update,change)
-#
-#     def _dequeue_update(self,change):
-#         # Only update when all changes are done
-#         self._update_count -=1
-#         if self._update_count !=0:
-#             return
-#         self.update_shape(change)
-
 
     def update_display(self, change=None):
         """ Queue an update request """
@@ -849,10 +869,15 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         timed_call(10, self._do_update)
 
     def clear_display(self):
-        ais_context = self.ais_context
         # Erase all just hides them
+        ais_context = self.ais_context
         ais_context.PurgeDisplay()
         ais_context.RemoveAll(True)
+        ais_context.UpdateCurrentViewer()
+
+    def reset_view(self):
+        """ Reset to default zoom and orientation """
+        self.v3d_view.Reset()
 
     def _expand_shapes(self, shapes):
         expansion = []
@@ -871,49 +896,37 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         self._update_count -= 1
         if self._update_count != 0:
             return
-        #: TO
         try:
             view = self.v3d_view
 
             self.clear_display()
             displayed_shapes = {}
             ais_shapes = []
-            #log.debug("_do_update {}")
+            log.debug("_do_update {}")
 
             #: Expand all parts otherwise we lose the material information
             shapes = self._expand_shapes(self.shapes[:])
+            if not shapes:
+                log.debug("No shapes to display")
+                return
+
             last_shape = shapes[-1]
-            for shape in shapes:
-                d = shape.declaration
-                if not shape.shape:
-                    log.error("{} has no shape property!".format(shape))
+            for occ_shape in shapes:
+                d = occ_shape.declaration
+                topods_shape = occ_shape.shape
+                if not topods_shape:
+                    log.error("{} has no shape!".format(occ_shape))
                     continue
 
-                try:
-                    if isinstance(shape.shape, BRepBuilderAPI_MakeShape):
-                        s = shape.shape.Shape()
-                    else:
-                        s = shape.shape
-                except:
-                    log.error("{} failed to create shape: {}".format(
-                        shape, traceback.format_exc()))
-                    continue
-
-                displayed_shapes[s] = shape
-
-                #: If a material is given
-                if d.material:
-                    material_type = 'Graphic3d_NOM_%s' % d.material.upper()
-                    material = getattr(Graphic3d, material_type, None)
-                else:
-                    material = None
+                # Save the mapping of topods_shape to declaracad shape
+                displayed_shapes[topods_shape] = occ_shape
 
                 ais_shape = self.display_shape(
-                    s,
+                    topods_shape,
                     d.color,
                     d.transparency,
-                    material,
-                    shape is last_shape)
+                    d.material,
+                    occ_shape is last_shape)
                 if ais_shape:
                     ais_shapes.append(ais_shape)
 
@@ -921,7 +934,6 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             self._displayed_shapes = displayed_shapes
 
             # Update bounding box
-            # TODO: Is there an API for this?
             bbox = self.get_bounding_box(displayed_shapes.keys())
             self.declaration.bbox = BBox(*bbox)
         except:

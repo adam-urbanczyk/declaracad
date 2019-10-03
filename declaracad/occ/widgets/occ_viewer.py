@@ -94,6 +94,15 @@ class ProxyOccViewer(ProxyControl):
     def set_antialiasing(self, enabled):
         raise NotImplementedError
 
+    def set_raytracing(self, enabled):
+        raise NotImplementedError
+
+    def set_draw_boundaries(self, enabled):
+        raise NotImplementedError
+
+    def set_hlr(self, enabled):
+        raise NotImplementedError
+
     def set_lock_rotation(self, locked):
         raise NotImplementedError
 
@@ -112,6 +121,9 @@ class ProxyOccViewer(ProxyControl):
     def zoom_factor(self, zoom):
         raise NotImplementedError
 
+    def reset_view(self):
+        raise NotImplementedError
+
 
 class OccViewer(Control):
     """ A widget to view OpenCascade shapes.
@@ -124,7 +136,7 @@ class OccViewer(Control):
     bbox = d_(Typed(BBox), writable=False)
 
     #: Display mode
-    display_mode = d_(Enum('shaded', 'hlr', 'wireframe'))
+    display_mode = d_(Enum('shaded', 'wireframe'))
 
     #: Selection mode
     selection_mode = d_(Enum('shape', 'neutral', 'face', 'edge', 'vertex'))
@@ -158,6 +170,15 @@ class OccViewer(Control):
     #: Enable antialiasing
     antialiasing = d_(Bool(True))
 
+    #: Enable raytracing
+    raytracing = d_(Bool(False))
+
+    #: Enable hidden line removal
+    hlr = d_(Bool(False))
+
+    #: Draw face boundaries
+    draw_boundaries = d_(Bool(True))
+
     #: View expands freely in width by default.
     hug_width = set_default('ignore')
 
@@ -184,7 +205,7 @@ class OccViewer(Control):
     @observe('position', 'display_mode', 'view_mode', 'trihedron_mode',
              'selection_mode', 'background_gradient', 'double_buffer',
              'shadows', 'reflections', 'antialiasing', 'lock_rotation',
-             'lock_zoom')
+             'lock_zoom', 'draw_boundaries', 'hlr')
     def _update_proxy(self, change):
         """ An observer which sends state change to the proxy.
         """
@@ -209,6 +230,10 @@ class OccViewer(Control):
     def zoom_factor(self, factor):
         """ Zoom in by a given factor """
         self.proxy.zoom_factor(factor)
+
+    def reset_view(self):
+        """ Reset zoom to defaults """
+        self.proxy.reset_view()
 
     def clear_display(self):
         """ Clear the display, all children should be removed before calling

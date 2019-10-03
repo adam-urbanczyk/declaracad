@@ -10,17 +10,18 @@ enamldef Assembly(Part):
         material = 'steel'
         attr padding = 4
         attr ports =  4
-        Fillet:
-            Box: flange:
-                dx = 20
-                dy = 100
-                dz = 5
+        Box: flange:
+            dx = 20
+            dy = 100
+            dz = 3
         
         # Bolt holes
         Looper:
             iterable << [
                          (padding,padding),
                          (padding,flange.dy-padding),
+                         (padding,flange.dy/2-padding),
+                         (flange.dx-padding,flange.dy/2-padding),
                          (flange.dx-padding,flange.dy-padding),
                          (flange.dx-padding,padding),
                         ]                       

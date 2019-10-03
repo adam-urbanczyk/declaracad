@@ -10,7 +10,9 @@ Created on Sep 30, 2016
 @author: jrm
 """
 import os
-from atom.api import Atom, Bool, Instance, Typed, Unicode, observe, set_default
+from atom.api import (
+    Atom, Bool, Instance, Typed, Unicode, Property, observe, set_default
+)
 
 from OCCT.Bnd import Bnd_Box
 from OCCT.BRep import BRep_Builder
@@ -58,6 +60,8 @@ from ..shape import (
     ProxyTorus, ProxyRevol, ProxyRawShape, ProxyLoadShape, BBox
 )
 
+from declaracad.core.utils import log
+
 
 def coerce_axis(value):
     return gp_Ax2(gp_Pnt(*value[0]), gp_Dir(*value[1]))
@@ -93,7 +97,7 @@ class WireExplorer(Atom):
             topo_to_add = topology_type(occ_iterator.Value())
             seq.append(topo_to_add)
             occ_iterator.Next()
-        return iter(seq)
+        return seq
 
     def ordered_edges(self):
         return self._loop_topo(edges=True)
@@ -202,7 +206,7 @@ class Topology(Atom):
             occ_iterator.Next()
 
         if not self.ignore_orientation:
-            return iter(seq)
+            return seq
 
         # else filter out those entities that share the same TShape
         # but do *not* share the same orientation
@@ -217,9 +221,8 @@ class Topology(Atom):
                 filter_orientation_seq.append(i)
         return filter_orientation_seq
 
-    def faces(self):
-        """ loops over all faces """
-        return self._loop_topo(TopAbs_FACE)
+    faces = Property(lambda self: self._loop_topo(TopAbs_FACE),
+                     cached=True)
 
     def _number_of_topo(self, iterable):
         n = 0
@@ -228,48 +231,37 @@ class Topology(Atom):
         return n
 
     def number_of_faces(self):
-        return self._number_of_topo(self.faces())
+        return self._number_of_topo(self.faces)
 
-    def vertices(self):
-        '''
-        loops over all vertices
-        '''
-        return self._loop_topo(TopAbs_VERTEX)
+    vertices = Property(lambda self: self._loop_topo(TopAbs_VERTEX),
+                        cached=True)
 
     def number_of_vertices(self):
-        return self._number_of_topo(self.vertices())
+        return self._number_of_topo(self.vertices)
 
-    def edges(self):
-        '''
-        loops over all edges
-        '''
-        return self._loop_topo(TopAbs_EDGE)
+    edges = Property(lambda self: self._loop_topo(TopAbs_EDGE),
+                     cached=True)
 
     def number_of_edges(self):
-        return self._number_of_topo(self.edges())
+        return self._number_of_topo(self.edges)
 
-    def wires(self):
-        '''
-        loops over all wires
-        '''
-        return self._loop_topo(TopAbs_WIRE)
+    wires = Property(lambda self:self._loop_topo(TopAbs_WIRE),
+                     cached=True)
 
     def number_of_wires(self):
-        return self._number_of_topo(self.wires())
+        return self._number_of_topo(self.wires)
 
-    def shells(self):
-        """ loops over all shells """
-        return self._loop_topo(TopAbs_SHELL, None)
+    shells = Property(lambda self: self._loop_topo(TopAbs_SHELL),
+                     cached=True)
 
     def number_of_shells(self):
-        return self._number_of_topo(self.shells())
+        return self._number_of_topo(self.shells)
 
-    def solids(self):
-        """ loops over all solids """
-        return self._loop_topo(TopAbs_SOLID, None)
+    solids = Property(lambda self: self._loop_topo(TopAbs_SOLID),
+                      cached=True)
 
     def number_of_solids(self):
-        return self._number_of_topo(self.solids())
+        return self._number_of_topo(self.solids)
 
     def comp_solids(self):
         """ loops over all compound solids """
@@ -278,12 +270,11 @@ class Topology(Atom):
     def number_of_comp_solids(self):
         return self._number_of_topo(self.comp_solids())
 
-    def compounds(self):
-        """ loops over all compounds """
-        return self._loop_topo(TopAbs_COMPOUND)
+    compounds = Property(lambda self: self._loop_topo(TopAbs_COMPOUND),
+                         cached=True)
 
     def number_of_compounds(self):
-        return self._number_of_topo(self.compounds())
+        return self._number_of_topo(self.compounds)
 
     def ordered_vertices_from_wire(self, wire):
         """ Get verticies from a wire.
@@ -499,7 +490,7 @@ class Topology(Atom):
 
 class OccShape(ProxyShape):
     #: A reference to the toolkit shape created by the proxy.
-    shape = Typed(BRepBuilderAPI_MakeShape)
+    shape = Typed(TopoDS_Shape)
 
     #: Topology explorer of the shape
     topology = Typed(Topology)
@@ -533,9 +524,7 @@ class OccShape(ProxyShape):
     def init_layout(self):
         """ Initialize the layout of the toolkit shape.
 
-        This method is called during the bottom-up pass. This method
-        should initialize the layout of the widget. The child widgets
-        will be fully initialized and layed out when this is called.
+
 
         """
         pass
@@ -544,30 +533,30 @@ class OccShape(ProxyShape):
         """ Activate the proxy for the top-down pass.
 
         """
+        #log.debug(f"{self}.create_shape()")
         self.create_shape()
+        #log.debug(f"{self}.init_shape()")
         self.init_shape()
 
     def activate_bottom_up(self):
         """ Activate the proxy tree for the bottom-up pass.
 
         """
+        #log.debug(f"{self}.init_layout()")
         self.init_layout()
 
     def _default_topology(self):
-        shape = self.shape
-        topo_shape = shape.Shape() if hasattr(shape, 'Shape') else shape
-        return Topology(shape=topo_shape)
+        return Topology(shape=self.shape)
 
     @observe('shape')
     def update_topology(self, change):
-        if self.shape:
-            self.topology = self._default_topology()
+        self.topology = self._default_topology()
 
-    @observe('shape')
-    def update_display(self, change):
-        parent = self.parent()
-        if parent:
-            parent.update_display(change)
+    #@observe('shape')
+    #def update_display(self, change):
+    #    parent = self.parent()
+    #    if parent:
+    #        parent.update_display(change)
 
     def set_direction(self, direction):
         self.create_shape()
@@ -583,8 +572,7 @@ class OccShape(ProxyShape):
         if not shape:
             return BBox()
         bbox = Bnd_Box()
-        s = shape.Shape() if hasattr(shape, 'Shape') else shape
-        BRepBndLib.Add_(s, bbox)
+        BRepBndLib.Add_(shape, bbox)
         pmin, pmax  = bbox.CornerMin(), bbox.CornerMax()
         return BBox(*(pmin.X(), pmin.Y(), pmin.Z(),
                       pmax.X(), pmax.Y(), pmax.Z()))
@@ -610,11 +598,15 @@ class OccDependentShape(OccShape):
         will be fully initialized and layed out when this is called.
 
         """
-        for child in self.children():
-            self.child_added(child)
-        self.update_shape({})
+        self.update_shape()
+        # log.debug('init_layout %s shape %s' % (self, self.shape))
+        assert self.shape is not None, "Shape was not created %s" % self
 
-    def update_shape(self, change):
+        # When they change re-compute
+        #for child in self.children():
+        #   child.observe('shape', self.update_shape)
+
+    def update_shape(self, change=None):
         """ Must be implmented in subclasses to create the shape
             when the dependent shapes change.
         """
@@ -631,38 +623,39 @@ class OccDependentShape(OccShape):
             child.unobserve('shape', self.update_shape)
 
     def set_direction(self, direction):
-        self.update_shape({})
+        self.update_shape()
 
     def set_axis(self, axis):
-        self.update_shape({})
+        self.update_shape()
 
 
 class OccFace(OccDependentShape, ProxyFace):
-    #: A reference to the toolkit shape created by the proxy.
-    shape = Typed(BRepBuilderAPI_MakeFace)
 
     def set_wires(self, wires):
-        self.create_shape()
+        self.update_shape()
 
-    def update_shape(self, change):
+    def shape_to_face(self, shape):
+        if isinstance(shape, (TopoDS_Face, TopoDS_Wire)):
+            return shape
+        return TopoDS.Wire_(shape)
+
+    def update_shape(self, change=None):
         d = self.declaration
         if d.wires:
-            wires = d.wires
+            shapes = d.wires
         else:
-            wires = [c for c in self.children() if isinstance(c, OccShape)]
-        if not wires:
-            raise ValueError("No wires or children available to "
-                             "create a face!")
-        for i, wire in enumerate(wires):
-            if hasattr(wire, 'shape'):
-                args = (wire.shape.Wire(),)
-            else:
-                args = (wire,)
+            shapes = [c for c in self.children() if isinstance(c, OccShape)]
+        if not shapes:
+            raise ValueError(
+                "No wires or children available to create a face!")
+
+        convert = self.shape_to_face
+        for i, c in enumerate(shapes):
             if i == 0:
-                shape = BRepBuilderAPI_MakeFace(*args)
+                shape = BRepBuilderAPI_MakeFace(convert(c.shape))
             else:
-                shape.Add(*args)
-        self.shape = shape
+                shape.Add(convert(c.shape))
+        self.shape = shape.Face()
 
 
 class OccBox(OccShape, ProxyBox):
@@ -671,8 +664,8 @@ class OccBox(OccShape, ProxyBox):
 
     def create_shape(self):
         d = self.declaration
-        self.shape = BRepPrimAPI_MakeBox(coerce_axis(d.axis),
-                                         d.dx, d.dy, d.dz)
+        box = BRepPrimAPI_MakeBox(coerce_axis(d.axis), d.dx, d.dy, d.dz)
+        self.shape = box.Shape()
 
     def set_dx(self, dx):
         self.create_shape()
@@ -693,7 +686,7 @@ class OccCone(OccShape, ProxyCone):
         args = [coerce_axis(d.axis), d.radius, d.radius2, d.height]
         if d.angle:
             args.append(d.angle)
-        self.shape = BRepPrimAPI_MakeCone(*args)
+        self.shape = BRepPrimAPI_MakeCone(*args).Shape()
 
     def set_radius(self, r):
         self.create_shape()
@@ -717,7 +710,7 @@ class OccCylinder(OccShape, ProxyCylinder):
         args = [coerce_axis(d.axis), d.radius, d.height]
         if d.angle:
             args.append(d.angle)
-        self.shape = BRepPrimAPI_MakeCylinder(*args)
+        self.shape = BRepPrimAPI_MakeCylinder(*args).Shape()
 
     def set_radius(self, r):
         self.create_shape()
@@ -735,7 +728,8 @@ class OccHalfSpace(OccShape, ProxyHalfSpace):
 
     def create_shape(self):
         d = self.declaration
-        self.shape = BRepPrimAPI_MakeHalfSpace(d.surface, gp_Pnt(*d.position))
+        hs = BRepPrimAPI_MakeHalfSpace(d.surface, gp_Pnt(*d.position))
+        self.shape = hs.Shape()
 
     def set_surface(self, surface):
         self.create_shape()
@@ -745,7 +739,7 @@ class OccPrism(OccDependentShape, ProxyPrism):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_prim_a_p_i___make_prism.html')
 
-    def update_shape(self, change):
+    def update_shape(self, change=None):
         d = self.declaration
 
         if d.shape:
@@ -754,18 +748,11 @@ class OccPrism(OccDependentShape, ProxyPrism):
             c = self.get_shape()
 
         if d.infinite:
-            self.shape = BRepPrimAPI_MakePrism(
-                c.shape.Shape(),
-                gp_Dir(*d.direction),
-                True,
-                d.copy,
-                d.canonize)
+            args = (c.shape, gp_Dir(*d.direction), True, d.copy, d.canonize)
         else:
-            self.shape = BRepPrimAPI_MakePrism(
-                c.shape.Shape(),
-                gp_Vec(*d.vector),
-                d.copy,
-                d.canonize)
+            args = (c.shape, gp_Vec(*d.vector), d.copy, d.canonize)
+
+        self.shape = BRepPrimAPI_MakePrism(*args).Shape()
 
     def get_shape(self):
         for child in self.children():
@@ -773,22 +760,22 @@ class OccPrism(OccDependentShape, ProxyPrism):
                 return child
 
     def set_shape(self, shape):
-        self.update_shape({})
+        self.update_shape()
 
     def set_infinite(self, infinite):
-        self.update_shape({})
+        self.update_shape()
 
     def set_copy(self, copy):
-        self.update_shape({})
+        self.update_shape()
 
     def set_canonize(self, canonize):
-        self.update_shape({})
+        self.update_shape()
 
     def set_direction(self, direction):
-        self.update_shape({})
+        self.update_shape()
 
     def set_vector(self, vector):
-        self.update_shape({})
+        self.update_shape()
 
 
 class OccSphere(OccShape, ProxySphere):
@@ -805,7 +792,7 @@ class OccSphere(OccShape, ProxySphere):
                 args.append(d.angle2)
                 if d.angle3:
                     args.append(d.angle3)
-        self.shape = BRepPrimAPI_MakeSphere(*args)
+        self.shape = BRepPrimAPI_MakeSphere(*args).Shape()
 
     def set_radius(self, r):
         self.create_shape()
@@ -833,7 +820,7 @@ class OccTorus(OccShape, ProxyTorus):
             args.append(d.angle)
             if d.angle2:
                 args.append(d.angle2)
-        self.shape = BRepPrimAPI_MakeTorus(*args)
+        self.shape = BRepPrimAPI_MakeTorus(*args).Shape()
 
     def set_radius(self, r):
         self.create_shape()
@@ -855,8 +842,8 @@ class OccWedge(OccShape, ProxyWedge):
 
     def create_shape(self):
         d = self.declaration
-        self.shape = BRepPrimAPI_MakeWedge(coerce_axis(d.axis),
-                                           d.dx, d.dy, d.dz, d.itx)
+        w = BRepPrimAPI_MakeWedge(coerce_axis(d.axis), d.dx, d.dy, d.dz, d.itx)
+        self.shape = w.Shape()
 
     def set_dx(self, dx):
         self.create_shape()
@@ -877,19 +864,18 @@ class OccRevol(OccDependentShape, ProxyRevol):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_prim_a_p_i___make_wedge.html')
 
-    def update_shape(self, change):
+    def update_shape(self, change=None):
         d = self.declaration
 
         c = d.shape if d.shape else self.get_shape()
 
         #: Build arguments
-        args = [c.shape.Shape(), gp_Ax1(gp_Pnt(*d.position),
-                                        gp_Dir(*d.direction))]
+        args = [c.shape, gp_Ax1(gp_Pnt(*d.position), gp_Dir(*d.direction))]
         if d.angle:
             args.append(d.angle)
         args.append(d.copy)
 
-        self.shape = BRepPrimAPI_MakeRevol(*args)
+        self.shape = BRepPrimAPI_MakeRevol(*args).Shape()
 
     def get_shape(self):
         """ Get the first child shape """
@@ -898,25 +884,22 @@ class OccRevol(OccDependentShape, ProxyRevol):
                 return child
 
     def set_shape(self, shape):
-        self.update_shape({})
+        self.update_shape()
 
     def set_angle(self, angle):
-        self.update_shape({})
+        self.update_shape()
 
     def set_copy(self, copy):
-        self.update_shape({})
+        self.update_shape()
 
     def set_direction(self, direction):
-        self.update_shape({})
+        self.update_shape()
 
 
 class OccRawShape(OccShape, ProxyRawShape):
     #: Update the class reference
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_topo_d_s___shape.html')
-
-    #: The shape created
-    shape = Instance(TopoDS_Shape)
 
     def create_shape(self):
         """ Delegate shape creation to the declaration implementation. """
@@ -936,19 +919,15 @@ class OccLoadShape(OccShape, ProxyLoadShape):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_topo_d_s___shape.html')
 
-    #: The shape created
-    shape = Instance(BRepBuilderAPI_Transform)
-
     def create_shape(self):
         """ Create the shape by loading it from the given path. """
         shape = self.load_shape()
         t = self.get_transform()
-        self.shape = BRepBuilderAPI_Transform(shape, t, False)
+        self.shape = BRepBuilderAPI_Transform(shape, t, False).Shape()
 
     def get_transform(self):
         d = self.declaration
         t = gp_Trsf()
-        #p = d.position
         t.SetTransformation(gp_Ax3(coerce_axis(d.axis)))
         return t
 

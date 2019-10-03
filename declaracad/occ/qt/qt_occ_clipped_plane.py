@@ -22,18 +22,18 @@ from declaracad.core.utils import log
 class QtOccViewerClippedPlane(QtControl, ProxyOccViewerClippedPlane):
 
     #: Viewer widget
-    graphic = Typed(Graphic3d_ClipPlane)
+    clip_plane = Typed(Graphic3d_ClipPlane)
 
     #: Updates blocked
     _updates_blocked = Bool(True)
 
     def create_widget(self):
-        self.graphic = Graphic3d_ClipPlane()
+        self.clip_plane = Graphic3d_ClipPlane()
 
     def init_widget(self):
         #super(QtOccViewerClippedPlane, self).init_widget()
         d = self.declaration
-        clip_plane = self.graphic
+        clip_plane = self.clip_plane
         self.set_enabled(d.enabled)
         self.set_capping(d.capping)
         self.set_capping_hatched(d.capping_hatched)
@@ -44,24 +44,24 @@ class QtOccViewerClippedPlane(QtControl, ProxyOccViewerClippedPlane):
     def init_layout(self):
         self._updates_blocked = False
         viewer = self.parent()
-        clip_plane = self.graphic
-        # TODO: Dont use private
-        for ais_shp in viewer._ais_shapes:
-            ais_shp.GetObject().AddClipPlane(clip_plane)
+        clip_plane = self.clip_plane
+        viewer.v3d_view.AddClipPlane(clip_plane)
+        #for ais_shp in viewer._ais_shapes:
+        #    ais_shp.AddClipPlane(clip_plane)
         self.update_viewer()
 
     def destroy(self):
         viewer = self.parent()
-        clip_plane = self.graphic
+        clip_plane = self.clip_plane
         clip_plane.SetOn(False)
         if viewer is not None:
-            # TODO: Dont use private
-            for ais_shp in viewer._ais_shapes:
-                try:
-                    ais_shp.GetObject().RemoveClipPlane(clip_plane)
-                except:
-                    pass
-        del self.graphic
+            viewer.v3d_view.RemoveClipPlane(clip_plane)
+            #for ais_shp in viewer._ais_shapes:
+            #    try:
+            #        ais_shp.RemoveClipPlane(clip_plane)
+            #    except:
+            #        pass
+        del self.clip_plane
         super(QtOccViewerClippedPlane, self).destroy()
 
     # -------------------------------------------------------------------------
@@ -76,25 +76,25 @@ class QtOccViewerClippedPlane(QtControl, ProxyOccViewerClippedPlane):
     # ProxyOccViewerCappedPlane API
     # -------------------------------------------------------------------------
     def set_enabled(self, enabled):
-        self.graphic.SetOn(enabled)
+        self.clip_plane.SetOn(enabled)
         self.update_viewer()
 
     def set_capping(self, capping):
-        self.graphic.SetCapping(capping)
+        self.clip_plane.SetCapping(capping)
         self.update_viewer()
 
     def set_capping_hatched(self, hatched):
         if hatched:
-            self.graphic.SetCappingHatchOn()
+            self.clip_plane.SetCappingHatchOn()
         else:
-            self.graphic.SetCappingHatchOff()
+            self.clip_plane.SetCappingHatchOff()
         self.update_viewer()
 
     def set_capping_color(self, color):
         if not color:
             return
         c, t = color_to_quantity_color(color)
-        clip_plane = self.graphic
+        clip_plane = self.clip_plane
         mat = clip_plane.CappingMaterial()
         mat.SetAmbientColor(c)
         mat.SetDiffuseColor(c)
@@ -103,7 +103,7 @@ class QtOccViewerClippedPlane(QtControl, ProxyOccViewerClippedPlane):
     def set_position(self, position, direction=None):
         d = self.declaration
         direction = direction or d.direction
-        clip_plane = self.graphic
+        clip_plane = self.clip_plane
         pln = clip_plane.ToPlane()
         pln.SetPosition(gp_Ax3(gp_Pnt(*position), gp_Dir(*direction)))
         clip_plane.SetEquation(pln)

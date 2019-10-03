@@ -1,0 +1,20 @@
+""" This example shows how to use chamfer operations
+
+See https://dev.opencascade.org/doc/overview/html/occt_user_guides__modeling_algos.html#occt_modalg_6
+for more on how this works.
+
+"""
+
+from declaracad.occ.api import Part, Box, Chamfer
+
+enamldef Assembly(Part):
+    name = "Chamfer Operations"
+
+    Chamfer:
+        # A chamfer without specifying faces applies the fillet to all faces
+        distance = 10
+        Box:
+            position = (-300, 0, 0)
+            dx = 200
+            dy = 200
+            dz = 200

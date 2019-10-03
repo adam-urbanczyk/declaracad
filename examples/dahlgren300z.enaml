@@ -1,0 +1,720 @@
+import math
+from enaml.core.api import Looper
+from declaracad.occ.api import *
+
+def distance2d(p1, p2, i=0, j=1):
+    # TODO: Find this in OCC
+    dx, dy = p2[i]-p1[i], p2[j]-p1[j]
+    return math.sqrt(dx*dx+dy*dy)
+
+def angle2d(p1, p2, i=0, j=1):
+    # TODO: Find this in OCC
+    dx, dy = p2[i]-p1[i], p2[j]-p1[j]
+    return math.atan2(dx, dy)
+
+enamldef BasePlate(Box):
+    material = 'charcoal'
+    dx = 34
+    dy = 26
+    dz = 5/8
+
+
+enamldef ScrewHole(Fuse):
+    attr radius = 0.125
+    attr screw_radius << radius*2
+    attr height = 1
+    direction = (0, 0, -1)
+    Cylinder: cyl:
+        position << parent.position
+        direction << parent.direction
+        height << parent.height
+        radius << parent.radius
+    Cone: cone:
+        position << parent.position
+        radius << screw_radius
+        height << parent.height/4
+        direction << parent.direction
+
+
+enamldef LinearRailProfile(Wire):
+    attr width: float = 1.0
+    attr height: float = 1.0
+
+    attr clearance: float << height*0.4
+    attr h5: float << height*0.8
+    attr h6: float << height*0.6
+    attr h7: float << height*0.8
+    # Chamfer distance
+    attr chamfer_distance: float = 0.1
+    attr track_height << (height -chamfer_distance*2- clearance)
+    attr thickness: float = 4.0
+    # Create a wire from the profile and mirrored profile
+    Wire: profile:
+        Polygon:
+            points << [
+                (0, chamfer_distance/2, 0),
+                (width*0.1, chamfer_distance/2, 0),
+                (width*0.2, 0, 0),
+                (width/2-chamfer_distance, 0, 0),
+                (width/2, chamfer_distance, 0),
+                (width/2, clearance, 0),
+                (width*0.4, clearance+track_height/2, 0),
+                (width/2, clearance+track_height, 0),
+                (width/2, height-chamfer_distance, 0),
+                (width/2-chamfer_distance, height, 0),
+                (0, height, 0),
+            ]
+
+    Transform:
+        operations = [
+            Mirror(y=1)
+        ]
+        shape = profile
+
+enamldef LinearRail(Transform): rail:
+    material = 'steel'
+    attr length = 1
+    alias height: profile.height
+    alias width: profile.width
+    attr screw_spacing = 3
+    attr rotation = []
+    operations << [
+        Translate(*position),
+        Rotate(direction=(1, 0, 0), angle=math.pi/2)
+    ] + ([rotation] if rotation else [])
+    Cut:
+        Prism:
+            vector << (0, 0, -rail.length)
+            Face:
+                LinearRailProfile: profile:
+                    pass
+        Looper:
+            iterable << range(round((rail.length-screw_spacing)/screw_spacing))
+            ScrewHole:
+                height << rail.height*2
+                position << (0, rail.height, -(1+loop_index)*screw_spacing)
+                direction << (0, -1, 0)
+
+enamldef LinearRailMount(Transform): mount:
+    attr thickness = 1/2
+    attr width = 2
+    attr depth = 3
+    operations << [Translate(x-width/2, y-depth/2, z)]
+    material = 'steel'
+    Box:
+        dx << width
+        dy << depth
+        dz << thickness
+
+
+enamldef CarriageCutout(Transform):
+    operations = [Translate(*self.position)]
+    Fillet:
+        radius = 0.1
+        Box:
+            dx << 1
+            dy << 6
+            dz << 6
+
+enamldef  EngraverColumn(Part): part:
+    attr plate_thickness = 0.125
+    attr height = 13.5
+    attr width = 2
+    attr depth = 6.126
+    attr arch_depth = 2.875
+    attr total_depth << depth+arch_depth
+    attr carriage_height = 6.5
+    attr side = 'left'
+    material = 'charcoal'
+    Box: front_plate:
+        material << part.material
+        position << part.position
+        dx << width
+        dy<< plate_thickness
+        dz << carriage_height
+    Box: back_plate:
+        material << part.material
+        position << (part.x, part.y+9, part.z)
+        dx << width
+        dy << plate_thickness
+        dz << height
+    Box: outside_plate:
+        material << part.material
+        position << (
+            part.x+width-plate_thickness if side == 'right' else part.x,
+            part.y+arch_depth,
+            part.z
+        )
+        dx << plate_thickness
+        dy << depth
+        dz << height
+    Cut:
+        material << part.material
+        Box: inside_plate:
+            position << (
+                part.x+width-plate_thickness if side == 'left' else part.x,
+                part.y+arch_depth,
+                part.z
+            )
+            dx << plate_thickness
+            dy << depth # top size
+            dz << height
+        CarriageCutout:
+            position << (
+                inside_plate.x-plate_thickness*3,
+                inside_plate.y+plate_thickness/2,
+                inside_plate.z+carriage_height
+            )
+    Prism: outside_arch:
+        material << part.material
+        vector << (plate_thickness, 0, 0.0)
+        Face:
+            Polygon: arch_poly:
+                closed = True
+                points << [
+                    front_plate.position,
+                    (front_plate.x, front_plate.y+arch_depth, part.z),
+                    (front_plate.x, front_plate.y+arch_depth, part.z+height),
+                    (front_plate.x, front_plate.y+plate_thickness, front_plate.dz+part.z),
+                ]
+        # bottom is 8.875
+    Transform: inside_arch:
+        material << part.material
+        shape = outside_arch
+        operations = [Translate(x=width-plate_thickness)]
+    Box: top_plate:
+        material << part.material
+        position << (part.x, part.y+arch_depth, part.z+height)
+        dx << width
+        dy << depth # top size
+        dz << plate_thickness
+    Transform:
+        material << part.material
+        operations << [Rotate(
+                                        point=front_cover.position,
+                                        direction=(1,0,0),
+                                        angle=math.pi-angle2d(arch_poly.points[-2],
+                                                                    arch_poly.points[-1], i=1, j=2)
+                                )]
+        Box: front_cover:
+            position << (front_plate.x, front_plate.y, front_plate.dz+part.z)
+            dy << plate_thickness
+            dx << width
+            dz << distance2d(arch_poly.points[-2],  arch_poly.points[-1],i=1, j=2)
+
+enamldef CarriageTrack(Transform): track:
+    attr width: float = 30.0
+    attr depth: float = 5+3/8
+    attr height: float = 0.5
+    attr plate_thickness: float = 0.125
+    Cut:
+        Box: b1:
+            position << track.position
+            dx << width
+            dy << depth
+            dz  << height
+        Box: b2:
+            position << (b1.x,#+plate_thickness,
+                                  b1.y+plate_thickness,
+                                  b1.z+plate_thickness)
+            dx << width#-plate_thickness*2
+            dy << depth-plate_thickness*2
+            dz  << height -plate_thickness
+
+enamldef CarriageSlide(Transform):
+    attr width = 5.5
+    attr height = 4.75
+    attr thickness = 3/8
+    operations = [Translate(*self.position)]
+    Prism:
+        vector << (thickness, 0, 0)
+        Face:
+            Wire:
+                Wire: w1:
+                    Polygon:  p1:
+                        points = [
+                            (0, 0, height),  (0, width/2, height), (0, width/2, 0),
+                            (0, width/2-3/4, 0), (0, width/2-3/4, 1),
+                         ]
+                    Arc: a1:
+                        attr p << p1.points[-1]
+                        attr r = 1/4
+                        points = [
+                            p,
+                            (p[0], p[1]-r, p[2]+r),
+                            (p[0], p[1]-2*r, p[2])
+                        ]
+                    Polygon:  p2:
+                        attr p << a1.points[-1]
+                        points = [p, (0, p[1], 0), (0, p[1]-3/8, 0), (0, p[1]-3/8, 1/4)]
+                    Arc: a2:
+                        attr p << p2.points[-1]
+                        attr r = 1/8
+                        points = [p,  (p[0], p[1]-r/8, p[2]+r/2), (p[0], p[1]-r, p[2]+r)]
+                    Segment:  p3:
+                        attr p << a2.points[-1]
+                        points = [p, (0, p[1], 2-1/4)]
+                    Arc: a3:
+                        attr p << p3.points[-1]
+                        attr r = 1/4
+                        points = [p,  (p[0], p[1]-r/8, p[2]+r/2), (p[0], p[1]-r, p[2]+r)]
+                    Segment:  p4:
+                        attr p << a3.points[-1]
+                        points = [p, (0, 0, 2)]
+                Wire:
+                    Transform:
+                        operations = [Mirror(z=1)]
+                        shape = w1
+
+
+enamldef CarriageFrontPlate(Transform):
+    attr thickness = 0.5
+    attr width = 3.5
+    attr height = 7.5
+    operations = [Translate(*self.position)]
+    Cut:
+        Fuse:
+            # Main plate
+            Box: plate:
+                dx << width
+                dy << thickness
+                dz << height
+            # Guide
+            Box: guide1:
+                position << (plate.x+width/4-dx/2, plate.y+thickness, plate.z)
+                dx << width/12
+                dy << thickness/6
+                dz << height
+            Box: guide2:
+                position << (plate.x+width*3/4-dx/2, plate.y+thickness, plate.z)
+                dx << guide1.dx
+                dy << guide1.dy
+                dz << guide1.dz - 1 # It's cut short
+        # Channel
+        Fuse: channel:
+            x << guide1.x + guide1.dx/2
+            Box: slot:
+                position << (channel.x-dx/2, plate.y, plate.z)
+                dx << width/ 12
+                dy << thickness/4
+                dz << height
+            Box:
+                position << (channel.x-dx/2, slot.y+slot.dy, plate.z)
+                dx << width/ 6
+                dy << thickness/2
+                dz << height
+        Transform:
+            shape = channel
+            operations = [Translate(x=guide2.x-guide1.x)]
+        Box: # Bottom cut for bridge clearance
+            position << (plate.x, plate.y+thickness*5/6, plate.z)
+            dx << width
+            dy << thickness
+            dz << thickness
+
+enamldef CarriageMountChannel(Transform): channel:
+    attr thickness = 0.5
+    attr width = 3.5/ 6
+    attr height = 7.5
+    Fuse:
+        Box: slot:
+            position << (channel.x-dx/2, channel.y, channel.z)
+            dx << width/ 2
+            dy << thickness/8
+            dz << height
+        Box:
+            position << (channel.x-dx/2, slot.y+slot.dy, channel.z)
+            dx << width
+            dy << thickness/2
+            dz << height
+
+enamldef CarriageMountPlate(Transform):
+    attr thickness = 0.5
+    attr width = 3.5
+    attr height = 7.5
+    operations = [Translate(*self.position)]
+    Fuse:
+        # Main plate
+        Box: plate:
+            dx << width
+            dy << thickness
+            dz << height
+        # Guide
+        Box: guide1:
+            position << (plate.x+width/4-dx/2, plate.y+thickness, plate.z)
+            dx << width/12
+            dy << thickness/8
+            dz << height
+        Transform:
+            shape = guide1
+            operations << [Translate(x=width/2)]
+
+
+enamldef Carriage(Part): carriage:
+    attr width = 3
+    material = 'charcoal'
+    CarriageSlide: side:
+        material << carriage.material
+        position = (carriage.x, carriage.y, carriage.z+mount.dz)
+    Transform:
+        material << carriage.material
+        shape = side
+        operations = [Translate(x=parent.width)]
+    Box: mount:
+        material << carriage.material
+        position << (parent.x, parent.y-dy/2, parent.z)
+        dx = width + side.thickness
+        dy = 5.5
+        dz = 3/8
+    CarriageFrontPlate:  front_plate:
+        material << carriage.material
+        position << (
+            side.x,
+            side.y-side.width/2-self.thickness,
+            side.z-(self.height-side.height)
+        )
+    CarriageMountPlate:  mount_plate:
+        material << carriage.material
+        position << (
+            side.x,
+            side.y-side.width/2-front_plate.thickness-self.thickness,
+            side.z-(self.height-side.height)+1/2
+        )
+    CarriageMountChannel: channel:
+         position << (
+            mount_plate.x+mount_plate.width/4,
+            mount_plate.y+mount_plate.thickness+self.thickness/8,
+            mount_plate.z
+        )
+    Transform:
+        shape = channel
+        operations = [Translate(x=mount_plate.width/2)]
+
+
+enamldef StepperMotor(Part):
+    attr diameter = 2
+    attr height = 4
+    # Top cap
+    Prism: cap:
+        material = 'steel'
+        vector << (0, 0, height/8)
+        Face: profile:
+            Wire:
+                Polygon:
+                    attr r << diameter/2
+                    attr n = 6# Hexagon
+                    attr angles << [2*i/n*math.pi for i in range(n)]
+                    closed =True
+                    points << [(cap.x+r*math.cos(a), cap.y+r*math.sin(a), cap.z) for a in angles]
+    Transform:
+        operations = [Translate(z=cap.vector[-1])]
+        Prism: body:
+            material = 'copper'
+            vector << (0, 0, height/2)
+            Transform:
+                shape = profile
+    Transform:
+        operations = [Translate(z=height/8)]
+        Prism: body:
+            material = 'copper'
+            vector << (0, 0, height/2)
+            Transform:
+                shape = profile
+    Box:
+        pass
+
+
+
+enamldef Flatbed(Transform): part:
+    attr width = 24
+    attr depth = 12
+    attr height = 1
+    attr tslot_spacing = 0.5
+    attr tslot_depth = 1
+    attr tslot_width = 1
+    attr tslot_height = 0.5
+    material = 'steel'
+    #operations = [Translate(*self.position)]
+    Prism:
+        vector << (width, 0, 0)
+        Face:
+            Wire:
+                Polygon:
+                    closed = True
+
+                    func build_flatbed(*args):
+                        points =  [
+                            part.position,
+                            (part.x, part.y, part.z+height),
+                        ]
+
+                        for i in range(int(depth/tslot_depth)-3):
+                            x, y, z = points[-1]
+                            # Slot profile
+                            slot = [
+                                (x, y+tslot_spacing+tslot_width/2, z),
+                                (x, y+tslot_spacing+tslot_width/2, z-tslot_height/2),
+                                (x, y+tslot_spacing+tslot_width/4, z-tslot_height/2),
+                                (x, y+tslot_spacing+tslot_width/4, z-tslot_height),
+                                (x, y+tslot_spacing+tslot_width, z-tslot_height),
+                                (x, y+tslot_spacing+tslot_width, z-tslot_height/2),
+                                (x, y+tslot_spacing+tslot_width*3/4, z-tslot_height/2),
+                                (x, y+tslot_spacing+tslot_width*3/4, z),
+                            ]
+                            points.extend(slot)
+
+                        # End points
+                        points.extend([
+                            (part.x, part.y+depth, part.z+height),
+                            (part.x, part.y+depth, part.z)
+                        ])
+
+                        return points
+
+                    points << build_flatbed(part.position, depth, width)
+
+enamldef AlanScrewHole(Fuse): screw:
+    attr radius = 0.125
+    attr height = 1
+    attr thread_height = 0.3
+    Cylinder: c1:
+        radius << screw.radius
+        height << screw.height
+        direction << screw.direction
+        position << screw.position
+    Cylinder:
+        radius << screw.radius*2/3
+        height << screw.thread_height+screw.height
+        direction << screw.direction
+        position << screw.position
+
+enamldef SpindleHolder(Transform): holder:
+    operations = [Translate(
+        self.x-box.dx/2,
+        self.y-box.dy/2,
+        self.z-box.dy/2,
+    )]
+    attr height = 1.8
+    attr gap_size = 0.05
+    Cut:
+        Chamfer:
+            distance = 0.5
+            edges << [
+                box.topology.edges[4],
+                box.topology.edges[0]
+            ]#, box.topology.edges[4]]
+            faces << [box.topology.faces[2] for e in edges]
+            Box: box:
+                dx = 1.8
+                dy = 1.6
+                dz << holder.height
+        Cylinder:
+            # Main shaft
+            radius = 0.5
+            height << box.dy+2
+            position << (box.x+box.dx/2, box.y+box.dy/2, box.z)
+        Box:
+            dx << box.dx/2
+            dz << box.dz
+            dy << gap_size
+            position << (box.x+box.dx/2, box.y+box.dy/2, box.z)
+        AlanScrewHole:
+                direction = (0,1,0)
+                height << box.dy*1/4
+                thread_height << box.dy
+                position << (
+                    box.x+2*self.radius+box.dx*3/4,
+                    box.y,
+                    box.z+box.dx/2
+                )
+        # Mounting bolts
+        Looper:
+            iterable << [
+                (0, 0, 0),
+                (box.dx*3/4, 0, 0),
+                (0, 0, box.dz*3/4),
+                (box.dx*3/4, 0, box.dz*3/4),
+            ]
+            AlanScrewHole:
+                direction = (0,1,0)
+                height << box.dy*3/4
+                thread_height << box.dy*1/4
+                position << (
+                    box.x+2*self.radius+loop_item[0],
+                    box.y+loop_item[1],
+                    box.z+2*self.radius+loop_item[2]
+                )
+
+
+enamldef SpindleMotor(Transform): motor:
+    attr height = 2.0
+    attr diameter = 1.8
+    attr radius = 1.125/2
+    #operations = [Translate(*self.position)]
+    #Chamfer:
+    #    distance = 0.2
+        #edges << [cap.topology.edges[2]]
+        #faces << [cap.topology.faces[0]]
+    Cut:
+        Fuse:
+            Cylinder: cap:
+                radius << motor.diameter/2+0.1
+                height = 0.2
+                position << (
+                    motor.x, motor.y,
+                    motor.z+body.height+head.height
+                )
+            Chamfer:
+                distance = 0.1
+                edges << [head.topology.edges[2]]
+                faces << [head.topology.faces[0]]
+                Cylinder: head:
+                    radius << motor.diameter/2+0.1
+                    height = 0.4
+                    position << (motor.x, motor.y, motor.z+body.height)
+            Chamfer:
+                distance = 0.1
+                edges << [body.topology.edges[2]]
+                faces << [body.topology.faces[0]]
+                Cylinder: body:
+                    radius << motor.diameter/2
+                    height << motor.height-head.height-cap.height
+                    position << (motor.x, motor.y, motor.z)
+        Cylinder: shaft:
+            radius << motor.radius
+            position << (motor.x, motor.y, motor.z)
+            height << 5
+
+        Box:
+            # Back cutout so it fits flush
+            dx << diameter
+            dy << diameter
+            dz << motor.height
+            position << (motor.x-motor.diameter/2,
+                                  motor.y+diameter/2*7/8, motor.z)
+        Box:
+            # Side cutout so it fits flush
+            dx << diameter/4
+            dy << diameter
+            dz << motor.height
+            position << (motor.x-motor.diameter+3/8,
+                                  motor.y-motor.diameter/2,
+                                  motor.z)
+
+
+enamldef SpindleShaft(Transform): shaft:
+    attr radius = 1
+    attr height = 5
+    attr motor_height = 1
+    Cylinder:
+        height << shaft.height
+        radius << parent.radius
+        position << (parent.x, parent.y,
+            parent.z+motor_height-height)
+
+
+enamldef SpindleCutter(Transform): cutter:
+    attr diameter = 1/4
+    attr height = 2
+    alias tip
+    operations = [Translate(*self.position)]
+    Cut:
+        Fuse:
+            Cone: tip:
+                radius << cutter.diameter/2
+                angle << math.pi
+                angle << math.pi
+                height = 1/4
+                direction = (0, 0, -1)
+            Cylinder:
+                radius << cutter.diameter/2
+                height << cutter.height
+        Transform:
+            operations = [Rotate(angle=math.pi)]
+            Wedge:
+                direction = (1, 0, 0)
+                dx << tip.height*2
+                dy << cutter.diameter
+                dz << cutter.diameter*2
+                itx << tip.height
+                position << (-cutter.diameter, cutter.diameter, 0)
+
+
+enamldef SpindleAssembly(Part): part:
+    SpindleHolder: holder:
+        position << part.position
+    SpindleMotor: motor:
+        color = '#103'
+        position << (holder.x, holder.y, holder.z+holder.height-3/4)
+    SpindleShaft: shaft:
+        material = 'steel'
+        radius << motor.radius
+        height = 4.75
+        position << motor.position
+        motor_height << motor.height
+    SpindleCutter: cutter:
+        color='#011'
+        attr depth = 1.25
+        position << (motor.x, motor.y, motor.z-shaft.height+depth)
+
+
+enamldef Assembly(Part):  engraver:
+    name = "Bent pipe"
+    position = (18, 2, 1.2)
+    BasePlate: base:
+        pass
+    EngraverColumn: left_column:
+        position = (0, 12.5, base.dz)
+    EngraverColumn: right_column:
+        side = 'right'
+        width = 4
+        position = (base.dx-width, 12.5, base.dz)
+    LinearRail: rail1:
+        length = 24
+        position = (7, 1, base.dz)
+    LinearRail: rail2:
+        length = 24
+        position = (25, 1, base.dz)
+    LinearRail: rail3:
+        width = 2.0
+        length = 30
+        rotation = Rotate(direction=(0, 1, 0), angle=-math.pi/2)
+        position = (
+            left_column.width,
+            left_column.y+left_column.depth,
+            base.dz+left_column.carriage_height+0.5
+        )
+    LinearRailMount: xmount:
+        position << (
+            rail3.x+width/2+1+engraver.x,
+            rail3.y,
+            rail3.z+rail3.height+1/4
+        )
+    CarriageTrack: track:
+        material = 'charcoal'
+        position = (
+            rail3.x,
+            rail3.y-self.depth/2,
+            rail3.z-1/2
+        )
+    Flatbed: flatbed:
+        position << (
+            4,
+            engraver.y+1,
+            base.dz+rail1.height*1.5
+        )
+    Carriage: carriage:
+        position << (
+            xmount.x-self.width/2,
+            xmount.y,#-self.depth/2,
+            xmount.z+xmount.thickness # 3/4 is track mount height
+        )
+    SpindleAssembly:
+        position << (
+            carriage.x+carriage.width/2,
+            carriage.y-5,
+            carriage.z+0.5-engraver.z
+        )
+
+    StepperMotor:
+        pass

@@ -1,0 +1,82 @@
+""" This example shows how to use fillet operations
+
+See https://dev.opencascade.org/doc/overview/html/occt_user_guides__modeling_algos.html#occt_modalg_6
+for more on how this works.
+
+"""
+
+from declaracad.occ.api import Part, Box, Fillet
+
+enamldef Assembly(Part):
+    name = "Fillet Operations"
+
+    Fillet:
+        # A fillet without specifying edges applies the fillet to all edges
+        radius = 20
+        Box:
+            position = (-300, 0, 0)
+            dx = 200
+            dy = 200
+            dz = 200
+    Fillet:
+        color = 'green'
+        # The edges to fillet can be specified, using the topology of the shape
+        # at the moment there's not a good way pick which edges
+        radius = 20
+        operations = [e for i, e in enumerate(self.children[0].topology.edges)
+                 if i in (0, 2, 4, 6)]
+        Box:
+            position = (300, 0, 0)
+            dx = 200
+            dy = 200
+            dz = 200
+
+    Fillet:
+        color = 'blue'
+        # You can also specify the radius for each edge by using a tuple
+        # for each edge in the format (radius, edge)
+        operations = [(10+10*i, e)
+                  for i, e in enumerate(self.children[0].topology.edges)
+                  if i in (0, 2, 4, 6)]
+        Box:
+            position = (0, 300, 0)
+            dx = 200
+            dy = 200
+            dz = 200
+
+    Fillet:
+        # You can also specify the start and end radius' for each edge
+        # by using tuples with the format (r1, r2, edge)
+        color = 'red'
+        attr r1 = 10
+        attr r2 = 80
+        operations = [(r1, r2, e)
+                 for i, e in enumerate(self.children[0].topology.edges)
+                  if i in (0, 2, 4, 6)]
+        Box:
+            position = (0, -300, 0)
+            dx = 200
+            dy = 200
+            dz = 200
+
+    Fillet:
+        # You can specify a set of points to fillet using a dynamic radius
+        color = 'purple'
+
+        # The profile is the position along the edge and the radius at that
+        # position
+        attr fillet_profile = [
+            (0, 10),
+            (50, 20),
+            (70, 20),
+            (130, 80),
+            (160, 30),
+            (200, 20),
+        ]
+        operations = [(fillet_profile, e)
+                 for i, e in enumerate(self.children[0].topology.edges)
+                  if i in (0, 2, 4, 6)]
+        Box:
+            dx = 200
+            dy = 200
+            dz = 200

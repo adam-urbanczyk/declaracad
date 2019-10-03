@@ -430,7 +430,7 @@ class OccSvgPath(OccSvgNode):
                 last_pnt = gp_Pnt(params[2], params[3], 0)
                 pts.SetValue(3, last_pnt)
                 curve = Geom_BezierCurve(pts)
-                path.Add(BRepBuilderAPI_MakeEdge(curve.GetHandle()).Edge())
+                path.Add(BRepBuilderAPI_MakeEdge(curve).Edge())
             elif cmd == 'C':
                 # Cubic Bezier
                 pts = TColgp_Array1OfPnt(1, 4)
@@ -440,7 +440,7 @@ class OccSvgPath(OccSvgNode):
                 last_pnt = gp_Pnt(params[4], params[5], 0)
                 pts.SetValue(4, last_pnt)
                 curve = Geom_BezierCurve(pts)
-                path.Add(BRepBuilderAPI_MakeEdge(curve.GetHandle()).Edge())
+                path.Add(BRepBuilderAPI_MakeEdge(curve).Edge())
             elif cmd == 'A':
                 # Warning: Play at your own risk!
                 x1, y1 = last_pnt.X(), last_pnt.Y()

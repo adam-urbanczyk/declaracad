@@ -22,23 +22,22 @@ class OccPart(OccDependentShape, ProxyPart):
     builder = Typed(BRep_Builder)
 
     #: The compound shape
-    shape = Typed(TopoDS_Compound, ())
+    shape = Typed(TopoDS_Compound)
 
     @property
     def shapes(self):
         return [child for child in self.children()
                 if isinstance(child, OccShape)]
 
-    def update_shape(self, change):
+    def update_shape(self, change=None):
         """ Create the toolkit shape for the proxy object.
 
         """
         builder = BRep_Builder()
-        shape = self.shape
+        shape = TopoDS_Compound()
         builder.MakeCompound(shape)
         for s in self.shapes:
-            if hasattr(s.shape, 'Shape'):
-                builder.Add(shape, s.shape.Shape())
-            elif s.shape is not None:
+            if s.shape is not None:
                 builder.Add(shape, s.shape)
         self.builder = builder
+        self.shape = shape

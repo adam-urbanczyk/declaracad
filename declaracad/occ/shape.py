@@ -21,6 +21,8 @@ from enaml.colors import ColorMember
 from enaml.widgets.control import ProxyControl
 from enaml.widgets.toolkit_object import ToolkitObject
 
+from declaracad.core.utils import log
+
 #: TODO: This breaks the proxy pattern
 from OCCT.TopoDS import TopoDS_Face, TopoDS_Shell, TopoDS_Shape
 
@@ -249,42 +251,6 @@ class Shape(ToolkitObject):
     """ Abstract shape component that can be displayed on the screen
     and represented by the framework.
 
-    Attributes
-    ----------
-
-    position: Tuple
-        A tuple or list of the (x, y, z) position of this shape. This is
-        coerced into a Point.
-    x: Float
-    y: Float
-    z: Float
-        Alias to the position
-    direction: Tuple
-        A tuple or list of the (u, v, w) vector of this shape. This is
-        coerced into a Vector.
-    axis: Tuple
-        A tuple or list of the (u, v, w) axis of this shape. This is
-        coerced into a Vector that defines the x, y, and z orientation of
-        this shape.
-    tolerance: Float
-        The tolerance to use for operations that may require it.
-    color: Color
-        A string representing the color of the shape.
-    material: String
-        A string represeting a pre-defined material which defines a color
-        and luminosity of the shape.
-    transparency: Float
-        The opacity of the shape used for display.
-    shape_edges: List
-        A read only property that returns the list of edges this shape
-        has (if any).
-    shape_faces: List
-        A read only property that returns the list of faces this shape
-        has (if any).
-    shape_shells: List
-        A read only property that returns the list of surfaces this shape
-        has (if any).
-
     Notes
     ------
 
@@ -296,13 +262,14 @@ class Shape(ToolkitObject):
     #: Reference to the implementation control
     proxy = Typed(ProxyShape)
 
-    #: Tolerance
+    #: The tolerance to use for operations that may require it.
     tolerance = d_(Float(10**-6, strict=False))
 
-    #: Color
+    #: A string representing the color of the shape.
     color = d_(ColorMember()).tag(view=True, group='Display')
 
-    #: Texture material
+    #: A string represeting a pre-defined material which defines a color
+    #: and luminosity of the shape.
     material = d_(Enum(None, 'aluminium', 'brass', 'bronze', 'charcoal',
                        'chrome', 'copper', 'default', 'diamond', 'glass',
                        'gold', 'jade', 'metalized', 'neon_gnc', 'neon_phc',
@@ -310,7 +277,7 @@ class Shape(ToolkitObject):
                        'shiny_plastic', 'silver', 'steel', 'stone', 'water')
                   ).tag(view=True, group='Display')
 
-    #: Transparency
+    #: The opacity of the shape used for display.
     transparency = d_(Float(strict=False)).tag(view=True, group='Display')
 
     #: x position
@@ -322,7 +289,8 @@ class Shape(ToolkitObject):
     #: z position
     z = d_(Float(0, strict=False)).tag(view=True, group='Position')
 
-    #: Position
+    #: A tuple or list of the (x, y, z) position of this shape. This is
+    #: coerced into a Point.
     position = d_(Coerced(tuple))
 
     def _default_position(self):
@@ -348,7 +316,8 @@ class Shape(ToolkitObject):
     def _observe_position(self, change):
         self.x, self.y, self.z = self.position
 
-    #: Direction
+    #: A tuple or list of the (u, v, w) vector of this shape. This is
+    #: coerced into a Vector setting the orentation of the shape.
     direction = d_(Coerced(tuple))
 
     def _default_direction(self):
@@ -360,35 +329,17 @@ class Shape(ToolkitObject):
     def _set_axis(self, axis):
         self.position, self.direction = axis
 
-    #: Direction
+    #: A tuple or list of the (u, v, w) axis of this shape. This is
+    #: coerced into a Vector that defines the x, y, and z orientation of
+    #: this shape.
     axis = d_(Property(_get_axis, _set_axis))
 
-    def _get_edges(self):
-        topo = self.proxy.topology
-        if not topo:
-            return []
-        return [e for e in topo.edges()]
+    def _get_topology(self):
+        return self.proxy.topology
 
-    #: Edges of this shape
-    shape_edges = Property(_get_edges, cached=True)
-
-    def _get_faces(self):
-        topo = self.proxy.topology
-        if not topo:
-            return []
-        return [e for e in topo.faces()]
-
-    #: Faces of this shape
-    shape_faces = Property(_get_faces, cached=True)
-
-    def _get_shells(self):
-        topo = self.proxy.topology
-        if not topo:
-            return []
-        return [e for e in topo.shells()]
-
-    #: Shells of this shape
-    shape_shells = Property(_get_shells, cached=True)
+    #: A read only property that accesses the topology of the shape such
+    #: as edges, faces, shells, solids, etc....
+    topology = Property(_get_topology, cached=True)
 
     def _get_bounding_box(self):
         if self.proxy.shape:
@@ -398,18 +349,16 @@ class Shape(ToolkitObject):
                 pass
 
     #: Bounding box of this shape
-    bbox = d_(Property(_get_bounding_box, cached=True))
+    bbox = Property(_get_bounding_box, cached=True)
 
     @observe('color', 'transparency')
     def _update_proxy(self, change):
         super(Shape, self)._update_proxy(change)
-        if self.proxy:
-            self.proxy.update_display(change)
 
     @observe('proxy.shape')
     def _update_properties(self, change):
-        """ Update the cached topology references when the shape changes. """
-        for k in ('shape_edges', 'shape_faces', 'shape_shells', 'bbox'):
+        """ Clear the cached references when the shape changes. """
+        for k in ('bbox', 'topology'):
             self.get_member(k).reset(self)
 
     def render(self):

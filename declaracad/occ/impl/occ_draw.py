@@ -21,7 +21,9 @@ from OCCT.BRepOffsetAPI import BRepOffsetAPI_MakeOffset
 from OCCT.Font import Font_BRepTextBuilder, Font_FontAspect, Font_FontMgr
 from OCCT.GC import GC_MakeSegment, GC_MakeArcOfCircle
 from OCCT.gp import gp_Pnt, gp_Lin, gp_Circ, gp_Elips, gp_Hypr, gp_Parab
-from OCCT.TopoDS import TopoDS, TopoDS_Shape, TopoDS_Vertex
+from OCCT.TopoDS import (
+    TopoDS, TopoDS_Shape, TopoDS_Edge, TopoDS_Wire, TopoDS_Vertex
+)
 from OCCT.GeomAPI import GeomAPI_PointsToBSpline
 from OCCT.Geom import Geom_BezierCurve, Geom_BSplineCurve
 from OCCT.TColgp import TColgp_Array1OfPnt
@@ -53,34 +55,20 @@ class OccPoint(OccShape, ProxyPoint):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'classgp___pnt.html')
 
-    #: A reference to the toolkit shape created by the proxy.
-    shape = Typed(gp_Pnt)
-
-    def _default_topology(self):
-        return None
-
     def create_shape(self):
         d = self.declaration
         # Not sure why but we need this
         # to force a sync of position and xyz
-        self.shape = gp_Pnt(*d.position)
+        self.shape = BRepBuilderAPI_MakeVertex(gp_Pnt(*d.position)).Vertex()
 
     def set_position(self, position):
         self.create_shape()
 
 
-class OccVertex(OccShape, ProxyVertex):
+class OccVertex(OccPoint, ProxyVertex):
     #: Update the class reference
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_builder_a_p_i___make_vertex.html')
-
-    #: A reference to the toolkit shape created by the proxy.
-    shape = Typed(TopoDS_Vertex)
-
-    def create_shape(self):
-        d = self.declaration
-        v = BRepBuilderAPI_MakeVertex(gp_Pnt(d.x, d.y, d.z))
-        self.shape = v.Vertex()
 
     def set_x(self, x):
         self.create_shape()
@@ -96,10 +84,9 @@ class OccEdge(OccShape, ProxyEdge):
     #: Update the class reference
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_builder_a_p_i___make_edge.html')
-    shape = Typed(BRepBuilderAPI_MakeEdge)
 
     def make_edge(self, *args):
-        self.shape = BRepBuilderAPI_MakeEdge(*args)
+        self.shape = BRepBuilderAPI_MakeEdge(*args).Edge()
 
 
 class OccLine(OccEdge, ProxyLine):
@@ -124,8 +111,6 @@ class OccSegment(OccLine, ProxySegment):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_g_c___make_segment.html')
 
-    shape = Typed(BRepBuilderAPI_MakeWire)
-
     def create_shape(self):
         d = self.declaration
         points = [gp_Pnt(*p) for p in d.points]
@@ -135,7 +120,7 @@ class OccSegment(OccLine, ProxySegment):
         for i in range(1, len(points)):
             segment = GC_MakeSegment(points[i-1], points[i]).Value()
             shape.Add(BRepBuilderAPI_MakeEdge(segment).Edge())
-        self.shape = shape
+        self.shape = shape.Shape()
 
 
 class OccArc(OccLine, ProxyArc):
@@ -249,8 +234,6 @@ class OccPolygon(OccLine, ProxyPolygon):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_builder_a_p_i___make_polygon.html')
 
-    shape = Typed(BRepBuilderAPI_MakePolygon)
-
     def create_shape(self):
         d = self.declaration
         shape = BRepBuilderAPI_MakePolygon()
@@ -258,7 +241,7 @@ class OccPolygon(OccLine, ProxyPolygon):
             shape.Add(gp_Pnt(*p))
         if d.closed:
             shape.Close()
-        self.shape = shape
+        self.shape = shape.Shape()
 
     def set_closed(self, closed):
         self.create_shape()
@@ -281,8 +264,7 @@ class OccBSpline(OccLine, ProxyBSpline):
         for i, p in enumerate(d.points):
             set_value(i+1, gp_Pnt(*p))
 
-        self.shape = BRepBuilderAPI_MakeEdge(
-            GeomAPI_PointsToBSpline(pts).Curve())
+        self.make_edge(GeomAPI_PointsToBSpline(pts).Curve())
 
 
 class OccBezier(OccLine, ProxyBezier):
@@ -292,13 +274,17 @@ class OccBezier(OccLine, ProxyBezier):
 
     def create_shape(self):
         d = self.declaration
-        pts = TColgp_Array1OfPnt(1, len(d.points))
+        n = len(d.points)
+        if n < 2:
+            raise ValueError("A bezier must have at least 2 points!")
+        pts = TColgp_Array1OfPnt(1, n)
         set_value = pts.SetValue
 
         # TODO: Support weights
         for i, p in enumerate(d.points):
             set_value(i+1, gp_Pnt(*p))
-        self.shape = BRepBuilderAPI_MakeEdge(Geom_BezierCurve(pts))
+
+        self.make_edge(Geom_BezierCurve(pts))
 
 
 class OccText(OccShape, ProxyText):
@@ -307,9 +293,6 @@ class OccText(OccShape, ProxyText):
                             'class_topo_d_s___shape.html')
 
     builder = Typed(Font_BRepTextBuilder, ())
-
-    #: The shape created
-    shape = Typed(TopoDS_Shape)
 
     # font = Typed(Font_SystemFont)
 
@@ -349,44 +332,36 @@ class OccWire(OccShape, ProxyWire):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_builder_a_p_i___make_wire.html')
 
-    #: Make wire
-    shape = Typed(BRepBuilderAPI_MakeWire)
-
     def create_shape(self):
         pass
 
     def init_layout(self):
-        self.update_shape({})
         for child in self.children():
             self.child_added(child)
+        self.update_shape()
 
     def shape_to_wire(self, shape):
+        if isinstance(shape, (TopoDS_Edge, TopoDS_Wire)):
+            return shape
+        return TopoDS.Wire_(shape)
 
-        if hasattr(shape, 'Wire'):
-            return shape.Wire()
-        elif hasattr(shape, 'Edge'):
-            return shape.Edge()
-        elif hasattr(shape, 'Shape'):  # Transforms
-            return TopoDS.Wire_(shape.Shape())
-        elif hasattr(shape, 'GetHandle'): # Curves
-            return BRepBuilderAPI_MakeEdge(shape.GetHandle()).Edge()
-
-        raise ValueError("Cannot build Wire from shape: {}".format(shape))
-
-    def update_shape(self, change):
+    def update_shape(self, change=None):
         d = self.declaration
         shape = BRepBuilderAPI_MakeWire()
+        convert = self.shape_to_wire
         for c in self.children():
-            convert = self.shape_to_wire
+            if c.shape is None:
+                raise ValueError("Cannot build wire from empty shape: %s" % c)
             if isinstance(c.shape, (list, tuple)):
                 #: Assume it's a list of drawn objects...
                 for item in c.shape:
-                    shape.Add(convert(item))
+                    if item is not None:
+                        shape.Add(convert(item))
             else:
                 shape.Add(convert(c.shape))
 
         assert shape.IsDone(), 'Edges must be connected'
-        self.shape = shape
+        self.shape = shape.Wire()
 
     def child_added(self, child):
         super(OccWire, self).child_added(child)

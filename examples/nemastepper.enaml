@@ -1,0 +1,51 @@
+import math
+from enaml.core.api import Looper
+from declaracad.occ.api import *
+
+enamldef StepperMotorCap(Transform): part:
+    attr motor = parent
+    attr fillet = 0.09
+    attr height = 0.5
+    attr shaft_radius = 0.25
+    attr screw_radius = 0.3
+    attr thickness = 0.1
+    attr w << motor.width/2
+    operations << [Translate(*self.position)]
+    ThickSolid:   
+        offset << thickness     
+        closing_faces = [cap.shape_faces[0]]
+        Fillet: cap:
+            radius << fillet
+            # All except bottom eges
+            # TODO: THIS SUCKS
+            edges << [e for (i,e) in enumerate(cut.shape_edges) if i not in 
+                (2, 13, 14, 15,  16,  17, 18,  19, 20,)]
+            Cut: cut:
+                Box:
+                    position = (-dx/2,-dy/2, 0)
+                    dx << motor.width
+                    dy << motor.width
+                    dz << part.height
+                Looper:
+                    # Each corner
+                    iterable << [(-w, -w, 0), (-w, w, 0), (w, w, 0), (w, -w, 0)]
+                    Cylinder: # Screw cutouts
+                        position << loop_item
+                        radius << screw_radius
+                        height << part.height
+        #Cylinder:
+        #    position = (0, 0, 2*part.thickness)#-self.height)
+        #    radius << shaft_radius
+        #    height << part.height
+
+enamldef StepperMotor(Part): part:
+    attr width = 2
+    attr height = 4
+    attr shaft = 0.5
+    StepperMotorCap:
+        pass
+                    
+                    
+enamldef Assembly(Part):
+    StepperMotor:
+        pass

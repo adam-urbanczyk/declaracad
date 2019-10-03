@@ -6,6 +6,8 @@ Distributed under the terms of the GPL v3 License.
 The full license is in the file LICENSE, distributed with this software.
 
 """
+from OCCT import Graphic3d
+from OCCT.Graphic3d import Graphic3d_MaterialAspect
 from OCCT.Quantity import Quantity_Color, Quantity_TOC_RGB
 
 
@@ -28,3 +30,21 @@ def color_to_quantity_color(color):
     color = Quantity_Color(
         color.red/255., color.green/255., color.blue/255., Quantity_TOC_RGB)
     return (color, transparency)
+
+
+def material_to_material_aspect(material):
+    """ Convert a material name to a Graphic3d material
+
+    Parameters
+    ----------
+    material: String
+        The material name
+
+    Returns
+    -------
+    result: Graphic3d_MaterialAspect
+        The material
+
+    """
+    material_type = 'Graphic3d_NOM_%s' % material.upper()
+    return Graphic3d_MaterialAspect(getattr(Graphic3d, material_type))

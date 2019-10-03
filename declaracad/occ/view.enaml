@@ -22,7 +22,8 @@ from enaml.core.api import Looper, Include, Conditional
 from enaml.layout.api import align, hbox
 from enaml.qt.QtCore import Qt
 from enaml.widgets.api import (
-    Window, Container, Menu, Action, DualSlider, CheckBox, Label
+    Window, Container, Menu, Action, DualSlider, CheckBox, Label,
+    IPythonConsole
 )
 
 from .widgets.api import OccViewer, OccViewerClippedPlane
@@ -38,9 +39,17 @@ def expand_dict(p):
 enamldef ModelViewer(OccViewer): viewer:
     attr p0 = None
     attr clipped_planes: dict = {} # Map axis to tuple of (lower, upper)
+    attr show_console: bool = False
+    attr shapes: list = []
     Include:
-
         objects << list(expand_dict(clipped_planes))
+    Conditional:
+        condition << show_console
+        IPythonConsole:
+            initial_ns = {'viewer': viewer}
+            minimum_size = (640, 240)
+    Include:
+        objects << viewer.shapes
 #     on_mouse_press::
 #         display, event = change['value']
 #         #print 'mouse_press',event
@@ -81,6 +90,14 @@ enamldef ModelViewer(OccViewer): viewer:
             text = 'Fit to selection'
             triggered :: viewer.fit_selection()
         Action:
+            text = 'Reset view'
+            triggered :: viewer.reset_view()
+        Action:
+            text = 'Clear all'
+            triggered ::
+                viewer.shapes = []
+                viewer.clear_display()
+        Action:
             separator = True
         Action:
             text = 'Zoom in'
@@ -104,6 +121,26 @@ enamldef ModelViewer(OccViewer): viewer:
                             viewer.proxy.set_display_mode(loop_item)
                         else:
                             viewer.display_mode = loop_item
+            Action:
+                checkable = True
+                text = 'Hidden line removal'
+                checked := viewer.hlr
+            Action:
+                checkable = True
+                text = 'Shadows'
+                checked := viewer.shadows
+            Action:
+                checkable = True
+                text = 'Raytracing'
+                checked := viewer.raytracing
+            Action:
+                checkable = True
+                text = 'Antialiasing'
+                checked := viewer.antialiasing
+            Action:
+                checkable = True
+                text = 'Draw boundaries'
+                checked := viewer.draw_boundaries
         Menu:
             title = 'Navigation'
             Action:
@@ -187,6 +224,15 @@ enamldef ModelViewer(OccViewer): viewer:
             Action:
                 text = 'Clear all'
                 triggered :: viewer.clipped_planes = {}
+        Action:
+            separator = True
+        Menu:
+            title = 'Debug'
+            Action:
+                text = 'Show console'
+                checkable = True
+                checked := viewer.show_console
+
 
 
 enamldef ClippedPlaneRow(Container):
@@ -245,7 +291,7 @@ enamldef ViewerWindow(Window): window:
     attr protocol = None
     alias viewer
 
-    initial_size = (960, 480)
+    initial_size = (1, 1) if frameless else (960, 480)
 
     activated ::
         if frameless:
@@ -266,8 +312,6 @@ enamldef ViewerWindow(Window): window:
                 try:
                     # Load the models from source code or disk
                     result = load_model(filename, source)
-                    for shape in result:
-                        shape.render()
                     if protocol and protocol.transport:
                         protocol.send_message({'id': 'render_success'})
                     # Clear clipped planes
@@ -305,9 +349,9 @@ enamldef ViewerWindow(Window): window:
                         'result': str(e.selection),
                         'id': 'shape_selection'
                     })
-            Include:
-                # Load the 3d models and include them in the viewer
-                objects << load_source() if filename and version else []
+            # Load the 3d models and include them in the viewer
+            shapes << load_source() if filename and version else []
+
         Conditional:
             condition << bool(viewer.clipped_planes)
 
