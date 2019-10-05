@@ -281,40 +281,23 @@ class Shape(ToolkitObject):
     transparency = d_(Float(strict=False)).tag(view=True, group='Display')
 
     #: x position
-    x = d_(Float(0, strict=False)).tag(view=True, group='Position')
+    x = d_(Property(lambda self: self.position[0],
+                    lambda self, v: self.position.__setitem__(0, v)))
 
     #: y position
-    y = d_(Float(0, strict=False)).tag(view=True, group='Position')
+    y = d_(Property(lambda self: self.position[1],
+                    lambda self, v: self.position.__setitem__(1, v)))
 
     #: z position
-    z = d_(Float(0, strict=False)).tag(view=True, group='Position')
+    z = d_(Property(lambda self: self.position[2],
+                    lambda self, v: self.position.__setitem__(2, v)))
 
     #: A tuple or list of the (x, y, z) position of this shape. This is
     #: coerced into a Point.
     position = d_(Coerced(tuple))
 
     def _default_position(self):
-        return (
-            self.get_member('x').get_slot(self) or 0.0,
-            self.get_member('y').get_slot(self) or 0.0,
-            self.get_member('z').get_slot(self) or 0.0,
-        )
-
-    def _default_x(self):
-        return self.position[0]
-
-    def _default_y(self):
-        return self.position[1]
-
-    def _default_z(self):
-        return self.position[2]
-
-    @observe('x', 'y', 'z')
-    def _update_position(self, change):
-        self.position = self._default_position()
-
-    def _observe_position(self, change):
-        self.x, self.y, self.z = self.position
+        return (0, 0, 0)
 
     #: A tuple or list of the (u, v, w) vector of this shape. This is
     #: coerced into a Vector setting the orentation of the shape.

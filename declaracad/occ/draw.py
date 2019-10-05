@@ -11,12 +11,13 @@ Created on Sept 27, 2016
 """
 from atom.api import (
     Bool, ContainerList, Float, Typed, ForwardTyped, Str, Enum, Property,
-    observe
+    Instance, observe
 )
 from enaml.core.declarative import d_
 
 from .shape import ProxyShape, Shape
-from OCCT.TopoDS import TopoDS_Edge, TopoDS_Wire
+
+from OCCT.TopoDS import TopoDS_Edge, TopoDS_Wire, TopoDS_Face
 
 
 class ProxyPoint(ProxyShape):
@@ -33,7 +34,11 @@ class ProxyVertex(ProxyShape):
 
 
 class ProxyEdge(ProxyShape):
+    #: A reference to the shape declaration.
     declaration = ForwardTyped(lambda: Edge)
+
+    def set_surface(self, surface):
+        raise NotImplementedError
 
 
 class ProxyLine(ProxyEdge):
@@ -119,6 +124,17 @@ class ProxyBezier(ProxyLine):
     declaration = ForwardTyped(lambda: Bezier)
 
 
+class ProxyTrimmedCurve(ProxyLine):
+    #: A reference to the shape declaration.
+    declaration = ForwardTyped(lambda: TrimmedCurve)
+
+    def set_u(self, u):
+        raise NotImplementedError
+
+    def set_v(self, v):
+        raise NotImplementedError
+
+
 class ProxyText(ProxyShape):
     #: A reference to the shape declaration.
     declaration = ForwardTyped(lambda: Text)
@@ -182,6 +198,9 @@ class Edge(Shape):
 
     """
     proxy = Typed(ProxyEdge)
+
+    #: The parametric surface to wrap this edge on
+    surface = d_(Instance(TopoDS_Face))
 
 
 class Line(Edge):
@@ -482,6 +501,31 @@ class Bezier(Line):
 
     """
     proxy = Typed(ProxyBezier)
+
+
+class TrimmedCurve(Line):
+    """ A TrimmedCurve built from a curve limited by two parameters.
+
+    Examples
+    ---------
+
+    Wire:
+        TrimmedCurve:
+            u = 0
+            v = 2*pi
+            Ellipse:
+                major_radius = 2*pi
+                minor_radius = pi/3
+
+
+    """
+    proxy = Typed(ProxyTrimmedCurve)
+
+    #: First Parameter
+    u = d_(Float(0, strict=False))
+
+    #: Second Parameter
+    v = d_(Float(0, strict=False))
 
 
 class Wire(Shape):

@@ -54,6 +54,7 @@ from OCCT.gp import (
 )
 from OCCT.TopTools import TopTools_ListOfShape
 from OCCT.TopAbs import TopAbs_WIRE
+from OCCT.TopoDS import TopoDS_Edge, TopoDS_Face
 from OCCT.TColgp import TColgp_Array1OfPnt2d
 
 from declaracad.core.utils import log
@@ -64,14 +65,6 @@ class OccOperation(OccDependentShape, ProxyOperation):
     perform the operation once all changes have settled because
     in general these operations are expensive.
     """
-    def get_first_child(self):
-        """ Return shape to apply the operation to. """
-        for child in self.children():
-            if isinstance(child, OccShape):
-                return child
-        raise ValueError("%s must have a child shape to operate on."
-                         % self.declaration)
-
     def set_direction(self, direction):
         self.update_shape()
 
@@ -189,28 +182,41 @@ class OccChamfer(OccOperation, ProxyChamfer):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_fillet_a_p_i___make_chamfer.html')
 
-    def get_operations(self, child):
-        d = self.declaration
-        edges = d.edges or child.topology.edges
-        faces = d.faces or child.topology.faces
-        return zip(edges, faces)
-
     def update_shape(self, change=None):
         d = self.declaration
 
         #: Get the shape to apply the fillet to
         child = self.get_first_child()
-        shape = BRepFilletAPI_MakeChamfer(child.shape)
+        chamfer = BRepFilletAPI_MakeChamfer(child.shape)
 
-        if d.distance2:
-            args = (d.distance, d.distance2)
-        else:
-            args = (d.distance,)
+        operations = d.operations if d.operations else child.topology.faces
 
-        for edge, face in self.get_operations(child):
-            shape.Add(*(args + (edge, face)))
+        for item in operations:
+            edge = None
+            d1, d2 = d.distance, d.distance2 or d.distance
+            if isinstance(item, (tuple, list)):
+                face = item[-1]
+                n = len(item)
+                if n > 1:
+                    i = 0
+                    if isinstance(item[-2], TopoDS_Edge):
+                        edge = item[-2]
+                        i += 1
+                    if n == i + 2:
+                        d1 = d2 = item[0]
+                    elif n == i + 3:
+                        d1, d2 = item[0:2]
+            else:
+                face = item
 
-        self.shape = shape.Shape()
+            if edge is None:
+                for edge in child.topology.edges_from_face(face):
+                    chamfer.Add(d1, d2, edge, face)
+            else:
+                chamfer.Add(d1, d2, edge, face)
+
+
+        self.shape = chamfer.Shape()
 
     def set_distance(self, d):
         self.update_shape()
@@ -218,13 +224,7 @@ class OccChamfer(OccOperation, ProxyChamfer):
     def set_distance2(self, d):
         self.update_shape()
 
-    def set_edge(self, edge):
-        self.update_shape()
-
-    def set_face(self, face):
-        self.update_shape()
-
-    def set_edges(self, edges):
+    def set_operations(self, operations):
         self.update_shape()
 
 

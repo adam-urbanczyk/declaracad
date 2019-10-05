@@ -53,6 +53,7 @@ from OCCT.OpenGl import OpenGl_GraphicDriver
 from OCCT.Quantity import Quantity_Color, Quantity_NOC_BLACK
 from OCCT.Prs3d import Prs3d_Drawer
 from OCCT.TopoDS import TopoDS_Shape
+from OCCT.TopAbs import TopAbs_FACE, TopAbs_EDGE
 from OCCT.V3d import V3d_Viewer, V3d_View, V3d_TypeOfOrientation
 
 from declaracad.occ.qt.utils import (
@@ -94,123 +95,6 @@ V3D_DISPLAY_MODES = {
 }
 
 BLACK = Quantity_Color(Quantity_NOC_BLACK)
-
-#class Display(OCCViewer.Viewer3d):
-
-    #def DisplayShape(self, shapes, material=None, texture=None, color=None,
-                     #transparency=None, update=False, fit=False):
-        #if a gp_Pnt is passed, first convert to vertex
-        #if issubclass(shapes.__class__, OCCViewer.gp_Pnt):
-            #vertex = OCCViewer.BRepBuilderAPI_MakeVertex(shapes)
-            #shapes = [vertex.Shape()]
-            #SOLO = True
-        #elif isinstance(shapes, OCCViewer.gp_Pnt2d):
-            #vertex = OCCViewer.BRepBuilderAPI_MakeVertex(
-                #OCCViewer.gp_Pnt(shapes.X(), shapes.Y(), 0))
-            #shapes = [vertex.Shape()]
-            #SOLO = True
-        #if a Geom_Curve is passed
-        #elif callable(getattr(shapes, "GetHandle", None)):
-            #handle = shapes.GetHandle()
-            #if issubclass(handle.__class__, OCCViewer.Handle_Geom_Curve):
-                #edge = BRepBuilderAPI_MakeEdge(handle)
-                #shapes = [edge.Shape()]
-                #SOLO = True
-            #elif issubclass(handle.__class__, OCCViewer.Handle_Geom2d_Curve):
-                #edge2d = BRepBuilderAPI_MakeEdge2d(handle)
-                #shapes = [edge2d.Shape()]
-                #SOLO = True
-            #elif issubclass(handle.__class__, OCCViewer.Handle_Geom_Surface):
-                #bounds = True
-                #toldegen = 1e-6
-                #face = OCCViewer.BRepBuilderAPI_MakeFace()
-                #face.Init(handle, bounds, toldegen)
-                #face.Build()
-                #shapes = [face.Shape()]
-                #SOLO = True
-        #elif isinstance(shapes, OCCViewer.Handle_Geom_Surface):
-            #bounds = True
-            #toldegen = 1e-6
-            #face = OCCViewer.BRepBuilderAPI_MakeFace()
-            #face.Init(shapes, bounds, toldegen)
-            #face.Build()
-            #shapes = [face.Shape()]
-            #SOLO = True
-        #elif isinstance(shapes, OCCViewer.Handle_Geom_Curve):
-            #edge = OCCViewer.BRepBuilderAPI_MakeEdge(shapes)
-            #shapes = [edge.Shape()]
-            #SOLO = True
-        #elif isinstance(shapes, OCCViewer.Handle_Geom2d_Curve):
-            #edge2d = OCCViewer.BRepBuilderAPI_MakeEdge2d(shapes)
-            #shapes = [edge2d.Shape()]
-            #SOLO = True
-        #elif issubclass(shapes.__class__, OCCViewer.TopoDS_Shape):
-            #shapes = [shapes]
-            #SOLO = True
-        #else:
-            #SOLO = False
-
-        #ais_shapes = []
-
-        #for shape in shapes:
-            #if material or texture:
-                #if texture:
-                    #self.View.SetSurfaceDetail(OCCViewer.OCC.V3d.V3d_TEX_ALL)
-                    #shape_to_display = OCCViewer.OCC.AIS.AIS_TexturedShape(
-                        #shape)
-                    #(filename, toScaleU, toScaleV, toRepeatU, toRepeatV,
-                        #originU, originV) = texture.GetProperties()
-                    #shape_to_display.SetTextureFileName(
-                        #OCCViewer.TCollection_AsciiString(filename))
-                    #shape_to_display.SetTextureMapOn()
-                    #shape_to_display.SetTextureScale(True, toScaleU, toScaleV)
-                    #shape_to_display.SetTextureRepeat(True, toRepeatU,
-                                                      #toRepeatV)
-                    #shape_to_display.SetTextureOrigin(True, originU, originV)
-                    #shape_to_display.SetDisplayMode(3)
-                #elif material:
-                    #shape_to_display = OCCViewer.AIS_Shape(shape)
-                    #shape_to_display.SetMaterial(material)
-            #else:
-                #TODO: can we use .Set to attach all TopoDS_Shapes
-                #to this AIS_Shape instance?
-                #shape_to_display = OCCViewer.AIS_Shape(shape)
-
-            #ais_shapes.append(shape_to_display.GetHandle())
-
-        #if not SOLO:
-            #computing graphic properties is expensive
-            #if an iterable is found, so cluster all TopoDS_Shape under
-            #an AIS_MultipleConnectedInteractive
-            #shape_to_display = OCCViewer.AIS_MultipleConnectedInteractive()
-            #for i in ais_shapes:
-                #shape_to_display.Connect(i)
-
-        #set the graphic properties
-        #if material is None:
-            #The default material is too shiny to show the object
-            #color well, so I set it to something less reflective
-            #shape_to_display.SetMaterial(OCCViewer.Graphic3d_NOM_NEON_GNC)
-        #if color:
-            #color, transparency = color_to_quantity_color(color)
-            #for shp in ais_shapes:
-                #self.Context.SetColor(shp, color, False)
-        #if transparency:
-            #shape_to_display.SetTransparency(transparency)
-        #if update:
-            #only update when explicitely told to do so
-            #self.Context.Display(shape_to_display.GetHandle(), False)
-            #especially this call takes up a lot of time...
-            #if fit:
-                #self.FitAll()
-            #self.Redraw()
-        #else:
-            #self.Context.Display(shape_to_display.GetHandle(), False)
-
-        #if SOLO:
-            #return ais_shapes[0]
-        #else:
-            #return shape_to_display
 
 
 class QtViewer3d(QOpenGLWidget):
@@ -450,13 +334,6 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     prs3d_drawer = Typed(Prs3d_Drawer)
     v3d_window = Typed(V3d_Window)
 
-
-    #def _get_display(self):
-        #return self.widget._display
-
-    #: Display
-    #display = Property(_get_display, cached=True)
-
     def get_shapes(self):
         return [c for c in self.children()
                 if not isinstance(c, QtToolkitObject)]
@@ -648,12 +525,10 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
         """
         ais_context = self.ais_context
-        ais_context.CloseAllContexts(False)
-        ais_context.OpenLocalContext()
+        ais_context.Deactivate()
         attr = 'TopAbs_%s' % mode.upper()
         mode = getattr(TopAbs, attr, TopAbs.TopAbs_SHAPE)
-        ais_context.ActivateStandardMode(mode)
-        ais_context.UpdateSelected(True)
+        ais_context.Activate(AIS_Shape.SelectionMode_(mode))
 
     def set_display_mode(self, mode):
         mode = V3D_DISPLAY_MODES.get(mode)
@@ -846,14 +721,38 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         # Lookup the shape declrations based on the selection context
         selection = []
         shapes = []
+        options = {}
         displayed_shapes = self._displayed_shapes
+        occ_shapes = self._displayed_shapes.values()
         while ais_context.MoreSelected():
             if ais_context.HasSelectedShape():
+                i = None
                 topods_shape = ais_context.SelectedShape()
+                shape_type = topods_shape.ShapeType()
+                # Try quick lookup
                 occ_shape = displayed_shapes.get(topods_shape)
                 if occ_shape:
                     shapes.append(topods_shape)
                     selection.append(occ_shape.declaration)
+                elif shape_type == TopAbs_FACE:
+                    # Try long lookup
+                    for occ_shape in occ_shapes:
+                        if topods_shape in occ_shape.topology.faces:
+                            shapes.append(topods_shape)
+                            selection.append(occ_shape.declaration)
+                            i = occ_shape.topology.faces.index(topods_shape)
+                            break
+                elif shape_type == TopAbs_EDGE:
+                    for occ_shape in occ_shapes:
+                        if topods_shape in occ_shape.topology.edges:
+                            shapes.append(topods_shape)
+                            selection.append(occ_shape.declaration)
+                            i = occ_shape.topology.edges.index(topods_shape)
+                            break
+
+                log.debug("Selected shape=%s, type=%s index=%s" % (
+                    topods_shape, shape_type, i))
+
             ais_context.NextSelected()
 
         if shift:
@@ -861,7 +760,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
         # Set selection
         self._selected_shapes = shapes
-        d.selection(ViewerSelectionEvent(selection=selection))
+        d.selection(ViewerSelectionEvent(selection=selection, options=options))
 
     def update_display(self, change=None):
         """ Queue an update request """
@@ -871,8 +770,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     def clear_display(self):
         # Erase all just hides them
         ais_context = self.ais_context
-        ais_context.PurgeDisplay()
-        ais_context.RemoveAll(True)
+        for ais_shape in self._ais_shapes:
+            ais_context.Remove(ais_shape, False)
         ais_context.UpdateCurrentViewer()
 
     def reset_view(self):
@@ -902,7 +801,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             self.clear_display()
             displayed_shapes = {}
             ais_shapes = []
-            log.debug("_do_update {}")
+            log.debug("Rendering...")
 
             #: Expand all parts otherwise we lose the material information
             shapes = self._expand_shapes(self.shapes[:])

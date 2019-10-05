@@ -93,11 +93,6 @@ enamldef ModelViewer(OccViewer): viewer:
             text = 'Reset view'
             triggered :: viewer.reset_view()
         Action:
-            text = 'Clear all'
-            triggered ::
-                viewer.shapes = []
-                viewer.clear_display()
-        Action:
             separator = True
         Action:
             text = 'Zoom in'
@@ -107,40 +102,6 @@ enamldef ModelViewer(OccViewer): viewer:
             triggered :: viewer.zoom_factor(1/2)
         Action:
             separator = True
-        Menu:
-            title = 'Display'
-            Looper:
-                iterable << viewer.get_member('display_mode').items
-                Action:
-                    text = loop_item.title()
-                    checked << viewer.display_mode == loop_item
-                    checkable = True
-                    triggered ::
-                        if loop_item == viewer.display_mode:
-                            # Force it if already set
-                            viewer.proxy.set_display_mode(loop_item)
-                        else:
-                            viewer.display_mode = loop_item
-            Action:
-                checkable = True
-                text = 'Hidden line removal'
-                checked := viewer.hlr
-            Action:
-                checkable = True
-                text = 'Shadows'
-                checked := viewer.shadows
-            Action:
-                checkable = True
-                text = 'Raytracing'
-                checked := viewer.raytracing
-            Action:
-                checkable = True
-                text = 'Antialiasing'
-                checked := viewer.antialiasing
-            Action:
-                checkable = True
-                text = 'Draw boundaries'
-                checked := viewer.draw_boundaries
         Menu:
             title = 'Navigation'
             Action:
@@ -166,7 +127,7 @@ enamldef ModelViewer(OccViewer): viewer:
                     triggered :: viewer.selection_mode = loop_item
 
         Menu:
-            title = 'View'
+            title = 'View direction'
             Looper:
                 iterable << viewer.get_member('view_mode').items
                 Action:
@@ -224,6 +185,40 @@ enamldef ModelViewer(OccViewer): viewer:
             Action:
                 text = 'Clear all'
                 triggered :: viewer.clipped_planes = {}
+        Menu:
+            title = 'Rendering'
+            Looper:
+                iterable << viewer.get_member('display_mode').items
+                Action:
+                    text = loop_item.title()
+                    checked << viewer.display_mode == loop_item
+                    checkable = True
+                    triggered ::
+                        if loop_item == viewer.display_mode:
+                            # Force it if already set
+                            viewer.proxy.set_display_mode(loop_item)
+                        else:
+                            viewer.display_mode = loop_item
+            Action:
+                checkable = True
+                text = 'Hidden line removal'
+                checked := viewer.hlr
+            Action:
+                checkable = True
+                text = 'Shadows'
+                checked := viewer.shadows
+            Action:
+                checkable = True
+                text = 'Raytracing'
+                checked := viewer.raytracing
+            Action:
+                checkable = True
+                text = 'Antialiasing'
+                checked := viewer.antialiasing
+            Action:
+                checkable = True
+                text = 'Draw boundaries'
+                checked := viewer.draw_boundaries
         Action:
             separator = True
         Menu:
@@ -232,7 +227,14 @@ enamldef ModelViewer(OccViewer): viewer:
                 text = 'Show console'
                 checkable = True
                 checked := viewer.show_console
-
+            Action:
+                separator = True
+            Action:
+                text = 'Force update'
+                triggered :: viewer.proxy.update_display()
+            Action:
+                text = 'Clear display'
+                triggered :: viewer.clear_display()
 
 
 enamldef ClippedPlaneRow(Container):

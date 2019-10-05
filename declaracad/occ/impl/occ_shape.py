@@ -558,6 +558,12 @@ class OccShape(ProxyShape):
     #    if parent:
     #        parent.update_display(change)
 
+    def get_first_child(self):
+        """ Return shape to apply the operation to. """
+        for child in self.children():
+            if isinstance(child, OccShape):
+                return child
+
     def set_direction(self, direction):
         self.create_shape()
 
@@ -603,8 +609,8 @@ class OccDependentShape(OccShape):
         assert self.shape is not None, "Shape was not created %s" % self
 
         # When they change re-compute
-        #for child in self.children():
-        #   child.observe('shape', self.update_shape)
+        for child in self.children():
+           child.observe('shape', self.update_shape)
 
     def update_shape(self, change=None):
         """ Must be implmented in subclasses to create the shape

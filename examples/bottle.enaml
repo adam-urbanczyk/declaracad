@@ -3,10 +3,11 @@ See https://dev.opencascade.org/doc/overview/html/occt__tutorial.html
 for more details on how this works.
 
 """
-
+from math import pi
 from declaracad.occ.api import (
     Cylinder, Prism, Face, Segment, Arc, Wire, Point,
-    Fuse, ThickSolid, Fillet, Transform, Part, Mirror
+    Fuse, ThickSolid, Fillet, Transform, Part, Mirror,
+    Ellipse, TrimmedCurve
 )
 
 
@@ -14,12 +15,11 @@ enamldef Assembly(Part): part:
     name = "Bottle"
 
     #: "Parametric" properties of this shape
-    attr height = 7.0
-    attr width = 5.0
-    attr thickness = 3.0
+    attr height = 400.0
+    attr width = 200.0
+    attr thickness = 100.0
 
-    #: Actual shape
-    ThickSolid:
+    ThickSolid: bottle:
         material = 'diamond'
         # Hollows out the bottle
         #faces << [neck.shape_faces[0]]
@@ -32,7 +32,7 @@ enamldef Assembly(Part): part:
                 direction = (0,0,1)
                 radius << thickness/4.0
                 height << part.height/10.0
-            Fillet: bottle:
+            Fillet: body:
                 # Bottle, with filleted edges
                 radius << thickness/12.0
                 Prism:
@@ -55,3 +55,20 @@ enamldef Assembly(Part): part:
                                 #: TODO coerce
                                 operations = [Mirror(x=1)]
                                 shape = profile
+
+    TrimmedCurve:
+        surface = bottle.topology.faces[0]
+        v = 2*pi
+        Ellipse: e1:
+            position = (2*pi, neck.height/2, 0)
+            direction = (2*pi, neck.height/4, 0)
+            major_radius = 2*pi
+            minor_radius = neck.height / 10
+    TrimmedCurve:
+        surface = bottle.topology.faces[34]
+        v = 2*pi
+        Ellipse:
+            position = e1.position
+            direction = e1.direction
+            major_radius = e1.major_radius
+            minor_radius = e1.minor_radius/4

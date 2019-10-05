@@ -12,6 +12,7 @@ Created on Sep 30, 2016
 import os
 from atom.api import Typed, Int, List, set_default
 
+from OCCT.BRep import BRep_Tool
 from OCCT.BRepBuilderAPI import (
     BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeWire,
     BRepBuilderAPI_MakeVertex, BRepBuilderAPI_Transform,
@@ -20,12 +21,14 @@ from OCCT.BRepBuilderAPI import (
 from OCCT.BRepOffsetAPI import BRepOffsetAPI_MakeOffset
 from OCCT.Font import Font_BRepTextBuilder, Font_FontAspect, Font_FontMgr
 from OCCT.GC import GC_MakeSegment, GC_MakeArcOfCircle
-from OCCT.gp import gp_Pnt, gp_Lin, gp_Circ, gp_Elips, gp_Hypr, gp_Parab
+from OCCT.gp import (
+    gp_Dir, gp_Pnt, gp_Lin, gp_Circ, gp_Elips, gp_Hypr, gp_Parab, gp_Pln
+)
 from OCCT.TopoDS import (
     TopoDS, TopoDS_Shape, TopoDS_Edge, TopoDS_Wire, TopoDS_Vertex
 )
-from OCCT.GeomAPI import GeomAPI_PointsToBSpline
-from OCCT.Geom import Geom_BezierCurve, Geom_BSplineCurve
+from OCCT.GeomAPI import GeomAPI_PointsToBSpline, GeomAPI
+from OCCT.Geom import Geom_BezierCurve, Geom_BSplineCurve, Geom_TrimmedCurve
 from OCCT.TColgp import TColgp_Array1OfPnt
 from OCCT.TCollection import TCollection_HAsciiString
 from OCCT.NCollection import NCollection_Utf16String
@@ -34,7 +37,7 @@ from OCCT.NCollection import NCollection_Utf16String
 from ..draw import (
     ProxyPoint, ProxyVertex, ProxyLine, ProxyCircle, ProxyEllipse,
     ProxyHyperbola, ProxyParabola, ProxyEdge, ProxyWire, ProxySegment, ProxyArc,
-    ProxyPolygon, ProxyBSpline, ProxyBezier, ProxyText
+    ProxyPolygon, ProxyBSpline, ProxyBezier, ProxyTrimmedCurve, ProxyText
 )
 from .occ_shape import OccShape, OccDependentShape, coerce_axis
 
@@ -86,7 +89,17 @@ class OccEdge(OccShape, ProxyEdge):
                             'class_b_rep_builder_a_p_i___make_edge.html')
 
     def make_edge(self, *args):
+        d = self.declaration
+        if d.surface:
+            # Convert the curve to 2d
+            args = list(args)
+            pln = gp_Pln(gp_Pnt(*d.position), gp_Dir(*d.direction))
+            args[0] = GeomAPI.To2d_(args[0], pln)
+            args.insert(1,  BRep_Tool.Surface_(d.surface))
         self.shape = BRepBuilderAPI_MakeEdge(*args).Edge()
+
+    def set_surface(self, surface):
+        self.create_shape()
 
 
 class OccLine(OccEdge, ProxyLine):
@@ -137,27 +150,23 @@ class OccArc(OccLine, ProxyArc):
             if len(points) == 2:
                 arc = GC_MakeArcOfCircle(circle, points[0], points[1],
                                          sense).Value()
-                self.make_edge(arc)
             elif len(points) == 1:
                 arc = GC_MakeArcOfCircle(circle, d.alpha1, points[0],
                                          sense).Value()
-                self.make_edge(arc)
             else:
                 arc = GC_MakeArcOfCircle(circle, d.alpha1, d.alpha2,
                                          sense).Value()
-                self.make_edge(arc)
+            self.make_edge(arc)
         elif len(points) == 3:
-            if not points[0].IsEqual(points[2], d.tolerance):
-                arc = GC_MakeArcOfCircle(points[0], points[1],
-                                         points[2]).Value()
-                self.make_edge(arc)
+            arc = GC_MakeArcOfCircle(points[0], points[1], points[2]).Value()
+            self.make_edge(arc)
         else:
             raise ValueError("Could not create an Arc with the given children "
                              "and parameters. Must be given one of:\n\t"
                              "- three points\n\t"
                              "- radius and 2 points\n\t"
                              "- radius, alpha1 and one point\n\t"
-                             "- raidus, alpha1 and alpha2")
+                             "- radius, alpha1 and alpha2")
 
     def set_radius(self, r):
         self.create_shape()
@@ -327,18 +336,40 @@ class OccText(OccShape, ProxyText):
         self.create_shape()
 
 
-class OccWire(OccShape, ProxyWire):
+class OccTrimmedCurve(OccEdge, ProxyTrimmedCurve):
+    #: Update the class reference
+    reference = set_default('https://dev.opencascade.org/doc/refman/html/'
+                            'class_geom___trimmed_curve.html')
+
+    def create_shape(self):
+        pass
+
+    def init_layout(self):
+        self.update_shape()
+        for child in self.children():
+            child.observe('shape', self.update_shape)
+
+    def update_shape(self, change=None):
+        d = self.declaration
+        child = self.get_first_child()
+        curve = BRep_Tool.Curve_(child.shape, 0, 1)[0]
+        trimmed_curve = Geom_TrimmedCurve(curve, d.u, d.v)
+        self.make_edge(trimmed_curve)
+
+    def set_u(self, u):
+        self.update_shape()
+
+    def set_v(self, v):
+        self.update_shape()
+
+
+class OccWire(OccDependentShape, ProxyWire):
     #: Update the class reference
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_builder_a_p_i___make_wire.html')
 
     def create_shape(self):
         pass
-
-    def init_layout(self):
-        for child in self.children():
-            self.child_added(child)
-        self.update_shape()
 
     def shape_to_wire(self, shape):
         if isinstance(shape, (TopoDS_Edge, TopoDS_Wire)):

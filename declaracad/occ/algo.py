@@ -362,19 +362,16 @@ class Chamfer(LocalOperation):
        The distance of the chamfer to apply
     distance2: Float
        The second distance of the chamfer to apply
-    edges: List of edges, optional
-       List of edges to apply the operation to. If not given all edges will
-       be used.  Used in conjunction with the `shape_edges` attribute.
-    faces: List of faces, optional
-       List of faces to apply the operation to. If not given, all faces will
-       be used.  Used in conjunction with the `shape_edges` attribute.
+    operations: List of edges or faces, optional
+       List of edges or faces to apply the operation to. If not given the first
+       face will be used.  Used in conjunction with the `topology` attribute.
 
     Examples
     --------
 
     Chamfer:
         #: Fillet the top of the cylinder
-        faces = [cyl.shape_faces[0]]
+        operations = [cyl.topology.faces[0]]
         distance = 0.2
         Cylinder: cyl:
            pass
@@ -389,14 +386,10 @@ class Chamfer(LocalOperation):
     #: Second of chamfer (leave 0 if not used)
     distance2 = d_(Float(0, strict=False)).tag(view=True, group='Chamfer')
 
-    #: Edges to apply chamfer to
-    #: Leave blank to use all edges of the shape
-    edges = d_(List()).tag(view=True, group='Chamfer')
+    #: Edges or faces to apply chamfer to
+    operations = d_(List()).tag(view=True, group='Chamfer')
 
-    #: Faces to apply the chamfer to
-    faces = d_(List()).tag(view=True, group='Chamfer')
-
-    @observe('distance', 'distance2', 'edges', 'faces')
+    @observe('distance', 'distance2', 'operations')
     def _update_proxy(self, change):
         super(Chamfer, self)._update_proxy(change)
 

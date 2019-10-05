@@ -202,6 +202,11 @@ def occ_transform_factory():
     return OccTransform
 
 
+def occ_trimmed_curve_factory():
+    from .occ_draw import OccTrimmedCurve
+    return OccTrimmedCurve
+
+
 def occ_vertex_factory():
     from .occ_draw import OccVertex
     return OccVertex
@@ -267,6 +272,7 @@ OCC_FACTOIRES = {
     'BSpline': occ_bspline_factory,
     'Wire': occ_wire_factory,
     'Text': occ_text_factory,
+    'TrimmedCurve': occ_trimmed_curve_factory,
     'Svg': occ_svg_factory,
 }
 
