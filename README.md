@@ -125,20 +125,8 @@ conda create -n declaracad
 #: Activate it (on windows just do `activate declaracad`)
 source activate declaracad
 
-#: Install pythonocc
-conda install -c conda-forge -c dlr-sc -c pythonocc -c oce pythonocc-core==0.18.1
-
-#: Now install clone this repo
-git clone https://github.com/codelv/declaracad.git
-
-#: Go inside the cloned repo
-cd declaracad
-
-#: Install the dependencies
-pip install .
-
-#: Run
-python main.py
+#: Install it
+conda install -c codelv -c trelau -c conda-forge declaracad
 
 ```
 

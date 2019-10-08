@@ -1,29 +1,30 @@
-channels:
-    - conda-forge
-    - trelau
-    - codelv
-
 package:
   name: declaracad
   version: 0.4.0dev
 
+channels:
+  - conda-forge
+  - trelau
+  - codelv
+
 source:
-  path: ../
+  path: "../"
 
 requirements:
   run:
-    - pyocct
-    - enaml==0.10.3
-    - qtconsole
-    - pyflakes
-    - numpydoc
-    - markdown
-    - jsonpickle
-    pip:
-        - QScintilla
-        - enamlx
-        - qt5reactor
-        - pywin32 # win32
+  - pyocct
+  - pyqt>=5
+  - enaml>=0.10.3
+  - qtconsole
+  - pyflakes
+  - numpydoc
+  - markdown
+  - jsonpickle
+  pip:
+    - QScintilla
+    - enamlx
+    - qt5reactor
+    - pywin32 # os[win32]
 
 build:
   number: 0
@@ -33,6 +34,13 @@ build:
     - python setup.py install --single-version-externally-managed --record=record.txt --no-compile
   entry_points:
     - declaracad = declaracad:main
+
+test:
+  imports:
+    - declaracad.editor.plugin
+    - declaracad.occ.occ_algo
+    - declaracad.occ.qt.qt_occ_viewer
+
 about:
   home: http://github.com/codelv/declaracad
   summary: "A declarative parametric 3D modeling application using python"
