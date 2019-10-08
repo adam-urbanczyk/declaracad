@@ -352,7 +352,11 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         viewer = self.v3d_viewer = V3d_Viewer(graphics_driver)
         view = self.v3d_view = viewer.CreateView()
         ais_context = self.ais_context = AIS_InteractiveContext(viewer)
-        self.prs3d_drawer = ais_context.DefaultDrawer()
+        drawer = self.prs3d_drawer = ais_context.DefaultDrawer()
+
+        # Turn up tesselation defaults
+        # chord_dev = drawer.MaximalChordialDeviation() / 10.0
+        # drawer.SetMaximalChordialDeviation(chord_dev)
 
         viewer.SetDefaultLights()
         viewer.SetLightOn()
@@ -624,10 +628,11 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             The AIS_Shape created for the part.
         """
         ais_shape = AIS_Shape(shape)
-
         if color:
-            color, transparency = color_to_quantity_color(color)
+            color, alpha = color_to_quantity_color(color)
             ais_shape.SetColor(color)
+            if alpha is not None:
+                ais_shape.SetTransparency(alpha)
 
         if transparency is not None:
             ais_shape.SetTransparency(transparency)
@@ -820,6 +825,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                 # Save the mapping of topods_shape to declaracad shape
                 displayed_shapes[topods_shape] = occ_shape
 
+                log.debug("Displaying {}".format(topods_shape))
                 ais_shape = self.display_shape(
                     topods_shape,
                     d.color,

@@ -1,0 +1,57 @@
+"""
+Build threads based on method from the opencascade bottle tutorial
+
+"""
+from math import pi, sin, cos
+from declaracad.occ.api import *
+
+
+enamldef Threads(Transform):
+    # Height of the threads
+    attr height: float = 10.0
+
+    #: Thread radius
+    attr inner_radius: float = 3.0
+    attr outer_radius: float = 3.5
+
+    func make_cylinder_surface(radius):
+        cylinder = Cylinder(radius=radius)
+        cylinder.render()
+        return cylinder.topology.faces[0]
+
+    ThruSections:
+        Wire:
+            # Note: When a surface is given on a curve  the shape is converted to 2d
+            # the wire automatically converts it back to 3d
+            TrimmedCurve: c1:
+                surface = make_cylinder_surface(inner_radius)
+                v = 2*pi
+                Ellipse: e1:
+                    position = (2*pi, height/2, 0)
+                    direction = (pi/16, height/4, 0)
+                    major_radius = 12*pi
+                    minor_radius = height/30
+            Segment: s1:
+                surface = c1.surface
+                points = [e1.get_value_at(c1.u), e1.get_value_at(pi)]
+        Wire:
+            TrimmedCurve: c2:
+                surface = make_cylinder_surface(outer_radius)
+                v = 2*pi
+                Ellipse: e2:
+                    position = e1.position
+                    direction = e1.direction
+                    major_radius = e1.major_radius
+                    minor_radius = 0
+            Segment:
+                surface = c2.surface
+                points = s1.points
+
+
+enamldef Assembly(Part):
+
+    Threads:
+        material = 'steel'
+        height = 10.0
+        inner_radius = 3.0
+        outer_radius = 3.2

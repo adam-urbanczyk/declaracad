@@ -10,24 +10,24 @@ enamldef Bit(Transform): bit:
     alias angle: revol.angle
     operations = [Translate(*self.position)]
     attr points << [
-            (0,0,0),
-            (0,bit.width,0),
-            (0,bit.width,bit.length),
-            (0,bit.width/2.0,bit.length-bit.length/4.0),
-            (0,bit.width/2.0,bit.length-bit.length/2.0),
-            (0,0,bit.length/4.0),
-            (0,0,0)
+            (0, 0, 0),
+            (0, bit.width, 0),
+            (0, bit.width, bit.length),
+            (0, bit.width/2.0, bit.length-bit.length/4.0),
+            (0, bit.width/2.0, bit.length-bit.length/2.0),
+            (0, 0, bit.length/4.0),
+            (0, 0, 0)
         ]
     Revol: revol:
         #: Axis of rotation
-        position << (0,bit.width,0)
+        position << (0, bit.width, 0)
         Face:
             #: Face similar to https://www.opencascade.com/doc/occt-7.0.0/overview/html/occt_user_guides__modeling_algos.html
             Wire:
                 Segment:
                     points << bit.points
-              
-enamldef Assembly(Part): 
+
+enamldef Assembly(Part):
     name = "Sweeps"
     Bit:
         pass
@@ -35,6 +35,6 @@ enamldef Assembly(Part):
         length = 40
         position = (-10,-10,0)
         angle = math.pi/4
-                
-    
+
+
 

@@ -10,21 +10,21 @@ Created on Sept 27, 2016
 @author: jrm
 """
 from atom.api import (
-    Bool, ContainerList, Float, Typed, ForwardTyped, Str, Enum, Property,
-    Instance, observe
+    Bool, List, Float, Typed, ForwardTyped, Str, Enum, Property,
+    Coerced, Instance, observe
 )
 from enaml.core.declarative import d_
 
-from .shape import ProxyShape, Shape
+from .shape import ProxyShape, Shape, Point as Pt, coerce_point
 
 from OCCT.TopoDS import TopoDS_Edge, TopoDS_Wire, TopoDS_Face
 
 
-class ProxyPoint(ProxyShape):
+class ProxyPlane(ProxyShape):
     #: A reference to the shape declaration.
-    declaration = ForwardTyped(lambda: Point)
+    declaration = ForwardTyped(lambda: Plane)
 
-    def set_position(self, position):
+    def set_bounds(self, bounds):
         raise NotImplementedError
 
 
@@ -38,6 +38,9 @@ class ProxyEdge(ProxyShape):
     declaration = ForwardTyped(lambda: Edge)
 
     def set_surface(self, surface):
+        raise NotImplementedError
+
+    def get_value_at(self, t, derivative=0):
         raise NotImplementedError
 
 
@@ -167,17 +170,21 @@ class ProxySvg(ProxyShape):
         raise NotImplementedError
 
 
-class Point(Shape):
+class Plane(Shape):
     """ A Point at a specific position.
 
     Examples
     --------
 
-    Point:
+    Plane:
         position = (10, 100, 0)
+        direction = (0, 0, 1)
 
     """
-    proxy = Typed(ProxyPoint)
+    proxy = Typed(ProxyPlane)
+
+    #: Bounds of plane (optional) a tuple of [(umin, umin), (vmax, vmax)]
+    bounds = d_(List(Coerced(Pt, coercer=coerce_point)))
 
 
 class Vertex(Shape):
@@ -202,6 +209,24 @@ class Edge(Shape):
     #: The parametric surface to wrap this edge on
     surface = d_(Instance(TopoDS_Face))
 
+    def get_value_at(self, t, derivative=0):
+        """ Get the value of the curve derivative at t. If the edge has no
+        internal parametric curve representation this will throw an error.
+
+        Parameter
+        ---------
+        t: Float
+            The parametric value
+        derivative: Int
+            The derivative to get (use 0 for position).
+
+        Returns
+        -------
+        value: Tuple or Float
+
+        """
+        return self.proxy.get_value_at(t, derivative)
+
 
 class Line(Edge):
     """ Creates a Line passing through the position and parallel to vector
@@ -225,7 +250,7 @@ class Line(Edge):
     proxy = Typed(ProxyLine)
 
     #: List of points
-    points = d_(ContainerList(tuple))
+    points = d_(List(Coerced(Pt, coercer=coerce_point)))
 
     @observe('points')
     def _update_proxy(self, change):
@@ -233,7 +258,9 @@ class Line(Edge):
 
 
 class Segment(Line):
-    """ Creates a line Segment from two child points.
+    """ Creates a line Segment from two or child points. If a position
+    and direction are given the points are transformed to align with the
+    plane defined by the given position and direction.
 
     Examples
     --------
@@ -447,13 +474,16 @@ class Parabola(Edge):
 
 class Polygon(Line):
     """ A Polygon that can be built from any number of points or vertices,
-    and consists of a sequence of connected rectilinear edges.
+    and consists of a sequence of connected rectilinear edges. If a position
+    and direction are given the points are transformed to align with the
+    plane defined by the given position and direction.
 
     Attributes
     ----------
-
-    closed: Bool,
-        Automatically close the polygon.
+    points: List[Point]
+        The points of the polygon.
+    closed: Bool
+        Automatically close the polygon
 
     Examples
     ---------
@@ -550,7 +580,7 @@ class Wire(Shape):
     proxy = Typed(ProxyWire)
 
     #: Edges used to create this wire
-    edges = d_(ContainerList((TopoDS_Edge, TopoDS_Wire)))
+    edges = d_(List((TopoDS_Edge, TopoDS_Wire)))
 
     @observe('edges')
     def _update_proxy(self, change):

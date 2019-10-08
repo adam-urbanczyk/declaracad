@@ -1,23 +1,27 @@
-##Copyright 2016 Luke Chen (@chentao807, https://github.com/chentao807)
-##
-##This file is part of pythonOCC.
-##
-##pythonOCC is free software: you can redistribute it and/or modify
-##it under the terms of the GNU Lesser General Public License as published by
-##the Free Software Foundation, either version 3 of the License, or
-##(at your option) any later version.
-##
-##pythonOCC is distributed in the hope that it will be useful,
-##but WITHOUT ANY WARRANTY; without even the implied warranty of
-##MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-##GNU Lesser General Public License for more details.
-##
-##You should have received a copy of the GNU Lesser General Public License
-##along with pythonOCC.  If not, see <http://www.gnu.org/licenses/
+"""
+This example demonstrates how to use RawShape to build a shape using OCCT
+directly and include it with other DeclaraCAD shapes.
 
-# This example is a port of the C++ code
-# available at http://www.algotopia.com/contents/opencascade/opencascade_sprocket
+Copyright 2016 Luke Chen (@chentao807, https://github.com/chentao807)
 
+This file is part of pythonOCC.
+
+pythonOCC is free software: you can redistribute it and/or modify
+it under the terms of the GNU Lesser General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+pythonOCC is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with pythonOCC.  If not, see <http://www.gnu.org/licenses/
+
+This example is a port of the C++ code
+available at http://www.algotopia.com/contents/opencascade/opencascade_sprocket
+"""
 from declaracad.occ.api import Part, RawShape, Transform
 
 import sys

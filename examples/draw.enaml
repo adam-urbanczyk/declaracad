@@ -1,6 +1,6 @@
-import math
+from math import sin, cos, pi
 from declaracad.occ.api import (
-    Part, Wire, Circle, Ellipse, Line, Point, Polygon, BSpline, Bezier, Arc,
+    Part, Wire, Circle, Ellipse, Line, Polygon, BSpline, Bezier, Arc,
     Text
 )
 
@@ -34,11 +34,9 @@ enamldef Assembly(Part):
     Wire:
         color = 'green'
         BSpline: bspline:
+            attr turns = 10
             attr r = 3
-            points = [
-                (r*math.sin(math.pi/2*i),r*math.cos(math.pi/2*i), i/4)
-                for i in range(21)
-            ]
+            points = [(r*cos(pi/4*i), r*sin(pi/4*i), i/4) for i in range(turns*4+1)]
 
     #Wire:
     #    color = 'black'

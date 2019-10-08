@@ -98,11 +98,7 @@ class OccCommon(OccBooleanOperation, ProxyCommon):
                             'class_b_rep_algo_a_p_i___common.html')
 
     def _do_operation(self, shape1, shape2):
-        d = self.declaration
-        args = [shape1, shape2]
-        if d.pave_filler:
-            args.append(d.pave_filler)
-        return BRepAlgoAPI_Common(*args).Shape()
+        return BRepAlgoAPI_Common(shape1, shape2).Shape()
 
 
 class OccCut(OccBooleanOperation, ProxyCut):
@@ -111,11 +107,7 @@ class OccCut(OccBooleanOperation, ProxyCut):
                             'class_b_rep_algo_a_p_i___cut.html')
 
     def _do_operation(self, shape1, shape2):
-        d = self.declaration
-        args = [shape1, shape2]
-        if d.pave_filler:
-            args.append(d.pave_filler)
-        return BRepAlgoAPI_Cut(*args).Shape()
+        return BRepAlgoAPI_Cut(shape1, shape2).Shape()
 
 
 class OccFuse(OccBooleanOperation, ProxyFuse):
@@ -123,11 +115,7 @@ class OccFuse(OccBooleanOperation, ProxyFuse):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_algo_a_p_i___fuse.html')
     def _do_operation(self, shape1, shape2):
-        d = self.declaration
-        args = [shape1, shape2]
-        if d.pave_filler:
-            args.append(d.pave_filler)
-        return BRepAlgoAPI_Fuse(*args).Shape()
+        return BRepAlgoAPI_Fuse(shape1, shape2).Shape()
 
 
 class OccFillet(OccOperation, ProxyFillet):
@@ -356,41 +344,52 @@ class OccPipe(OccOperation, ProxyPipe):
     def update_shape(self, change=None):
         d = self.declaration
 
-        i = 0
-        shapes = [c for c in self.children() if isinstance(c, OccShape)]
-
-        spline = d.spline.proxy if d.spline else shapes[i]
-        if d.spline:
-            i += 1
-        profile = d.profile.proxy if d.profile else shapes[i]
+        if d.spline and d.profile:
+            spline, profile = d.spline.proxy, d.profile.proxy
+        elif d.spline:
+            spline = d.spline.proxy
+            profile = self.get_first_child()
+        elif d.profile:
+            profile = d.spline.proxy
+            spline = self.get_first_child()
+        else:
+            shapes = [c for c in self.children() if isinstance(c, OccShape)]
+            spline, profile = shapes[0:2]
 
         args = [spline.shape, profile.shape]
+
+        # Make sure spline is a wire
+        if isinstance(args[0], TopoDS_Edge):
+            args[0] = BRepBuilderAPI_MakeWire(args[0]).Wire()
+
         if d.fill_mode:
             args.append(self.fill_modes[d.fill_mode])
-
-        self.shape = BRepOffsetAPI_MakePipe(*args).Shape()
+        pipe = BRepOffsetAPI_MakePipe(*args)
+        self.shape = pipe.Shape()
 
     def set_spline(self, spline):
-        #: Unobserve the old spline and observe the new one
+        # Unobserve the old spline and observe the new one
         if self._old_spline:
             self._old_spline.unobserve('shape', self.update_shape)
         child = spline.proxy
         child.observe('shape', self.update_shape)
         self._old_spline = child
 
-        #: Trigger an update
-        self.update_shape()
+        # Trigger an update if the shape was already built
+        if self.shape:
+            self.update_shape()
 
     def set_profile(self, profile):
-        #: Unobserve the old spline and observe the new one
+        # Unobserve the old spline and observe the new one
         if self._old_profile:
             self._old_profile.unobserve('shape', self.update_shape)
         child = profile.proxy
         child.observe('shape', self.update_shape)
         self._old_profile = child
 
-        #: Trigger an update
-        self.update_shape()
+        # Trigger an update if the shape was already built
+        if self.shape:
+            self.update_shape()
 
     def set_fill_mode(self, mode):
         self.update_shape()

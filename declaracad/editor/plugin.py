@@ -426,6 +426,7 @@ class EditorPlugin(Plugin):
             result: list
                 List of autocompletion strings
         """
+        return []
         try:
             #: TODO: Move to separate process
             line, column = cursor

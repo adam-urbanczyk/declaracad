@@ -21,9 +21,11 @@ from enaml.colors import ColorMember
 from enaml.widgets.control import ProxyControl
 from enaml.widgets.toolkit_object import ToolkitObject
 
+
 from declaracad.core.utils import log
 
 #: TODO: This breaks the proxy pattern
+from OCCT.gp import gp_Pnt, gp_Dir
 from OCCT.TopoDS import TopoDS_Face, TopoDS_Shell, TopoDS_Shape
 
 
@@ -142,6 +144,9 @@ class ProxyHalfSpace(ProxyShape):
     def set_surface(self, surface):
         raise NotImplementedError
 
+    def set_side(self, side):
+        raise NotImplementedError
+
 
 class ProxyPrism(ProxyShape):
     #: A reference to the shape declaration.
@@ -247,6 +252,87 @@ class ProxyLoadShape(ProxyShape):
         raise NotImplementedError
 
 
+class Point(Atom):
+    proxy = Typed(gp_Pnt)
+
+    x = Float(0, strict=False)
+    y = Float(0, strict=False)
+    z = Float(0, strict=False)
+
+    def __init__(self, x=0, y=0, z=0, **kwargs):
+        super().__init__(x=x, y=y, z=z, **kwargs)
+
+    def _default_proxy(self):
+        return gp_Pnt(self.x, self.y, self.z)
+
+    # ========================================================================
+    # Binds changes to the proxy
+    # ========================================================================
+    def _observe_x(self, change):
+        if change['type'] == 'update':
+            self.proxy.SetX(self.x)
+
+    def _observe_y(self, change):
+        if change['type'] == 'update':
+            self.proxy.SetY(self.y)
+
+    def _observe_z(self, change):
+        if change['type'] == 'update':
+            self.proxy.SetZ(self.z)
+
+    # ========================================================================
+    # Slice support
+    # ========================================================================
+    def __getitem__(self, key):
+        return (self.x, self.y, self.z).__getitem__(key)
+
+    def __setitem__(self, key, value):
+        return (self.x, self.y, self.z).__setitem__(key, value)
+
+    # ========================================================================
+    # Operations support
+    # ========================================================================
+    def __add__(self, other):
+        p = coerce_point(other)
+        return self.__class__(self.x + p.x, self.y+ p.y, self.z + p.z)
+
+    def __sub__(self, other):
+        p = coerce_point(other)
+        return self.__class__(self.x - p.x, self.y - p.y, self.z - p.z)
+
+    def __eq__(self, other):
+        p = coerce_point(other)
+        return self.proxy.IsEqual(p.proxy, 10e6)
+
+    def cross(self, other):
+        p = coerce_point(other)
+        cls = self.get_member('proxy').validate_mode[-1]
+        return coerce_point(self.proxy.Crossed(p.proxy), cls=cls)
+
+    def dot(self, other):
+        p = coerce_point(other)
+        return self.proxy.Dot(p.proxy)
+
+
+class Direction(Point):
+    proxy = Typed(gp_Dir)
+
+    def _default_proxy(self):
+        return gp_Dir(self.x, self.y, self.z)
+
+
+def coerce_point(arg, cls=Point):
+    if isinstance(arg, cls):
+        return arg
+    if hasattr(arg, 'XYZ'): # copy from gp_Pnt, gp_Vec, gp_Dir, etc..
+        return cls(arg.X(), arg.Y(), arg.Z())
+    return cls(*arg)
+
+
+def coerce_direction(arg):
+    return coerce_point(arg, cls=Direction)
+
+
 class Shape(ToolkitObject):
     """ Abstract shape component that can be displayed on the screen
     and represented by the framework.
@@ -294,17 +380,17 @@ class Shape(ToolkitObject):
 
     #: A tuple or list of the (x, y, z) position of this shape. This is
     #: coerced into a Point.
-    position = d_(Coerced(tuple))
+    position = d_(Coerced(Point, coercer=coerce_point))
 
     def _default_position(self):
-        return (0, 0, 0)
+        return Point(0, 0, 0)
 
     #: A tuple or list of the (u, v, w) vector of this shape. This is
     #: coerced into a Vector setting the orentation of the shape.
-    direction = d_(Coerced(tuple))
+    direction = d_(Coerced(Direction, coercer=coerce_direction))
 
     def _default_direction(self):
-        return (0, 0, 1)
+        return Direction(0, 0, 1)
 
     def _get_axis(self):
         return (self.position, self.direction)
@@ -513,6 +599,8 @@ class HalfSpace(Shape):
 
     surface: Face or Shell
         Surface to divide
+    side: Point
+        A point on the side of the surface where the half space should be
 
     Notes
     -----
@@ -526,14 +614,12 @@ class HalfSpace(Shape):
     Examples
     --------
 
-    #: TODO: This does not work
-
-    Box: box:
-        pass
-
     HalfSpace:
-        shape = box.shape_faces[0]
-        position = (1, 1, 1)
+        # Plane at orgiin in z direction
+        position = (0, 0, 0)
+        direction = (0, 0, 1)
+        side = (0, 0, -1) # Negative z side
+
 
     """
     #: Proxy shape
@@ -542,7 +628,10 @@ class HalfSpace(Shape):
     #: Surface that is either a face or a Shell
     surface = d_(Instance((TopoDS_Face, TopoDS_Shell)))
 
-    @observe('surface')
+    #: Side of surface where the space is located
+    side = d_(Coerced(Point, coercer=coerce_point))
+
+    @observe('surface', 'side')
     def _update_proxy(self, change):
         super(HalfSpace, self)._update_proxy(change)
 

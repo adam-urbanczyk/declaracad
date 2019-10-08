@@ -511,7 +511,7 @@ enamldef Editor(Scintilla): editor:
                     for i in indicators]
     #warnings
     Timer: timer:
-        interval = 350
+        interval = 500
         single_shot = True
         timeout ::
             doc.cursor = editor.cursor_position

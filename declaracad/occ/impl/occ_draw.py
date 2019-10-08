@@ -10,32 +10,38 @@ Created on Sep 30, 2016
 @author: jrm
 """
 import os
-from atom.api import Typed, Int, List, set_default
+from atom.api import Typed, Int, Tuple, List, set_default
 
 from OCCT.BRep import BRep_Tool
 from OCCT.BRepBuilderAPI import (
-    BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeWire,
-    BRepBuilderAPI_MakeVertex, BRepBuilderAPI_Transform,
-    BRepBuilderAPI_MakePolygon
+    BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace,
+    BRepBuilderAPI_MakePolygon, BRepBuilderAPI_Transform,
+    BRepBuilderAPI_MakeVertex, BRepBuilderAPI_MakeWire
 )
+from OCCT.BRepLib import BRepLib
 from OCCT.BRepOffsetAPI import BRepOffsetAPI_MakeOffset
 from OCCT.Font import Font_BRepTextBuilder, Font_FontAspect, Font_FontMgr
-from OCCT.GC import GC_MakeSegment, GC_MakeArcOfCircle
+from OCCT.GC import GC_MakeSegment, GC_MakeArcOfCircle, GC_MakeArcOfEllipse
 from OCCT.gp import (
-    gp_Dir, gp_Pnt, gp_Lin, gp_Circ, gp_Elips, gp_Hypr, gp_Parab, gp_Pln
+    gp_Dir, gp_Pnt, gp_Lin, gp_Pln, gp_Circ, gp_Elips, gp_Vec, gp_Trsf,
+    gp_Ax3, gp_Ax2, gp
 )
 from OCCT.TopoDS import (
     TopoDS, TopoDS_Shape, TopoDS_Edge, TopoDS_Wire, TopoDS_Vertex
 )
 from OCCT.GeomAPI import GeomAPI_PointsToBSpline, GeomAPI
-from OCCT.Geom import Geom_BezierCurve, Geom_BSplineCurve, Geom_TrimmedCurve
+from OCCT.Geom import (
+    Geom_BezierCurve, Geom_BSplineCurve, Geom_TrimmedCurve, Geom_Plane,
+    Geom_Ellipse, Geom_Circle, Geom_Parabola, Geom_Hyperbola
+)
 from OCCT.TColgp import TColgp_Array1OfPnt
 from OCCT.TCollection import TCollection_HAsciiString
 from OCCT.NCollection import NCollection_Utf16String
 #from OCCT.NCollection import NCollection_UtfString
 
+from ..shape import coerce_point, coerce_direction
 from ..draw import (
-    ProxyPoint, ProxyVertex, ProxyLine, ProxyCircle, ProxyEllipse,
+    ProxyPlane, ProxyVertex, ProxyLine, ProxyCircle, ProxyEllipse,
     ProxyHyperbola, ProxyParabola, ProxyEdge, ProxyWire, ProxySegment, ProxyArc,
     ProxyPolygon, ProxyBSpline, ProxyBezier, ProxyTrimmedCurve, ProxyText
 )
@@ -52,23 +58,35 @@ FONT_ASPECTS = {
     'bold-italic': Font_FontAspect.Font_FA_BoldItalic
 }
 
+ORIGIN = gp.Origin_()
+DEFAULT_AXIS = gp_Ax3(gp.Origin_(), gp.DZ_())
 
-class OccPoint(OccShape, ProxyPoint):
+
+class OccPlane(OccShape, ProxyPlane):
     #: Update the class reference
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'classgp___pnt.html')
 
+    curve = Typed(Geom_Plane)
+
     def create_shape(self):
         d = self.declaration
-        # Not sure why but we need this
-        # to force a sync of position and xyz
-        self.shape = BRepBuilderAPI_MakeVertex(gp_Pnt(*d.position)).Vertex()
+        pln = gp_Pln(d.position.proxy, d.direction.proxy)
 
-    def set_position(self, position):
+        curve = self.curve = Geom_Plane(pln)
+        if d.bounds:
+            u, v = d.bounds
+            face = BRepBuilderAPI_MakeFace(pln, u.x, v.x, u.y, v.y)
+        else:
+            face = BRepBuilderAPI_MakeFace(pln)
+
+        self.shape = face.Face()
+
+    def set_bounds(self, bounds):
         self.create_shape()
 
 
-class OccVertex(OccPoint, ProxyVertex):
+class OccVertex(OccShape, ProxyVertex):
     #: Update the class reference
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_builder_a_p_i___make_vertex.html')
@@ -88,15 +106,41 @@ class OccEdge(OccShape, ProxyEdge):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_builder_a_p_i___make_edge.html')
 
+    curve = Typed(Geom_TrimmedCurve)
+
     def make_edge(self, *args):
         d = self.declaration
         if d.surface:
             # Convert the curve to 2d
             args = list(args)
-            pln = gp_Pln(gp_Pnt(*d.position), gp_Dir(*d.direction))
+            pln = gp_Pln(d.position.proxy, d.direction.proxy)
             args[0] = GeomAPI.To2d_(args[0], pln)
             args.insert(1,  BRep_Tool.Surface_(d.surface))
-        self.shape = BRepBuilderAPI_MakeEdge(*args).Edge()
+        return BRepBuilderAPI_MakeEdge(*args).Edge()
+
+    def get_value_at(self, t, derivative=0):
+        if self.curve:
+            p = gp_Pnt()
+            if derivative == 0:
+                self.curve.D0(t, p)
+                return coerce_point(p)
+            v1 = gp_Vec()
+            if derivative == 1:
+                self.curve.D1(t, p, v1)
+                return (coerce_point(p), coerce_direction(v1))
+            v2 = gp_Vec()
+            if derivative == 2:
+                self.curve.D1(t, p, v1, v2)
+                return (coerce_point(p), coerce_direction(v1),
+                        coerce_direction(v2))
+            v3 = gp_Vec()
+            if derivative == 3:
+                self.curve.D3(t, p, v1, v2, v3)
+                return (coerce_point(p), coerce_direction(v1),
+                        coerce_direction(v2), coerce_direction(v3))
+
+        raise NotImplementedError(
+                "Cannot get value for %s" % self.declaration)
 
     def set_surface(self, surface):
         self.create_shape()
@@ -107,13 +151,24 @@ class OccLine(OccEdge, ProxyLine):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'classgp___lin.html')
 
+
+    def get_transformed_points(self):
+        d = self.declaration
+        t = gp_Trsf()
+        axis = gp_Ax3()
+        axis.SetDirection(d.direction.proxy)
+        t.SetTransformation(axis)
+        t.SetTranslationPart(gp_Vec(*d.position))
+        return [p.proxy.Transformed(t) for p in d.points]
+
     def create_shape(self):
         d = self.declaration
         if len(d.points) == 2:
-            args = (gp_Pnt(*d.points[0]), gp_Pnt(*d.points[1]))
+            args = self.get_transformed_points()
         else:
             args = (gp_Lin(coerce_axis(d.axis)),)
-        self.make_edge(*args)
+            self.curve = args[0]
+        self.shape = self.make_edge(*args)
 
     def set_points(self, points):
         self.create_shape()
@@ -126,13 +181,24 @@ class OccSegment(OccLine, ProxySegment):
 
     def create_shape(self):
         d = self.declaration
-        points = [gp_Pnt(*p) for p in d.points]
+        points = self.get_transformed_points()
         if len(points) < 2:
             raise ValueError("A segment requires at least two points")
         shape = BRepBuilderAPI_MakeWire()
+        if d.surface:
+            pln = gp_Pln(d.position.proxy, d.direction.proxy)
+            surface = BRep_Tool.Surface_(d.surface)
+        else:
+            surface = None
         for i in range(1, len(points)):
             segment = GC_MakeSegment(points[i-1], points[i]).Value()
-            shape.Add(BRepBuilderAPI_MakeEdge(segment).Edge())
+            if surface:
+                segment = GeomAPI.To2d_(segment, pln)
+                edge = BRepBuilderAPI_MakeEdge(segment, surface).Edge()
+                BRepLib.BuildCurves3d_(edge)
+            else:
+                edge = BRepBuilderAPI_MakeEdge(segment).Edge()
+            shape.Add(edge)
         self.shape = shape.Shape()
 
 
@@ -141,34 +207,50 @@ class OccArc(OccLine, ProxyArc):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_g_c___make_arc_of_circle.html')
 
+    curve = Typed(Geom_TrimmedCurve)
+
     def create_shape(self):
         d = self.declaration
-        points = [gp_Pnt(*p) for p in d.points]
         if d.radius:
-            circle = gp_Circ(coerce_axis(d.axis), d.radius)
             sense = True
+            points = [p.proxy for p in d.points] # Do not trasnform these
+            #if d.radius2:
+            #    g = gp_Elips(coerce_axis(d.axis), d.radius, d.radius2)
+            #    factory = GC_MakeArcOfEllipse
+            #else:
+            g = gp_Circ(coerce_axis(d.axis), d.radius)
+            factory = GC_MakeArcOfCircle
+
             if len(points) == 2:
-                arc = GC_MakeArcOfCircle(circle, points[0], points[1],
-                                         sense).Value()
+                arc = factory(g, points[0], points[1], sense).Value()
             elif len(points) == 1:
-                arc = GC_MakeArcOfCircle(circle, d.alpha1, points[0],
-                                         sense).Value()
+                arc = factory(g, d.alpha1, points[0], sense).Value()
             else:
-                arc = GC_MakeArcOfCircle(circle, d.alpha1, d.alpha2,
-                                         sense).Value()
-            self.make_edge(arc)
+                arc = factory(g, d.alpha1, d.alpha2, sense).Value()
+            self.curve = arc
+            self.shape = self.make_edge(arc)
+        elif len(points) == 2:
+            points = self.get_transformed_points()
+            arc = GC_MakeArcOfEllipse(points[0], points[1]).Value()
+            self.curve = arc
+            self.shape = self.make_edge(arc)
         elif len(points) == 3:
+            points = self.get_transformed_points()
             arc = GC_MakeArcOfCircle(points[0], points[1], points[2]).Value()
-            self.make_edge(arc)
+            self.curve = arc
+            self.shape = self.make_edge(arc)
         else:
             raise ValueError("Could not create an Arc with the given children "
                              "and parameters. Must be given one of:\n\t"
-                             "- three points\n\t"
+                             "- two or three points\n\t"
                              "- radius and 2 points\n\t"
                              "- radius, alpha1 and one point\n\t"
                              "- radius, alpha1 and alpha2")
 
     def set_radius(self, r):
+        self.create_shape()
+
+    def set_radius2(self, r):
         self.create_shape()
 
     def set_alpha1(self, a):
@@ -183,9 +265,12 @@ class OccCircle(OccEdge, ProxyCircle):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'classgp___circ.html')
 
+    curve = Typed(Geom_Circle)
+
     def create_shape(self):
         d = self.declaration
-        self.make_edge(gp_Circ(coerce_axis(d.axis), d.radius))
+        curve = self.curve = Geom_Circle(coerce_axis(d.axis), d.radius)
+        self.shape = self.make_edge(curve)
 
     def set_radius(self, r):
         self.create_shape()
@@ -196,10 +281,13 @@ class OccEllipse(OccEdge, ProxyEllipse):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'classgp___elips.html')
 
+    curve = Typed(Geom_Ellipse)
+
     def create_shape(self):
         d = self.declaration
-        self.make_edge(gp_Elips(coerce_axis(d.axis), d.major_radius,
-                                d.minor_radius))
+        curve = self.curve = Geom_Ellipse(
+            coerce_axis(d.axis), d.major_radius, d.minor_radius)
+        self.shape = self.make_edge(curve)
 
     def set_major_radius(self, r):
         self.create_shape()
@@ -213,10 +301,13 @@ class OccHyperbola(OccEdge, ProxyHyperbola):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'classgp___hypr.html')
 
+    curve = Typed(Geom_Hyperbola)
+
     def create_shape(self):
         d = self.declaration
-        self.make_edge(gp_Hypr(coerce_axis(d.axis), d.major_radius,
-                               d.minor_radius))
+        curve = self.curve = Geom_Hyperbola(
+            coerce_axis(d.axis), d.major_radius, d.minor_radius)
+        self.shape = self.make_edge(curve)
 
     def set_major_radius(self, r):
         self.create_shape()
@@ -230,9 +321,12 @@ class OccParabola(OccEdge, ProxyParabola):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'classgp___parab.html')
 
+    curve = Typed(Geom_Parabola)
+
     def create_shape(self):
         d = self.declaration
-        self.make_edge(gp_Parab(coerce_axis(d.axis), d.focal_length))
+        curve = self.curve = Geom_Parabola(coerce_axis(d.axis), d.focal_length)
+        self.shape = self.make_edge(curve)
 
     def set_focal_length(self, l):
         self.create_shape()
@@ -245,9 +339,10 @@ class OccPolygon(OccLine, ProxyPolygon):
 
     def create_shape(self):
         d = self.declaration
+        points = self.get_transformed_points()
         shape = BRepBuilderAPI_MakePolygon()
-        for p in d.points:
-            shape.Add(gp_Pnt(*p))
+        for p in points:
+            shape.Add(p)
         if d.closed:
             shape.Close()
         self.shape = shape.Shape()
@@ -261,19 +356,22 @@ class OccBSpline(OccLine, ProxyBSpline):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_geom___b_spline_curve.html')
 
+    curve = Typed(Geom_BSplineCurve)
+
     def create_shape(self):
         d = self.declaration
         if not d.points:
             raise ValueError("Must have at least two points")
         # Poles and weights
-        pts = TColgp_Array1OfPnt(1, len(d.points))
+        points = self.get_transformed_points()
+        pts = TColgp_Array1OfPnt(1, len(points))
         set_value = pts.SetValue
 
         # TODO: Support weights
-        for i, p in enumerate(d.points):
-            set_value(i+1, gp_Pnt(*p))
-
-        self.make_edge(GeomAPI_PointsToBSpline(pts).Curve())
+        for i, p in enumerate(points):
+            set_value(i+1, p)
+        curve = self.curve = GeomAPI_PointsToBSpline(pts).Curve()
+        self.shape = self.make_edge(curve)
 
 
 class OccBezier(OccLine, ProxyBezier):
@@ -281,19 +379,24 @@ class OccBezier(OccLine, ProxyBezier):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_geom___bezier_curve.html')
 
+    curve = Typed(Geom_BezierCurve)
+
     def create_shape(self):
         d = self.declaration
         n = len(d.points)
         if n < 2:
             raise ValueError("A bezier must have at least 2 points!")
+
+        points = self.get_transformed_points()
         pts = TColgp_Array1OfPnt(1, n)
         set_value = pts.SetValue
 
         # TODO: Support weights
-        for i, p in enumerate(d.points):
-            set_value(i+1, gp_Pnt(*p))
+        for i, p in enumerate(points):
+            set_value(i+1, p)
 
-        self.make_edge(Geom_BezierCurve(pts))
+        curve = self.curve = Geom_BezierCurve(pts)
+        self.shape = self.make_edge(curve)
 
 
 class OccText(OccShape, ProxyText):
@@ -341,6 +444,8 @@ class OccTrimmedCurve(OccEdge, ProxyTrimmedCurve):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_geom___trimmed_curve.html')
 
+    curve = Typed(Geom_TrimmedCurve)
+
     def create_shape(self):
         pass
 
@@ -353,8 +458,8 @@ class OccTrimmedCurve(OccEdge, ProxyTrimmedCurve):
         d = self.declaration
         child = self.get_first_child()
         curve = BRep_Tool.Curve_(child.shape, 0, 1)[0]
-        trimmed_curve = Geom_TrimmedCurve(curve, d.u, d.v)
-        self.make_edge(trimmed_curve)
+        trimmed_curve = self.curve = Geom_TrimmedCurve(curve, d.u, d.v)
+        self.shape = self.make_edge(trimmed_curve)
 
     def set_u(self, u):
         self.update_shape()
@@ -389,9 +494,12 @@ class OccWire(OccDependentShape, ProxyWire):
                     if item is not None:
                         shape.Add(convert(item))
             else:
-                shape.Add(convert(c.shape))
+                wire = convert(c.shape)
+                if getattr(c.declaration, 'surface', None):
+                    BRepLib.BuildCurves3d_(wire)
+                shape.Add(wire)
 
-        assert shape.IsDone(), 'Edges must be connected'
+        assert shape.IsDone(), 'Edges must be connected %s' % d
         self.shape = shape.Wire()
 
     def child_added(self, child):

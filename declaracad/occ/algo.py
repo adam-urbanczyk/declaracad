@@ -39,9 +39,6 @@ class ProxyBooleanOperation(ProxyOperation):
     def set_shape2(self, shape):
         raise NotImplementedError
 
-    def set_pave_filler(self, pave_filler):
-        raise NotImplementedError
-
     def _do_operation(self, shape1, shape2):
         raise NotImplementedError
 
@@ -232,10 +229,7 @@ class BooleanOperation(Operation):
 
     shape2 = d_(Instance(object))
 
-    #: Optional pave filler
-    pave_filler = d_(Instance(object))#BOPAlgo_PaveFiller))
-
-    @observe('shape1', 'shape2', 'pave_filler')
+    @observe('shape1', 'shape2')
     def _update_proxy(self, change):
         super(BooleanOperation, self)._update_proxy(change)
 

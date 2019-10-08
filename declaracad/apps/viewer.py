@@ -9,6 +9,7 @@ Created on July 28, 2018
 
 @author: jrm
 """
+import os
 import sys
 import json
 import traceback
@@ -103,8 +104,14 @@ class ViewerProtocol(JSONRRCProtocol):
 def main(**kwargs):
     app = QtApplication()
     qreactor.install()
-    view = ViewerWindow(filename=kwargs.get('file', '-'),
-                        frameless=kwargs.get('frameless', False))
+
+    filename = kwargs.get('file', '-')
+    frameless = kwargs.get('frameless', False)
+
+    if not frameless and not os.path.exists(filename):
+        raise ValueError("File %s does not exist!" % filename)
+
+    view = ViewerWindow(filename=filename, frameless=frameless)
     view.protocol = ViewerProtocol(view)
     view.show()
     app.deferred_call(lambda: StandardIO(view.protocol))

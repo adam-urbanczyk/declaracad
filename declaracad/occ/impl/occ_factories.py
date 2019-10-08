@@ -127,9 +127,9 @@ def occ_pipe_factory():
     return OccPipe
 
 
-def occ_point_factory():
-    from .occ_draw import OccPoint
-    return OccPoint
+def occ_plane_factory():
+    from .occ_draw import OccPlane
+    return OccPlane
 
 
 def occ_polygon_factory():
@@ -258,7 +258,7 @@ OCC_FACTOIRES = {
     'Transform': occ_transform_factory,
 
     #: Draw
-    'Point': occ_point_factory,
+    'Plane': occ_plane_factory,
     'Vertex': occ_vertex_factory,
     'Line': occ_line_factory,
     'Segment': occ_segment_factory,

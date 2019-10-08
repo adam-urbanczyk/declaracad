@@ -15,10 +15,11 @@ from atom.api import (
 )
 
 from OCCT.Bnd import Bnd_Box
-from OCCT.BRep import BRep_Builder
+from OCCT.BRep import BRep_Builder, BRep_Tool
 from OCCT.BRepBndLib import BRepBndLib
 from OCCT.BRepBuilderAPI import (
-    BRepBuilderAPI_MakeShape, BRepBuilderAPI_MakeFace, BRepBuilderAPI_Transform
+    BRepBuilderAPI_MakeShape, BRepBuilderAPI_MakeFace,
+    BRepBuilderAPI_Transform, BRepBuilderAPI_MakeWire
 )
 from OCCT.BRepPrimAPI import (
     BRepPrimAPI_MakeBox, BRepPrimAPI_MakeCone,
@@ -29,7 +30,9 @@ from OCCT.BRepPrimAPI import (
 from OCCT.BRepTools import BRepTools, BRepTools_WireExplorer
 
 
-from OCCT.gp import gp_Pnt, gp_Dir, gp_Vec, gp_Ax1, gp_Ax2, gp_Ax3, gp_Trsf
+from OCCT.gp import (
+    gp_Pnt, gp_Dir, gp_Vec, gp_Ax1, gp_Ax2, gp_Ax3, gp_Trsf, gp_Pln
+)
 
 from OCCT.TopAbs import (
     TopAbs_VERTEX, TopAbs_EDGE, TopAbs_FACE, TopAbs_WIRE,
@@ -64,7 +67,8 @@ from declaracad.core.utils import log
 
 
 def coerce_axis(value):
-    return gp_Ax2(gp_Pnt(*value[0]), gp_Dir(*value[1]))
+    pos, dir = value
+    return gp_Ax2(pos.proxy, dir.proxy)
 
 
 class WireExplorer(Atom):
@@ -643,6 +647,8 @@ class OccFace(OccDependentShape, ProxyFace):
     def shape_to_face(self, shape):
         if isinstance(shape, (TopoDS_Face, TopoDS_Wire)):
             return shape
+        if isinstance(shape, TopoDS_Edge):
+            return BRepBuilderAPI_MakeWire(shape).Wire()
         return TopoDS.Wire_(shape)
 
     def update_shape(self, change=None):
@@ -728,17 +734,30 @@ class OccCylinder(OccShape, ProxyCylinder):
         self.create_shape()
 
 
-class OccHalfSpace(OccShape, ProxyHalfSpace):
+class OccHalfSpace(OccDependentShape, ProxyHalfSpace):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_prim_a_p_i___make_half_space.html')
 
-    def create_shape(self):
+    def update_shape(self, change=None):
         d = self.declaration
-        hs = BRepPrimAPI_MakeHalfSpace(d.surface, gp_Pnt(*d.position))
-        self.shape = hs.Shape()
+        if d.surface:
+            surface = d.surface
+        else:
+            child = self.get_first_child()
+            if child:
+                surface = child.shape
+            else:
+                pln = gp_Pln(d.position.proxy, d.direction.proxy)
+                surface = BRepBuilderAPI_MakeFace(pln).Face()
+        hs = BRepPrimAPI_MakeHalfSpace(surface, d.side.proxy)
+        # Shape doesnt work see https://tracker.dev.opencascade.org/view.php?id=29969
+        self.shape = hs.Solid()
 
     def set_surface(self, surface):
-        self.create_shape()
+        self.update_shape()
+
+    def set_side(self, side):
+        self.update_shape()
 
 
 class OccPrism(OccDependentShape, ProxyPrism):
@@ -754,7 +773,7 @@ class OccPrism(OccDependentShape, ProxyPrism):
             c = self.get_shape()
 
         if d.infinite:
-            args = (c.shape, gp_Dir(*d.direction), True, d.copy, d.canonize)
+            args = (c.shape, d.direction.proxy, True, d.copy, d.canonize)
         else:
             args = (c.shape, gp_Vec(*d.vector), d.copy, d.canonize)
 
@@ -876,7 +895,7 @@ class OccRevol(OccDependentShape, ProxyRevol):
         c = d.shape if d.shape else self.get_shape()
 
         #: Build arguments
-        args = [c.shape, gp_Ax1(gp_Pnt(*d.position), gp_Dir(*d.direction))]
+        args = [c.shape, gp_Ax1(d.position.proxy, d.direction.proxy)]
         if d.angle:
             args.append(d.angle)
         args.append(d.copy)

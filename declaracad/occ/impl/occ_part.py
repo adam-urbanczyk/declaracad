@@ -33,11 +33,12 @@ class OccPart(OccDependentShape, ProxyPart):
         """ Create the toolkit shape for the proxy object.
 
         """
-        builder = BRep_Builder()
+        builder = self.builder = BRep_Builder()
         shape = TopoDS_Compound()
         builder.MakeCompound(shape)
-        for s in self.shapes:
-            if s.shape is not None:
-                builder.Add(shape, s.shape)
-        self.builder = builder
+        for child in self.shapes:
+            if child.shape is None:
+                continue
+            # Not infinite planes cannot be added to a compound!
+            builder.Add(shape, child.shape)
         self.shape = shape

@@ -2,15 +2,18 @@ import math
 from enaml.core.api import Looper
 from declaracad.occ.api import *
 
+
 def distance2d(p1, p2, i=0, j=1):
     # TODO: Find this in OCC
     dx, dy = p2[i]-p1[i], p2[j]-p1[j]
     return math.sqrt(dx*dx+dy*dy)
 
+
 def angle2d(p1, p2, i=0, j=1):
     # TODO: Find this in OCC
     dx, dy = p2[i]-p1[i], p2[j]-p1[j]
     return math.atan2(dx, dy)
+
 
 enamldef BasePlate(Box):
     material = 'charcoal'
@@ -499,11 +502,10 @@ enamldef SpindleHolder(Transform): holder:
     Cut:
         Chamfer:
             distance = 0.5
-            edges << [
-                box.topology.edges[4],
-                box.topology.edges[0]
-            ]#, box.topology.edges[4]]
-            faces << [box.topology.faces[2] for e in edges]
+            operations << [
+                (box.topology.edges[4], box.topology.faces[2]),
+                (box.topology.edges[6], box.topology.faces[2]),
+            ]
             Box: box:
                 dx = 1.8
                 dy = 1.6
@@ -566,16 +568,14 @@ enamldef SpindleMotor(Transform): motor:
                 )
             Chamfer:
                 distance = 0.1
-                edges << [head.topology.edges[2]]
-                faces << [head.topology.faces[0]]
+                operations << [(head.topology.edges[2], head.topology.faces[0])]
                 Cylinder: head:
                     radius << motor.diameter/2+0.1
                     height = 0.4
                     position << (motor.x, motor.y, motor.z+body.height)
             Chamfer:
                 distance = 0.1
-                edges << [body.topology.edges[2]]
-                faces << [body.topology.faces[0]]
+                operations << [(body.topology.edges[2], body.topology.faces[0])]
                 Cylinder: body:
                     radius << motor.diameter/2
                     height << motor.height-head.height-cap.height
