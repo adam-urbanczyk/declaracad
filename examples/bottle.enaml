@@ -4,11 +4,7 @@ for more details on how this works.
 
 """
 from math import pi
-from declaracad.occ.api import (
-    Cylinder, Prism, Face, Segment, Arc, Wire, Point,
-    Fuse, ThickSolid, Fillet, Transform, Part, Mirror,
-    Ellipse, TrimmedCurve
-)
+from declaracad.occ.api import *
 
 
 enamldef Assembly(Part): part:
@@ -18,7 +14,7 @@ enamldef Assembly(Part): part:
     attr height = 400.0
     attr width = 200.0
     attr thickness = 100.0
-    
+
     func make_cylinder_surface(radius):
         cylinder = Cylinder(radius=radius)
         cylinder.render()
@@ -60,7 +56,7 @@ enamldef Assembly(Part): part:
                                 #: TODO coerce
                                 operations = [Mirror(x=1)]
                                 shape = profile
-    
+
     Wire:
         TrimmedCurve: c1:
             surface = bottle.topology.faces[0]

@@ -211,6 +211,7 @@ class OccArc(OccLine, ProxyArc):
 
     def create_shape(self):
         d = self.declaration
+        n = len(d.points)
         if d.radius:
             sense = True
             points = [p.proxy for p in d.points] # Do not trasnform these
@@ -221,20 +222,20 @@ class OccArc(OccLine, ProxyArc):
             g = gp_Circ(coerce_axis(d.axis), d.radius)
             factory = GC_MakeArcOfCircle
 
-            if len(points) == 2:
+            if n == 2:
                 arc = factory(g, points[0], points[1], sense).Value()
-            elif len(points) == 1:
+            elif n == 1:
                 arc = factory(g, d.alpha1, points[0], sense).Value()
             else:
                 arc = factory(g, d.alpha1, d.alpha2, sense).Value()
             self.curve = arc
             self.shape = self.make_edge(arc)
-        elif len(points) == 2:
+        elif n == 2:
             points = self.get_transformed_points()
             arc = GC_MakeArcOfEllipse(points[0], points[1]).Value()
             self.curve = arc
             self.shape = self.make_edge(arc)
-        elif len(points) == 3:
+        elif n == 3:
             points = self.get_transformed_points()
             arc = GC_MakeArcOfCircle(points[0], points[1], points[2]).Value()
             self.curve = arc

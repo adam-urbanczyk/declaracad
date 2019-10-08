@@ -220,17 +220,17 @@ class OccOffset(OccOperation, ProxyOffset):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_offset_a_p_i___make_offset.html')
 
-    offset_modes = Dict(default={
+    offset_modes = {
         'skin': BRepOffset_Skin,
         'pipe': BRepOffset_Pipe,
         'recto_verso': BRepOffset_RectoVerso
-    })
+    }
 
-    join_types = Dict(default={
+    join_types = {
         'arc': GeomAbs_Arc,
         'tangent': GeomAbs_Tangent,
         'intersection': GeomAbs_Intersection,
-    })
+    }
 
     def update_shape(self, change=None):
         d = self.declaration
@@ -295,6 +295,7 @@ class OccThickSolid(OccOffset, ProxyThickSolid):
             faces.Append(f)
         assert not faces.IsEmpty()
 
+
         thick_solid = BRepOffsetAPI_MakeThickSolid()
         thick_solid.MakeThickSolidByJoin(
             child.shape,
@@ -304,7 +305,7 @@ class OccThickSolid(OccOffset, ProxyThickSolid):
             self.offset_modes[d.offset_mode],
             d.intersection,
             False,
-            self.join_types[d.join_type]
+            self.join_types[d.join_type],
         )
         self.shape = thick_solid.Shape()
 

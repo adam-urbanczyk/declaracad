@@ -32,8 +32,7 @@ from .draw import (
 from .part import Part
 
 from .shape import (
-    Shape, RawShape, LoadShape,
-    Face,
+    Point, Direction, Shape, RawShape, LoadShape, Face,
     Box, Cylinder, Sphere, Cone, Wedge, Torus,
     HalfSpace, Prism, Revol
 )

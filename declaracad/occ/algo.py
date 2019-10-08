@@ -451,10 +451,10 @@ class ThickSolid(Offset):
     ThickSolid:
         #: Creates an open box with a thickness of 0.1
         offset = 0.1
-        Box: box1:
+        Box: box:
             position = (4,-4,0)
         # Get top face
-        faces << [sorted(box1.shape_faces,key=top_face)[0]]
+        faces << [sorted(box.topology.faces,key=top_face)[0]]
 
     """
     #: Reference to the implementation control

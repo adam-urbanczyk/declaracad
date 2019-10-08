@@ -302,7 +302,7 @@ class Point(Atom):
 
     def __eq__(self, other):
         p = coerce_point(other)
-        return self.proxy.IsEqual(p.proxy, 10e6)
+        return self.proxy.IsEqual(p.proxy, 10e-6)
 
     def cross(self, other):
         p = coerce_point(other)
