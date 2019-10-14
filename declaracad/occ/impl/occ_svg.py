@@ -25,7 +25,9 @@ from OCCT.BRepBuilderAPI import (
 #from OCCT.BRepLib import breplib_BuildCurves3d
 from OCCT.GC import GC_MakeArcOfEllipse
 from OCCT.Geom import Geom_BezierCurve, Geom_BSplineCurve
-from OCCT.gp import gp_Dir, gp_Pnt, gp_Circ, gp_Elips, gp_Ax1, gp_Ax2, gp_Trsf
+from OCCT.gp import (
+    gp_Dir, gp_Pnt, gp_Circ, gp_Elips, gp_Ax1, gp_Ax2, gp_Trsf, gp_Ax3, gp_Vec
+)
 from OCCT.TColgp import TColgp_Array1OfPnt
 from OCCT.TopoDS import TopoDS_Shape, TopoDS_Compound#, topods
 
@@ -455,7 +457,9 @@ class OccSvgPath(OccSvgNode):
                 path.Add(BRepBuilderAPI_MakeEdge(curve).Edge())
                 last_pnt = pnt
             elif cmd == 'Z':
-                path.Add(BRepBuilderAPI_MakeEdge(last_pnt, start_pnt).Edge())
+                if not last_pnt.IsEqual(start_pnt, 10e-6):
+                    edge = BRepBuilderAPI_MakeEdge(last_pnt, start_pnt).Edge()
+                    path.Add(edge)
                 shapes.append(path.Wire())
                 path = None  # Close path
                 last_pnt = start_pnt
@@ -533,15 +537,12 @@ class OccSvg(OccShape, ProxySvg):
     #: Make wire
     shape = Instance(TopoDS_Shape)
 
-    #: Paths in the svg document
-    wires = List(TopoDS_Shape)
-
     def create_shape(self):
         d = self.declaration
         if not d.source:
             return
-        if os.path.exists(d.source):
-            svg = etree.parse(d.source).getroot()
+        if os.path.exists(os.path.expanduser(d.source)):
+            svg = etree.parse(os.path.expanduser(d.source)).getroot()
         else:
             svg = etree.fromstring(d.source)
         node = OccSvgDoc(element=svg)
@@ -553,9 +554,19 @@ class OccSvg(OccShape, ProxySvg):
         shapes = node.create_shape()
         for s in shapes:
             builder.Add(shape, s)
-        self.wires = shapes
-        self.shape = shape
+
+        bbox = self.get_bounding_box(shape)
+        cx, cy = bbox.dx / 2, bbox.dy / 2
+
+        # Move to position and align along direction axis
+        t = gp_Trsf()
+        axis = gp_Ax3()
+        axis.SetDirection(d.direction.proxy)
+        t.SetTransformation(axis)
+        pos = d.position-(cx, cy, 0)
+        t.SetTranslationPart(gp_Vec(*pos))
+
+        self.shape = BRepBuilderAPI_Transform(shape, t, False).Shape()
 
     def set_source(self, source):
         self.create_shape()
-
