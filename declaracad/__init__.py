@@ -61,7 +61,10 @@ def launch_exporter(args):
 
 
 def launch_viewer(args):
-    init_logging('%(name)s | %(message)s')
+    if args.frameless:
+        init_logging('%(message)s')
+    else:
+        init_logging()
     from declaracad.apps import viewer
     viewer.main(**args.__dict__)
 
