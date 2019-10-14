@@ -645,6 +645,8 @@ class OccFace(OccDependentShape, ProxyFace):
         self.update_shape()
 
     def shape_to_face(self, shape):
+        if isinstance(shape, OccShape):
+            shape = shape.shape
         if isinstance(shape, (TopoDS_Face, TopoDS_Wire)):
             return shape
         if isinstance(shape, TopoDS_Edge):
@@ -662,11 +664,11 @@ class OccFace(OccDependentShape, ProxyFace):
                 "No wires or children available to create a face!")
 
         convert = self.shape_to_face
-        for i, c in enumerate(shapes):
+        for i, s in enumerate(shapes):
             if i == 0:
-                shape = BRepBuilderAPI_MakeFace(convert(c.shape))
+                shape = BRepBuilderAPI_MakeFace(convert(s))
             else:
-                shape.Add(convert(c.shape))
+                shape.Add(convert(s))
         self.shape = shape.Face()
 
 
