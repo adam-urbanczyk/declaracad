@@ -13,8 +13,9 @@ from atom.api import Int, Dict, Instance, set_default
 from enaml.application import timed_call
 from ..algo import (
     ProxyOperation, ProxyBooleanOperation, ProxyCommon, ProxyCut, ProxyFuse,
-    ProxyFillet, ProxyChamfer, ProxyOffset, ProxyThickSolid, ProxyPipe,
-    ProxyThruSections, ProxyTransform, Translate, Rotate, Scale, Mirror
+    ProxyFillet, ProxyChamfer, ProxyOffset, ProxyOffsetShape, ProxyThickSolid,
+    ProxyPipe, ProxyThruSections,
+    ProxyTransform, Translate, Rotate, Scale, Mirror
 )
 from .occ_shape import OccShape, OccDependentShape
 from OCCT.BRepAlgoAPI import (
@@ -53,8 +54,8 @@ from OCCT.gp import (
     gp_Trsf, gp_Vec, gp_Pnt, gp_Ax1, gp_Dir, gp_Pnt2d
 )
 from OCCT.TopTools import TopTools_ListOfShape
-from OCCT.TopAbs import TopAbs_WIRE
-from OCCT.TopoDS import TopoDS_Edge, TopoDS_Face
+from OCCT.TopAbs import TopAbs_FACE, TopAbs_WIRE
+from OCCT.TopoDS import TopoDS, TopoDS_Edge, TopoDS_Face, TopoDS_Wire
 from OCCT.TColgp import TColgp_Array1OfPnt2d
 
 from declaracad.core.utils import log
@@ -238,23 +239,15 @@ class OccOffset(OccOperation, ProxyOffset):
         #: Get the shape to apply the fillet to
         child = self.get_first_child()
 
-        offset_shape = BRepOffsetAPI_MakeOffsetShape()
-
-        if child.shape.ShapeType() == TopAbs_WIRE:
-            offset_shape.PerformBySimple(
-                TopoDS.Wire_(child.shape),
-                d.offset
-            )
-        else:
-            offset_shape.PerformByJoin(
-                child.shape,
-                d.offset,
-                d.tolerance,
-                self.offset_modes[d.offset_mode],
-                d.intersection,
-                False,
-                self.join_types[d.join_type]
-            )
+        shape = child.shape
+        if isinstance(shape, TopoDS_Edge):
+            shape = BRepBuilderAPI_MakeWire(shape).Wire()
+        elif not isinstance(shape, (TopoDS_Wire, TopoDS_Face)):
+            raise TypeError(
+                "Unsupported child shape when using planar mode")
+        offset_shape = BRepOffsetAPI_MakeOffset(
+            shape, self.join_types[d.join_type])
+        offset_shape.Perform(d.offset)
 
         self.shape = offset_shape.Shape()
 
@@ -269,6 +262,30 @@ class OccOffset(OccOperation, ProxyOffset):
 
     def set_intersection(self, enabled):
         self.update_shape()
+
+
+class OccOffsetShape(OccOffset, ProxyOffsetShape):
+    reference = set_default('https://dev.opencascade.org/doc/refman/html/'
+                            'class_b_rep_offset_a_p_i___make_offset_shape.html')
+
+    def update_shape(self, change=None):
+        d = self.declaration
+
+        #: Get the shape to apply the fillet to
+        child = self.get_first_child()
+
+        offset_shape = BRepOffsetAPI_MakeOffsetShape()
+        offset_shape.PerformByJoin(
+            child.shape,
+            d.offset,
+            d.tolerance,
+            self.offset_modes[d.offset_mode],
+            d.intersection,
+            False,
+            self.join_types[d.join_type]
+        )
+
+        self.shape = offset_shape.Shape()
 
 
 class OccThickSolid(OccOffset, ProxyThickSolid):
@@ -294,7 +311,6 @@ class OccThickSolid(OccOffset, ProxyThickSolid):
         for f in self.get_faces(child):
             faces.Append(f)
         assert not faces.IsEmpty()
-
 
         thick_solid = BRepOffsetAPI_MakeThickSolid()
         thick_solid.MakeThickSolidByJoin(
@@ -434,17 +450,6 @@ class OccTransform(OccOperation, ProxyTransform):
 
     _old_shape = Instance(OccShape)
 
-    def init_shape(self):
-        d = self.declaration
-        if d.shape:
-            #: Make sure we bind the observer
-            self.set_shape(d.shape)
-
-    def get_shape(self):
-        """ Return shape to apply the transform to. """
-        for child in self.children():
-            return child
-
     def get_transform(self):
         d = self.declaration
         result = gp_Trsf()
@@ -470,13 +475,28 @@ class OccTransform(OccOperation, ProxyTransform):
         #: Get the shape to apply the tranform to
         if d.shape:
             make_copy = True
-            s = d.shape.proxy
+            if isinstance(d.shape, OccShape):
+                original = d.shape.proxy.shape
+            else:
+                original = d.shape
         else:
             # Use the first child
             make_copy = False
-            s = self.get_shape()
+            child = self.get_first_child()
+            original = child.shape
+
         t = self.get_transform()
-        self.shape = BRepBuilderAPI_Transform(s.shape, t, make_copy).Shape()
+        shape = BRepBuilderAPI_Transform(original, t, make_copy).Shape()
+
+        # Convert it back to the original type
+        if isinstance(original, TopoDS_Wire):
+            shape = TopoDS.Wire_(shape)
+        elif isinstance(original, TopoDS_Face):
+            shape = TopoDS.Face_(shape)
+        elif isinstance(original, TopoDS_Edge):
+            shape = TopoDS.Edge_(shape)
+
+        self.shape = shape
 
     def set_shape(self, shape):
         if self._old_shape:

@@ -1,5 +1,5 @@
 """
-Copyright (c) 2017, Jairus Martin.
+Copyright (c) 2017-2019, Jairus Martin.
 
 Distributed under the terms of the GPL v3 License.
 
@@ -12,7 +12,7 @@ Created on Dec 13, 2017
 from .algo import (
     Cut, Common, Fuse,
     Fillet, Chamfer,
-    Offset,
+    Offset, OffsetShape,
     ThickSolid,
     Pipe,
     LinearForm, RevolutionForm,
@@ -37,3 +37,5 @@ from .shape import (
     HalfSpace, Prism, Revol
 )
 
+
+from enaml.core.api import Looper, Conditional, Include

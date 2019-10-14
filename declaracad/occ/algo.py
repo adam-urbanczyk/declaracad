@@ -100,6 +100,11 @@ class ProxyOffset(ProxyOperation):
         raise NotImplementedError
 
 
+class ProxyOffsetShape(ProxyOffset):
+    #: A reference to the Shape declaration.
+    declaration = ForwardTyped(lambda: OffsetShape)
+
+
 class ProxyThickSolid(ProxyOffset):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: ThickSolid)
@@ -389,7 +394,7 @@ class Chamfer(LocalOperation):
 
 
 class Offset(Operation):
-    """ An operation that create an Offset of the first child shape.
+    """ An operation that create an Offset wire of the first child shape.
 
     Attributes
     ----------
@@ -421,19 +426,48 @@ class Offset(Operation):
     offset = d_(Float(1, strict=False)).tag(view=True, group='Offset')
 
     #: Offset mode
-    offset_mode = d_(Enum('skin', 'pipe', 'recto_verso')).tag(view=True,
-                                                              group='Offset')
+    offset_mode = d_(Enum('skin', 'pipe', 'recto_verso')).tag(
+        view=True, group='Offset')
 
     #: Intersection
     intersection = d_(Bool(False)).tag(view=True, group='Offset')
 
     #: Join type
-    join_type = d_(Enum('arc', 'tangent', 'intersection')).tag(view=True,
-                                                               group='Offset')
+    join_type = d_(Enum('arc', 'tangent', 'intersection')).tag(
+        view=True, group='Offset')
 
     @observe('offset', 'offset_mode', 'intersection', 'join_type')
     def _update_proxy(self, change):
         super(Offset, self)._update_proxy(change)
+
+
+class OffsetShape(Offset):
+    """ An operation that create an OffsetShape from the first child shape.
+
+    Attributes
+    ----------
+
+    offset: Float
+        The offset distance
+    offset_mode: String
+        Defines the construction type of parallels applied to the free edges
+        of the shape
+    intersection: Bool
+        Intersection specifies how the algorithm must work in order to limit
+        the parallels to two adjacent shapes
+    join_type: String
+        Defines how to fill the holes that may appear between parallels to
+        the two adjacent faces
+
+
+    Examples
+    --------
+
+    See examples/operations.enaml
+
+    """
+    #: Reference to the implementation control
+    proxy = Typed(ProxyOffsetShape)
 
 
 class ThickSolid(Offset):
@@ -687,7 +721,7 @@ class Transform(Operation):
 
     #: Shape to transform
     #: if none is given the first child will be used
-    shape = d_(Instance(Shape))
+    shape = d_(Instance(object))
 
     #: Transform ops
     operations = d_(List(TransformOperation))

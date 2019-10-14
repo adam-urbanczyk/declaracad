@@ -107,6 +107,11 @@ def occ_offset_factory():
     return OccOffset
 
 
+def occ_offset_shape_factory():
+    from .occ_algo import OccOffsetShape
+    return OccOffsetShape
+
+
 def occ_one_axis_factory():
     from .occ_shape import OccOneAxis
     return OccOneAxis
@@ -251,7 +256,7 @@ OCC_FACTOIRES = {
     'Fuse': occ_fuse_factory,
     'Fillet': occ_fillet_factory,
     'Chamfer': occ_chamfer_factory,
-    'Offset': occ_offset_factory,
+    'OffsetShape': occ_offset_shape_factory,
     'ThickSolid': occ_thick_solid_factory,
     'Pipe': occ_pipe_factory,
     'ThruSections': occ_thru_sections_factory,
@@ -270,6 +275,7 @@ OCC_FACTOIRES = {
     'Polygon': occ_polygon_factory,
     'Bezier': occ_bezier_factory,
     'BSpline': occ_bspline_factory,
+    'Offset': occ_offset_factory,
     'Wire': occ_wire_factory,
     'Text': occ_text_factory,
     'TrimmedCurve': occ_trimmed_curve_factory,
