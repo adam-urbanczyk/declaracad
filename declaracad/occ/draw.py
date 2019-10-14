@@ -661,17 +661,8 @@ class Svg(Shape):
     #: Source file or text
     source = d_(Str())
 
-    def _get_wires(self):
-        return self.proxy.wires
-
-    shape_wires = Property(_get_wires, cached=True)
-
     @observe('source')
     def _update_proxy(self, change):
         """ Base class implementation is sufficient"""
         super(Svg, self)._update_proxy(change)
-
-    def _update_properties(self, change):
-        super(Svg, self)._update_properties(change)
-        self.get_member('shape_wires').reset(self)
 
