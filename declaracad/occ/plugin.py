@@ -239,6 +239,9 @@ class ViewerProcess(ProcessLineReceiver):
                     d.errback(error)
                 else:
                     d.callback(response.get('result'))
+        elif 'error' in response:
+            self.errors = response['error'].get('message', '')
+            self.output.append(line)
         else:
             # Append to output
             self.output.append(line)
