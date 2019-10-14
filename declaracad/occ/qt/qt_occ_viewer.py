@@ -53,7 +53,7 @@ from OCCT.OpenGl import OpenGl_GraphicDriver
 from OCCT.Quantity import Quantity_Color, Quantity_NOC_BLACK
 from OCCT.Prs3d import Prs3d_Drawer
 from OCCT.TopoDS import TopoDS_Shape
-from OCCT.TopAbs import TopAbs_FACE, TopAbs_EDGE
+from OCCT.TopAbs import TopAbs_FACE, TopAbs_EDGE, TopAbs_WIRE
 from OCCT.V3d import V3d_Viewer, V3d_View, V3d_TypeOfOrientation
 
 from declaracad.occ.qt.utils import (
@@ -724,9 +724,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         ais_context.InitSelected()
 
         # Lookup the shape declrations based on the selection context
-        selection = []
+        selection = {}
         shapes = []
-        options = {}
         displayed_shapes = self._displayed_shapes
         occ_shapes = self._displayed_shapes.values()
         while ais_context.MoreSelected():
@@ -734,38 +733,42 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                 i = None
                 topods_shape = ais_context.SelectedShape()
                 shape_type = topods_shape.ShapeType()
+
                 # Try quick lookup
                 occ_shape = displayed_shapes.get(topods_shape)
                 if occ_shape:
                     shapes.append(topods_shape)
-                    selection.append(occ_shape.declaration)
-                elif shape_type == TopAbs_FACE:
-                    # Try long lookup
+                    selection[occ_shape.declaration] = {
+                        'shapes': {0: topods_shape}}
+                else:
+                    # Try long lookup based on topology
+                    attr = str(shape_type).split("_")[-1].lower() + 's'
                     for occ_shape in occ_shapes:
-                        if topods_shape in occ_shape.topology.faces:
+                        shape_list = getattr(occ_shape.topology, attr, None)
+                        if shape_list is None:
+                            continue
+                        if topods_shape in shape_list:
+                            declaration = occ_shape.declaration
                             shapes.append(topods_shape)
-                            selection.append(occ_shape.declaration)
-                            i = occ_shape.topology.faces.index(topods_shape)
-                            break
-                elif shape_type == TopAbs_EDGE:
-                    for occ_shape in occ_shapes:
-                        if topods_shape in occ_shape.topology.edges:
-                            shapes.append(topods_shape)
-                            selection.append(occ_shape.declaration)
-                            i = occ_shape.topology.edges.index(topods_shape)
-                            break
+                            i = shape_list.index(topods_shape)
 
-                log.debug("Selected shape=%s, type=%s index=%s" % (
-                    topods_shape, shape_type, i))
-
+                            # Insert what was selected into the options
+                            if declaration not in selection:
+                                selection[declaration] = {}
+                            info = selection[declaration]
+                            if attr not in info:
+                                info[attr] = {}
+                            info[attr][i] = topods_shape
+                            break
             ais_context.NextSelected()
 
         if shift:
             ais_context.UpdateSelected(True)
-
+        #log.debug("Selected: %s", selection)
         # Set selection
         self._selected_shapes = shapes
-        d.selection(ViewerSelectionEvent(selection=selection, options=options))
+        d.selection(ViewerSelectionEvent(
+            selection=selection, parameters=(pos, area)))
 
     def update_display(self, change=None):
         """ Queue an update request """

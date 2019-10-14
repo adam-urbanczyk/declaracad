@@ -24,7 +24,7 @@ def gradient_coercer(arg):
     """ Coerce a colors to a gradient
 
     """
-    if not isinstance(arg, (tuple, list)):
+    if not isinstance(arTopAbsg, (tuple, list)):
         c1, c2 = [arg, arg]
     else:
         c1, c2 = arg
@@ -35,15 +35,13 @@ def gradient_coercer(arg):
     return (c1, c2)
 
 
+
 class ViewerSelectionEvent(Atom):
     #: Selected shape or shapes
-    selection = List()
+    selection = Dict()
 
     #: Parameters such as coodrinates or selection area
     parameters = Tuple()
-
-    #: Selection callback parameters
-    options = Dict()
 
 
 class ProxyOccViewer(ProxyControl):
@@ -139,7 +137,8 @@ class OccViewer(Control):
     display_mode = d_(Enum('shaded', 'wireframe'))
 
     #: Selection mode
-    selection_mode = d_(Enum('shape', 'neutral', 'face', 'edge', 'vertex'))
+    selection_mode = d_(Enum(
+        'shape', 'shell', 'face', 'edge', 'wire', 'vertex'))
 
     #: Selected items
     selection = d_(Event(ViewerSelectionEvent), writable=False)
