@@ -6,3 +6,8 @@ def test_qt():
 
 def test_occt():
     import OCCT
+
+
+def test_declaracad():
+    import declaracad
+

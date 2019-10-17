@@ -31,17 +31,18 @@ before_script:
 
   # Install depencencies
   - conda install -c trelau -c conda-forge pyocct -q
-  - pip install qtconsole pyflakes numpydoc enaml jsonpickle QScintilla enamlx qt-reactor
+
+  # Install declaracad
+  - pip install -e .
 
   # Install testing utils
   - pip install pytest pytest-coverage pytest-qt codecov
 
   # Make sure glxgears works to ensure GL is ok
-  - xvfb-run -s "-screen 0 640x480x24 +extension GLX +extension RENDER" glxinfo
+  - xvfb-run -s "-screen 0 1920x1080x24 +extension GLX +extension RENDER" glxinfo
 
 script:
-  - python setup.py develop
-  - xvfb-run -s "-screen 0 640x480x24 +extension GLX +extension RENDER" py.test tests --cov declaracad --cov-report xml -v
+  - xvfb-run -s "-screen 0 1920x1080x24 +extension GLX +extension RENDER" py.test tests --cov declaracad --cov-report xml -v
 
 after_script:
   - cat ~/.config/declaracad/logs/*.txt

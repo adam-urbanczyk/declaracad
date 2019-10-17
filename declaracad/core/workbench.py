@@ -83,3 +83,22 @@ class DeclaracadWorkbench(UIWorkbench):
         """
         return QMessageBox.question(self.window, "{0} - {1}".format(
             self.app_name, title), message, *args, **kwargs)
+
+    def invoke_command(self, command_id, parameters={}, trigger=None):
+        """ Shortcut to run a command.
+
+        Parameters
+        ----------
+        command_id : unicode
+            The unique identifier of the command to invoke.
+        parameters : dict, optional
+            The parameters to pass to the command handler.
+        trigger : object, optional
+            The object which triggered the command.
+        Returns
+        -------
+        result : object
+            The return value of the command handler.
+        """
+        core = self.get_plugin('enaml.workbench.core')
+        return core.invoke_command(command_id, parameters, trigger)

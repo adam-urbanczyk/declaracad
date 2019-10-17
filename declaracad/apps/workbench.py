@@ -10,7 +10,7 @@ Created on Dec 6, 2015
 @author: jrm
 """
 import sys
-
+import signal
 import faulthandler
 faulthandler.enable()
 
@@ -21,9 +21,10 @@ from declaracad import occ
 occ.install()
 
 from declaracad.core.workbench import DeclaracadWorkbench
+from declaracad.core.utils import log
 
-import signal
 import enaml
+
 with enaml.imports():
     #: TODO autodiscover these
     from declaracad.core.manifest import DeclaracadManifest
@@ -43,11 +44,17 @@ except:
 
 
 def main(**kwargs):
-    # Make sure ^C keeps working
-    signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     # Start the workbench
+    log.info("Workbench starting")
     workbench = DeclaracadWorkbench()
+
+    # Make sure ^C keeps working and does a proper shutdown
+    def quit(*args):
+        workbench.invoke_command('enaml.workbench.ui.close_window')
+    signal.signal(signal.SIGINT, quit)
+
+    # Register plugins
     workbench.register(DeclaracadManifest())
     workbench.register(UIManifest())
     workbench.register(ConsoleManifest())
@@ -56,7 +63,10 @@ def main(**kwargs):
     workbench.register(EditorManifest())
     workbench.register(ToolboxManifest())
     workbench.register(CncManifest())
+
+    # Run
     workbench.run()
+    log.info("Workbench stopped")
 
 
 if __name__ == '__main__':
