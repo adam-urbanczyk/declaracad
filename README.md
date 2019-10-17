@@ -128,8 +128,14 @@ source activate declaracad
 #: Install it OCCT and dependencies
 conda install -c trelau -c conda-forge pyocct
 
+#: Clone the repo
+git clone https://github.com/codelv/declaracad.git
+
+#: Go inside the cloned repo
+cd declaracad
+
 #: Install declaracad
-pip install .
+pip install -e .
 
 ```
 
@@ -142,6 +148,7 @@ The application is released under the GPL v3 (due to the use of PyQt5 and QScint
 
 This project relies on the groundwork laid out by these projects:
 
+- [pyOCCT](https://github.com/LaughlinResearch/pyOCCT)
 - [python-occ](https://github.com/tpaviot/pythonocc)
 - [enaml](https://github.com/nucleic/enaml)
 
