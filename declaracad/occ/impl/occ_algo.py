@@ -54,8 +54,9 @@ from OCCT.gp import (
     gp_Trsf, gp_Vec, gp_Pnt, gp_Ax1, gp_Dir, gp_Pnt2d
 )
 from OCCT.TopTools import TopTools_ListOfShape
-from OCCT.TopAbs import TopAbs_FACE, TopAbs_WIRE
-from OCCT.TopoDS import TopoDS, TopoDS_Edge, TopoDS_Face, TopoDS_Wire
+from OCCT.TopoDS import (
+    TopoDS, TopoDS_Edge, TopoDS_Face, TopoDS_Wire, TopoDS_Shape
+)
 from OCCT.TColgp import TColgp_Array1OfPnt2d
 
 from declaracad.core.utils import log
@@ -133,14 +134,14 @@ class OccFillet(OccOperation, ProxyFillet):
         d = self.declaration
         # Get the shape to apply the fillet to
         child = self.get_first_child()
-        shape = BRepFilletAPI_MakeFillet(child.shape)
+        fillet = BRepFilletAPI_MakeFillet(child.shape)
 
         # TODO: Set shape type
 
         operations = d.operations if d.operations else child.topology.edges
         for item in operations:
             if not isinstance(item, (list, tuple)):
-                shape.Add(d.radius, item)
+                fillet.Add(d.radius, item)
                 continue
 
             # If an array of points is create a changing radius fillet
@@ -149,13 +150,12 @@ class OccFillet(OccOperation, ProxyFillet):
                 array = TColgp_Array1OfPnt2d(1, len(pts))
                 for i, pt in enumerate(pts):
                     array.SetValue(i+1, gp_Pnt2d(*pt))
-                shape.Add(array, edge)
+                fillet.Add(array, edge)
                 continue
 
             # custom radius or r1 and r2 radius fillets
-            shape.Add(*item)
-
-        self.shape = shape.Shape()
+            fillet.Add(*item)
+        self.shape = fillet.Shape()
 
     def set_shape_type(self, shape_type):
         self.update_shape()
@@ -203,8 +203,6 @@ class OccChamfer(OccOperation, ProxyChamfer):
                     chamfer.Add(d1, d2, edge, face)
             else:
                 chamfer.Add(d1, d2, edge, face)
-
-
         self.shape = chamfer.Shape()
 
     def set_distance(self, d):
@@ -246,9 +244,8 @@ class OccOffset(OccOperation, ProxyOffset):
             raise TypeError(
                 "Unsupported child shape when using planar mode")
         offset_shape = BRepOffsetAPI_MakeOffset(
-            shape, self.join_types[d.join_type])
+            shape, self.join_types[d.join_type], not d.closed)
         offset_shape.Perform(d.offset)
-
         self.shape = offset_shape.Shape()
 
     def set_offset(self, offset):
@@ -284,7 +281,6 @@ class OccOffsetShape(OccOffset, ProxyOffsetShape):
             False,
             self.join_types[d.join_type]
         )
-
         self.shape = offset_shape.Shape()
 
 
@@ -420,19 +416,19 @@ class OccThruSections(OccOperation, ProxyThruSections):
         from .occ_draw import OccVertex, OccWire
 
         d = self.declaration
-        shape = BRepOffsetAPI_ThruSections(d.solid, d.ruled, d.precision)
+        thru_sect = BRepOffsetAPI_ThruSections(d.solid, d.ruled, d.precision)
 
         #: TODO: Support Smoothing, Max degree, par type, etc...
 
         for child in self.children():
             if isinstance(child, OccVertex):
-                shape.AddVertex(child.shape)
+                thru_sect.AddVertex(child.shape)
             elif isinstance(child, OccWire):
-                shape.AddWire(child.shape)
+                thru_sect.AddWire(child.shape)
             #: TODO: Handle transform???
 
         #: Set the shape
-        self.shape = shape.Shape()
+        self.shape = thru_sect.Shape()
 
     def set_solid(self, solid):
         self.update_shape()
@@ -475,10 +471,11 @@ class OccTransform(OccOperation, ProxyTransform):
         #: Get the shape to apply the tranform to
         if d.shape:
             make_copy = True
-            if isinstance(d.shape, OccShape):
-                original = d.shape.proxy.shape
-            else:
+            if isinstance(d.shape, TopoDS_Shape):
                 original = d.shape
+            else:
+                original = d.shape.proxy.shape
+
         else:
             # Use the first child
             make_copy = False
@@ -486,7 +483,8 @@ class OccTransform(OccOperation, ProxyTransform):
             original = child.shape
 
         t = self.get_transform()
-        shape = BRepBuilderAPI_Transform(original, t, make_copy).Shape()
+        transform = BRepBuilderAPI_Transform(original, t, make_copy)
+        shape = transform.Shape()
 
         # Convert it back to the original type
         if isinstance(original, TopoDS_Wire):

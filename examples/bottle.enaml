@@ -57,24 +57,25 @@ enamldef Assembly(Part): part:
                                 operations = [Mirror(x=1)]
                                 shape = profile
 
-    Wire:
-        TrimmedCurve: c1:
-            surface = bottle.topology.faces[0]
-            v = 2*pi
-            Ellipse: e1:
-                position = (2*pi, neck.height/2, 0)
-                direction = (2*pi, neck.height/4, 0)
-                major_radius = 2*pi
-                minor_radius = neck.height / 10
-        #Segment: s1:
-        #    surface = c1.surface
-        #    points = [e1.get_value_at(0), e1.get_value_at(pi)]
-    Wire:
-        TrimmedCurve:
-            surface = bottle.topology.faces[34]
-            v = 2*pi
-            Ellipse:
-                position = e1.position
-                direction = e1.direction
-                major_radius = e1.major_radius
-                minor_radius = e1.minor_radius/4
+    ThruSections:
+        Wire:
+            TrimmedCurve: c1:
+                surface = make_cylinder_surface(neck.radius*0.9)
+                v = pi
+                Ellipse: e1:
+                    position = (2*pi, neck.height/2, 0)
+                    direction = (2*pi, neck.height/4, 0)
+                    major_radius = 2*pi
+                    minor_radius = neck.height / 10
+            #Segment: s1:
+            #    surface = c1.surface
+            #    points = [e1.get_value_at(0), e1.get_value_at(pi)]
+        Wire:
+            TrimmedCurve:
+                surface = make_cylinder_surface(neck.radius*1.05)
+                v = pi
+                Ellipse:
+                    position = e1.position
+                    direction = e1.direction
+                    major_radius = e1.major_radius
+                    minor_radius = e1.minor_radius/4

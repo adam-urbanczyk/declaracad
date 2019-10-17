@@ -556,6 +556,14 @@ class OccShape(ProxyShape):
     def update_topology(self, change):
         self.topology = self._default_topology()
 
+
+    def check_done(self, shape):
+        """ Make sure the shape is done before attempting to access it
+        which will segfault.
+
+        """
+        assert shape.IsDone(), "Could not build shape %s" % self.declaration
+
     #@observe('shape')
     #def update_display(self, change):
     #    parent = self.parent()
@@ -700,7 +708,8 @@ class OccCone(OccShape, ProxyCone):
         args = [coerce_axis(d.axis), d.radius, d.radius2, d.height]
         if d.angle:
             args.append(d.angle)
-        self.shape = BRepPrimAPI_MakeCone(*args).Shape()
+        cone = BRepPrimAPI_MakeCone(*args)
+        self.shape = cone.Shape()
 
     def set_radius(self, r):
         self.create_shape()
@@ -724,7 +733,8 @@ class OccCylinder(OccShape, ProxyCylinder):
         args = [coerce_axis(d.axis), d.radius, d.height]
         if d.angle:
             args.append(d.angle)
-        self.shape = BRepPrimAPI_MakeCylinder(*args).Shape()
+        cylinder = BRepPrimAPI_MakeCylinder(*args)
+        self.shape = cylinder.Shape()
 
     def set_radius(self, r):
         self.create_shape()
@@ -751,9 +761,9 @@ class OccHalfSpace(OccDependentShape, ProxyHalfSpace):
             else:
                 pln = gp_Pln(d.position.proxy, d.direction.proxy)
                 surface = BRepBuilderAPI_MakeFace(pln).Face()
-        hs = BRepPrimAPI_MakeHalfSpace(surface, d.side.proxy)
+        half_space = BRepPrimAPI_MakeHalfSpace(surface, d.side.proxy)
         # Shape doesnt work see https://tracker.dev.opencascade.org/view.php?id=29969
-        self.shape = hs.Solid()
+        self.shape = half_space.Solid()
 
     def set_surface(self, surface):
         self.update_shape()
@@ -778,8 +788,8 @@ class OccPrism(OccDependentShape, ProxyPrism):
             args = (c.shape, d.direction.proxy, True, d.copy, d.canonize)
         else:
             args = (c.shape, gp_Vec(*d.vector), d.copy, d.canonize)
-
-        self.shape = BRepPrimAPI_MakePrism(*args).Shape()
+        prism = BRepPrimAPI_MakePrism(*args)
+        self.shape = prism.Shape()
 
     def get_shape(self):
         for child in self.children():
@@ -819,7 +829,8 @@ class OccSphere(OccShape, ProxySphere):
                 args.append(d.angle2)
                 if d.angle3:
                     args.append(d.angle3)
-        self.shape = BRepPrimAPI_MakeSphere(*args).Shape()
+        sphere = BRepPrimAPI_MakeSphere(*args)
+        self.shape = sphere.Shape()
 
     def set_radius(self, r):
         self.create_shape()
@@ -847,7 +858,8 @@ class OccTorus(OccShape, ProxyTorus):
             args.append(d.angle)
             if d.angle2:
                 args.append(d.angle2)
-        self.shape = BRepPrimAPI_MakeTorus(*args).Shape()
+        torus = BRepPrimAPI_MakeTorus(*args)
+        self.shape = torus.Shape()
 
     def set_radius(self, r):
         self.create_shape()
@@ -869,8 +881,9 @@ class OccWedge(OccShape, ProxyWedge):
 
     def create_shape(self):
         d = self.declaration
-        w = BRepPrimAPI_MakeWedge(coerce_axis(d.axis), d.dx, d.dy, d.dz, d.itx)
-        self.shape = w.Shape()
+        wedge = BRepPrimAPI_MakeWedge(
+            coerce_axis(d.axis), d.dx, d.dy, d.dz, d.itx)
+        self.shape = wedge.Shape()
 
     def set_dx(self, dx):
         self.create_shape()
@@ -901,8 +914,8 @@ class OccRevol(OccDependentShape, ProxyRevol):
         if d.angle:
             args.append(d.angle)
         args.append(d.copy)
-
-        self.shape = BRepPrimAPI_MakeRevol(*args).Shape()
+        revol = BRepPrimAPI_MakeRevol(*args)
+        self.shape = revol.Shape()
 
     def get_shape(self):
         """ Get the first child shape """
@@ -950,7 +963,8 @@ class OccLoadShape(OccShape, ProxyLoadShape):
         """ Create the shape by loading it from the given path. """
         shape = self.load_shape()
         t = self.get_transform()
-        self.shape = BRepBuilderAPI_Transform(shape, t, False).Shape()
+        loaded_shape = BRepBuilderAPI_Transform(shape, t, False)
+        self.shape = loaded_shape.Shape()
 
     def get_transform(self):
         d = self.declaration

@@ -30,8 +30,8 @@ before_script:
   - conda install python=$PYTHON pyqt -q
 
   # Install depencencies
-  - conda install -c trelau -c conda-forge pyocct enaml qtconsole pyflakes numpydoc markdown jsonpickle -q
-  - pip install QScintilla enamlx qt-reactor
+  - conda install -c trelau -c conda-forge pyocct -q
+  - pip install qtconsole pyflakes numpydoc enaml jsonpickle QScintilla enamlx qt-reactor
 
   # Install testing utils
   - pip install pytest pytest-coverage pytest-qt codecov

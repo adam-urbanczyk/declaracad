@@ -112,7 +112,7 @@ It's partially there... suggestions are welcome!
 ## Installing
 
 There is currently no installer as it's in pre-alpha state. It runs on windows and linux
-(have not yet tested osx but it should also work). To use it:
+(have not yet tested osx). To use it:
 
 ```bash
 
@@ -125,8 +125,11 @@ conda create -n declaracad
 #: Activate it (on windows just do `activate declaracad`)
 source activate declaracad
 
-#: Install it
-conda install -c codelv -c trelau -c conda-forge declaracad
+#: Install it OCCT and dependencies
+conda install -c trelau -c conda-forge pyocct
+
+#: Install declaracad
+pip install .
 
 ```
 

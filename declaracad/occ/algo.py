@@ -87,6 +87,9 @@ class ProxyOffset(ProxyOperation):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: Offset)
 
+    def set_closed(self, closed):
+        raise NotImplementedError
+
     def set_offset(self, offset):
         raise NotImplementedError
 
@@ -422,6 +425,9 @@ class Offset(Operation):
     #: Reference to the implementation control
     proxy = Typed(ProxyOffset)
 
+    #: Whether the offset should be closed
+    closed = d_(Bool(True))
+
     #: Offset
     offset = d_(Float(1, strict=False)).tag(view=True, group='Offset')
 
@@ -436,7 +442,7 @@ class Offset(Operation):
     join_type = d_(Enum('arc', 'tangent', 'intersection')).tag(
         view=True, group='Offset')
 
-    @observe('offset', 'offset_mode', 'intersection', 'join_type')
+    @observe('offset', 'offset_mode', 'intersection', 'join_type', 'closed')
     def _update_proxy(self, change):
         super(Offset, self)._update_proxy(change)
 
