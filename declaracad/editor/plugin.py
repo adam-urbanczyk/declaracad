@@ -212,7 +212,6 @@ class EditorPlugin(Plugin):
 
         # Sort documents so active is last so it's on top when we restore
         # from a previous state
-        ops = []
         for doc in sorted(added, key=lambda d: int(d == self.active_document)):
             item = create_editor_item(area, plugin=self, doc=doc)
             if targets:
@@ -221,7 +220,10 @@ class EditorPlugin(Plugin):
                 op = InsertItem(item=item.name)
             targets.add(item.name)
             log.debug(op)
-            area.update_layout(op)
+            try:
+                area.update_layout(op)
+            except Exception as e:
+                log.exception(e)
 
         # Now save it
         self.save_dock_area(change)
