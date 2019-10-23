@@ -1,7 +1,9 @@
+import os
 import pytest
 from OCCT.TopoDS import TopoDS_Shape
 from declaracad.occ.plugin import load_model
 
+@pytest.mark.skipif('TRAVIS' in os.environ, reason='Disabled for now')
 @pytest.mark.parametrize('name', (
     'bolt',
     'bottle',
