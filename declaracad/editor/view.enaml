@@ -42,6 +42,9 @@ def format_title(docs, doc, path, unsaved):
     Based on Intellij's naming styles
     """
     if not path:
+        unamed = [d for d in docs if not d.name]
+        if doc in unamed:
+            return "Untitled-%s*" % (unamed.index(doc) + 1)
         return "Untitled*"
     path, name = os.path.split(path)
 
@@ -511,7 +514,7 @@ enamldef Editor(Scintilla): editor:
                     for i in indicators]
     #warnings
     Timer: timer:
-        interval = 350
+        interval = 500
         single_shot = True
         timeout ::
             doc.cursor = editor.cursor_position

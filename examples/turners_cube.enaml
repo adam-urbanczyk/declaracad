@@ -6,7 +6,7 @@ from declaracad.occ.api import (
 
 enamldef Assembly(Part):
     name = "Turners Cube"
-    
+
     attr levels: int = 3
     Looper:
         iterable << range(1,1+levels)

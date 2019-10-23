@@ -1,7 +1,7 @@
 import math
 from enaml.core.api import Looper
 from declaracad.occ.api import (
-    Transform, Pipe, Revol, Face, Segment, Wire, Point, Arc, Circle, Part
+    Transform, Pipe, Revol, Face, Segment, Wire, Arc, Circle, Part
 )
               
 enamldef Assembly(Part): 

@@ -13,14 +13,22 @@ import os
 import enaml
 from atom.api import Constant, Enum, Float, Unicode
 from declaracad.occ.plugin import ModelExporter, load_model
-        
-        
+
+from OCCT.STEPControl import STEPControl_Writer, STEPControl_AsIs
+from OCCT.Interface import (
+    Interface_Static_SetCVal as SetCVal,
+    Interface_Static_SetIVal as SetIVal,
+    Interface_Static_SetRVal as SetRVal
+)
+from OCCT.IFSelect import IFSelect_RetDone
+
+
 VERTEX_MODES = {'one compound': 0, 'single vertex': 1}
 PRECISION_MODES = {'least': -1, 'average': 0, 'greatest': 1, 'session': 2}
 ASSEMBLY_MODES = {'off': 0, 'on': 1, 'auto': 2}
 SURFACECURVE_MODES = {'off': 0, 'on': 1}
-        
-        
+
+
 class StepExporter(ModelExporter):
     """
     References
@@ -48,22 +56,16 @@ class StepExporter(ModelExporter):
         with enaml.imports():
             from .options import OptionsForm
             return OptionsForm
-    
+
     def export(self):
         """ Export a DeclaraCAD model from an enaml file to an STL based on the
         given options.
-        
+
         Parameters
         ----------
         options: declaracad.occ.plugin.ExportOptions
-        
+
         """
-        from OCC.STEPControl import STEPControl_Writer, STEPControl_AsIs
-        from OCC.Interface import Interface_Static_SetCVal as SetCVal
-        from OCC.Interface import Interface_Static_SetIVal as SetIVal
-        from OCC.Interface import Interface_Static_SetRVal as SetRVal
-        from OCC.IFSelect import IFSelect_RetDone
-        
         # Set all params
         exporter = STEPControl_Writer()
         SetIVal("write.precision.mode", PRECISION_MODES[self.precision_mode])
@@ -73,18 +75,18 @@ class StepExporter(ModelExporter):
         SetCVal("write.step.schema", self.schema)
         if self.product_name:
             SetCVal("write.step.product.name", self.product_name)
-        SetIVal("write.surfacecurve.mode", 
+        SetIVal("write.surfacecurve.mode",
                 SURFACECURVE_MODES[self.surfacecurve_mode])
         SetCVal("write.step.unit", self.units.upper())
         SetIVal("write.step.vertex.mode", VERTEX_MODES[self.vertex_mode])
 
         # Load the enaml model file
         parts = load_model(self.filename)
-        
+
         for part in parts:
             # Render the part from the declaration
             shape = part.render()
-            
+
             # Transfer all shapes
             if hasattr(shape, 'Shape'):
                 exporter.Transfer(shape.Shape(), STEPControl_AsIs)
@@ -95,5 +97,5 @@ class StepExporter(ModelExporter):
         status = exporter.Write(self.path)
         if status != IFSelect_RetDone or not os.path.exists(self.path):
             raise RuntimeError("Failed to write shape")
-        
-    
+
+

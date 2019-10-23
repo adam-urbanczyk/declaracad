@@ -1,15 +1,27 @@
 # declaracad
 
+[![Build Status](https://travis-ci.org/codelv/declaracad.svg?branch=master)](https://travis-ci.org/codelv/declaracad)
+
 A declarative parametric 3D modeling program built using [OpenCascade](https://github.com/tpaviot/pythonocc-core)
-and [enaml](https://github.com/nucleic/enaml/). 
+and [enaml](https://github.com/nucleic/enaml/).
+
+
+> Warning: This is a very early in development and unstable application!
+
 
 ![DeclaraCAD](https://user-images.githubusercontent.com/380158/43459223-d3ddf346-949a-11e8-8b3c-efe60e88818c.gif)
 
 It's similar to [OpenSCAD](http://www.openscad.org/)
-in that everything is intended to be defined programatically. However the 
-language being used is enaml (a superset of python) instead of javascript.  Python users/developers will find this very easy and intuitive.
+in that everything is intended to be defined programatically. However the
+language being used is enaml (a superset of python) instead of javascript.
+Python users/developers will find this very easy and intuitive.
 
-It's intended to be used along side of [pythonocc](https://github.com/tpaviot/pythonocc-core), using either OCC apis directly or the declarative abstractions. You can easily combind parts from various sources into assemblies.
+It's intended to be used along side of an OCC python binding (either pythonocc or pyOCCT)
+using either OCC apis directly or the declarative abstractions. You can easily
+combind parts from various sources into assemblies.
+
+Now uses [pyOCCT](https://github.com/LaughlinResearch/pyOCCT) but was originally
+based on [pythonocc](https://github.com/tpaviot/pythonocc-core) (and I highly recommend pyOCCT!),
 
 
 See [the project site](https://www.codelv.com/projects/declaracad/) (coming soon).
@@ -36,8 +48,8 @@ You can also embed any shape built using [pythonocc](https://github.com/tpaviot/
 
 #### Viewer
 
-Declaracad uses pythonocc's Qt Viewer and supports basic rotate, pan, zoom.  
-Each view is rendered in a separate process. 
+Declaracad uses pythonocc's Qt Viewer and supports basic rotate, pan, zoom.
+Each view is rendered in a separate process.
 
 Clipping planes are now supported.
 
@@ -50,15 +62,15 @@ Multiple editor views are supported. Basic error checking hinting is implemented
 ## Import / export
 
 
-Currently there is no import support from other 3d types into editable code, 
+Currently there is no import support from other 3d types into editable code,
 but models can be loaded for display and exported to STL, STEP, or images.
 
 ![DeclaraCAD - loading models](https://user-images.githubusercontent.com/380158/34421112-4fcd664e-ebdb-11e7-8f75-ae7c2354dfa7.gif)
 
 Importing 2D paths from SVG (ex Adobe Illustrator, Inkscape, etc..) is possible
- 
+
 ![DeclaraCAD import from svg](https://user-images.githubusercontent.com/380158/34210286-5db22d4a-e563-11e7-9b86-6c2f5db73c96.gif)
-    
+
 Models can be exported to STL or STEP formats for use in other programs (ex Simplify3D, FreeCAD, etc..)
 
 ![DeclaraCAD export to stl](https://user-images.githubusercontent.com/380158/34184975-d911c43c-e4f0-11e7-88ca-b52e6557ae83.gif)
@@ -91,7 +103,7 @@ enamldef TurnersCube(Part):
 
 ## Docs
 
-The goal is for the building blocks or components to be self documenting. 
+The goal is for the building blocks or components to be self documenting.
 
 It's partially there... suggestions are welcome!
 
@@ -99,8 +111,8 @@ It's partially there... suggestions are welcome!
 
 ## Installing
 
-There is currently no installer as it's in pre-alpha state. It runs on windows and linux 
-(have not yet tested osx but it should also work). To use it:
+There is currently no installer as it's in pre-alpha state. It runs on windows and linux
+(have not yet tested osx). To use it:
 
 ```bash
 
@@ -110,38 +122,33 @@ There is currently no installer as it's in pre-alpha state. It runs on windows a
 #: Create a conda env
 conda create -n declaracad
 
-#: Activate it (on windows just do `activate declaracad`) 
+#: Activate it (on windows just do `activate declaracad`)
 source activate declaracad
 
-#: Install pythonocc
-conda install -c conda-forge -c dlr-sc -c pythonocc -c oce pythonocc-core==0.18.1
+#: Install it OCCT and dependencies
+conda install -c trelau -c conda-forge pyocct
 
-#: Now install clone this repo
+#: Clone the repo
 git clone https://github.com/codelv/declaracad.git
 
 #: Go inside the cloned repo
 cd declaracad
 
-#: Install the dependencies
-pip install .
-
-#: Run 
-python main.py
+#: Install declaracad
+pip install -e .
 
 ```
 
 
 ## License
 
-The application is released under the GPL v3 (due to the use of PyQt5 and QScintilla). 
-If you want to use this in your own application these can be replaced with alternatives if 
-alternate licensing is needed. Please [contact](https://www.codelv.com/contact/) me for more 
-details.
+The application is released under the GPL v3 (due to the use of PyQt5 and QScintilla).
 
 ## Special thanks to
 
-This project relies on the groundwork laid out by these projects: 
+This project relies on the groundwork laid out by these projects:
 
+- [pyOCCT](https://github.com/LaughlinResearch/pyOCCT)
 - [python-occ](https://github.com/tpaviot/pythonocc)
 - [enaml](https://github.com/nucleic/enaml)
 

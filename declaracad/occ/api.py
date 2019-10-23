@@ -1,5 +1,5 @@
 """
-Copyright (c) 2017, Jairus Martin.
+Copyright (c) 2017-2019, Jairus Martin.
 
 Distributed under the terms of the GPL v3 License.
 
@@ -12,7 +12,7 @@ Created on Dec 13, 2017
 from .algo import (
     Cut, Common, Fuse,
     Fillet, Chamfer,
-    Offset,
+    Offset, OffsetShape,
     ThickSolid,
     Pipe,
     LinearForm, RevolutionForm,
@@ -21,20 +21,21 @@ from .algo import (
 )
 
 from .draw import (
-    Point, Vertex, Edge, Line,
+    Plane, Vertex, Edge, Line,
     Segment, Arc, Circle, Ellipse, Hyperbola,
     Parabola, Polygon,
     BSpline, Bezier,
-    Text, Svg,
+    Text, TrimmedCurve, Svg,
     Wire
 )
 
 from .part import Part
 
 from .shape import (
-    Shape, RawShape, LoadShape,
-    Face,
+    Point, Direction, Shape, RawShape, LoadShape, Face,
     Box, Cylinder, Sphere, Cone, Wedge, Torus,
     HalfSpace, Prism, Revol
 )
 
+
+from enaml.core.api import Looper, Conditional, Include

@@ -1,22 +1,29 @@
-from declaracad.occ.api import (
-    Cylinder, Prism, Face, Segment, Arc, Wire, Point,
-    Fuse, ThickSolid, Fillet, Transform, Part, Mirror
-)
+"""
+See https://dev.opencascade.org/doc/overview/html/occt__tutorial.html
+for more details on how this works.
+
+"""
+from math import pi
+from declaracad.occ.api import *
 
 
 enamldef Assembly(Part): part:
     name = "Bottle"
-    
+
     #: "Parametric" properties of this shape
-    attr height = 7.0
-    attr width = 5.0
-    attr thickness = 3.0
-    
-    #: Actual shape
-    ThickSolid:
+    attr height = 400.0
+    attr width = 200.0
+    attr thickness = 100.0
+
+    func make_cylinder_surface(radius):
+        cylinder = Cylinder(radius=radius)
+        cylinder.render()
+        return cylinder.topology.faces[0]
+
+    ThickSolid: bottle:
         material = 'diamond'
         # Hollows out the bottle
-        #closing_faces << [neck.shape_faces[0]]
+        #faces << [neck.shape_faces[0]]
         offset << thickness/50.0
         Fuse:
             # Fuse the bottle to the neck
@@ -26,8 +33,8 @@ enamldef Assembly(Part): part:
                 direction = (0,0,1)
                 radius << thickness/4.0
                 height << part.height/10.0
-            Fillet: bottle:
-                # Bottle, with filleted edges 
+            Fillet: body:
+                # Bottle, with filleted edges
                 radius << thickness/12.0
                 Prism:
                     # Create a solid from the bottle face
@@ -40,8 +47,8 @@ enamldef Assembly(Part): part:
                                 Segment: s1:
                                     points << [ (-width/2.0, 0, 0), (-width/2.0, -thickness/4.0, 0)]
                                 Arc:
-                                    points = [s1.points[-1], 
-                                                    (0, -thickness/2.0, 0) , 
+                                    points = [s1.points[-1],
+                                                    (0, -thickness/2.0, 0) ,
                                                     s2.points[-1]]
                                 Segment: s2:
                                     points = [(width/2.0, 0, 0), (width/2.0, -thickness/4.0, 0) ]
@@ -49,3 +56,26 @@ enamldef Assembly(Part): part:
                                 #: TODO coerce
                                 operations = [Mirror(x=1)]
                                 shape = profile
+
+    ThruSections:
+        Wire:
+            TrimmedCurve: c1:
+                surface = make_cylinder_surface(neck.radius*0.9)
+                v = pi
+                Ellipse: e1:
+                    position = (2*pi, neck.height/2, 0)
+                    direction = (2*pi, neck.height/4, 0)
+                    major_radius = 2*pi
+                    minor_radius = neck.height / 10
+            #Segment: s1:
+            #    surface = c1.surface
+            #    points = [e1.get_value_at(0), e1.get_value_at(pi)]
+        Wire:
+            TrimmedCurve:
+                surface = make_cylinder_surface(neck.radius*1.05)
+                v = pi
+                Ellipse:
+                    position = e1.position
+                    direction = e1.direction
+                    major_radius = e1.major_radius
+                    minor_radius = e1.minor_radius/4

@@ -13,8 +13,8 @@ from atom.api import Typed
 from ..part import ProxyPart
 from .occ_shape import OccDependentShape, OccShape
 
-from OCC.TopoDS import TopoDS_Compound
-from OCC.BRep import BRep_Builder
+from OCCT.TopoDS import TopoDS_Compound
+from OCCT.BRep import BRep_Builder
 
 
 class OccPart(OccDependentShape, ProxyPart):
@@ -22,23 +22,23 @@ class OccPart(OccDependentShape, ProxyPart):
     builder = Typed(BRep_Builder)
 
     #: The compound shape
-    shape = Typed(TopoDS_Compound, ())
-    
+    shape = Typed(TopoDS_Compound)
+
     @property
     def shapes(self):
         return [child for child in self.children()
                 if isinstance(child, OccShape)]
 
-    def update_shape(self, change):
+    def update_shape(self, change=None):
         """ Create the toolkit shape for the proxy object.
 
         """
-        builder = BRep_Builder()
-        shape = self.shape
+        builder = self.builder = BRep_Builder()
+        shape = TopoDS_Compound()
         builder.MakeCompound(shape)
-        for s in self.shapes:
-            if hasattr(s.shape, 'Shape'):
-                builder.Add(shape, s.shape.Shape())
-            elif s.shape is not None:
-                builder.Add(shape, s.shape)
-        self.builder = builder
+        for child in self.shapes:
+            if child.shape is None:
+                continue
+            # Not infinite planes cannot be added to a compound!
+            builder.Add(shape, child.shape)
+        self.shape = shape

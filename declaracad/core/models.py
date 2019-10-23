@@ -14,7 +14,6 @@ import json
 import enaml
 import traceback
 import jsonpickle as pickle
-from future.builtins import str
 from atom.api import Atom, Unicode, List, Member, Dict
 from enaml.workbench.plugin import Plugin as EnamlPlugin
 from enaml.widgets.api import Container
@@ -27,13 +26,13 @@ from .utils import log, clip
 class Model(Atom):
     """ An atom object that can exclude members from it's state
     by tagging the member with .tag(persist=False)
-    
+
     """
 
     def __getstate__(self):
         """ Exclude any members from the state that are not tagged with
-        `config=True`. 
-        
+        `config=True`.
+
         """
         state = super(Model, self).__getstate__()
         for name, member in self.members().items():
@@ -46,7 +45,7 @@ class Model(Atom):
     def __setstate__(self, state):
         """  Set the state ignoring any fields that fail to set which
         may occur due to version changes.
-        
+
         """
         for key, value in state.items():
             log.debug("Restoring state '{}.{} = {}'".format(
@@ -64,9 +63,9 @@ class Model(Atom):
 class Plugin(EnamlPlugin):
     """ A plugin that behaves like a model and saves it's state
     when any atom member tagged with config=True triggers a save.
-     
+
     Also optionally registers itself in the settings
-    
+
     """
 
     #: Settings pages this plugin adds
@@ -75,7 +74,7 @@ class Plugin(EnamlPlugin):
 
     #: File used to save and restore the state for this plugin
     _state_file = Unicode()
-    _state_excluded = List(str)
+    _state_excluded = List()
     _state_members = List(Member)
 
     # -------------------------------------------------------------------------

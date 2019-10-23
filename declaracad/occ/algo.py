@@ -10,7 +10,7 @@ Created on Sep 28, 2016
 @author: jrm
 """
 from atom.api import (
-    Atom, Instance, ForwardInstance, Typed, ForwardTyped, ContainerList, Enum, 
+    Atom, Instance, ForwardInstance, Typed, ForwardTyped, List, Enum,
     Float, Bool, Coerced, observe
 )
 from enaml.core.declarative import d_
@@ -32,16 +32,13 @@ class ProxyOperation(ProxyShape):
 class ProxyBooleanOperation(ProxyOperation):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: BooleanOperation)
-    
+
     def set_shape1(self, shape):
         raise NotImplementedError
 
     def set_shape2(self, shape):
         raise NotImplementedError
-    
-    def set_pave_filler(self, pave_filler):
-        raise NotImplementedError
-    
+
     def _do_operation(self, shape1, shape2):
         raise NotImplementedError
 
@@ -61,85 +58,90 @@ class ProxyFuse(ProxyBooleanOperation):
 class ProxyFillet(ProxyOperation):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: Fillet)
-    
+
     def set_radius(self, r):
         raise NotImplementedError
-    
-    def set_edges(self, edges):
+
+    def set_operations(self, operations):
         raise NotImplementedError
-    
-    def set_shape(self, shape):
+
+    def set_shape_type(self, shape_type):
         raise NotImplementedError
 
 
 class ProxyChamfer(ProxyOperation):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: Chamfer)
-    
+
     def set_distance(self, d):
         raise NotImplementedError
-    
+
     def set_distance2(self, d):
         raise NotImplementedError
-    
-    def set_edges(self, edges):
-        raise NotImplementedError
-    
-    def set_faces(self, faces):
+
+    def set_operations(self, operations):
         raise NotImplementedError
 
 
 class ProxyOffset(ProxyOperation):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: Offset)
-    
+
+    def set_closed(self, closed):
+        raise NotImplementedError
+
     def set_offset(self, offset):
         raise NotImplementedError
-    
+
     def set_offset_mode(self, mode):
         raise NotImplementedError
-    
+
     def set_intersection(self, enabled):
         raise NotImplementedError
-    
+
     def set_join_type(self, mode):
         raise NotImplementedError
+
+
+class ProxyOffsetShape(ProxyOffset):
+    #: A reference to the Shape declaration.
+    declaration = ForwardTyped(lambda: OffsetShape)
 
 
 class ProxyThickSolid(ProxyOffset):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: ThickSolid)
-    
-    def set_closing_faces(self, faces):
+
+    def set_faces(self, faces):
         raise NotImplementedError
 
 
 class ProxyPipe(ProxyOffset):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: Pipe)
-    
+
     def set_spline(self, spline):
         raise NotImplementedError
-    
+
     def set_profile(self, profile):
         raise NotImplementedError
-    
+
     def set_fill_mode(self, mode):
         raise NotImplementedError
 
 
 class ProxyAbstractRibSlot(ProxyOperation):
-    #: Abstract class 
-    
+    #: Abstract class
+
     def set_shape(self, shape):
         raise NotImplementedError
-    
+
     def set_contour(self, contour):
         raise NotImplementedError
-    
+
     def set_plane(self, plane):
         raise NotImplementedError
-    
+
     def set_fuse(self, fuse):
         raise NotImplementedError
 
@@ -147,10 +149,10 @@ class ProxyAbstractRibSlot(ProxyOperation):
 class ProxyLinearForm(ProxyAbstractRibSlot):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: LinearForm)
-    
+
     def set_direction(self, direction):
         raise NotImplementedError
-    
+
     def set_direction1(self, direction):
         raise NotImplementedError
 
@@ -161,13 +163,13 @@ class ProxyLinearForm(ProxyAbstractRibSlot):
 class ProxyRevolutionForm(ProxyAbstractRibSlot):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: RevolutionForm)
-    
+
     def set_height1(self, direction):
         raise NotImplementedError
-    
+
     def set_height2(self, direction):
         raise NotImplementedError
-    
+
     def set_sliding(self, sliding):
         raise NotImplementedError
 
@@ -175,13 +177,13 @@ class ProxyRevolutionForm(ProxyAbstractRibSlot):
 class ProxyThruSections(ProxyOperation):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: ThruSections)
-    
+
     def set_solid(self, solid):
         raise NotImplementedError
-    
+
     def set_ruled(self, ruled):
         raise NotImplementedError
-    
+
     def set_precision(self, pres3d):
         raise NotImplementedError
 
@@ -189,21 +191,21 @@ class ProxyThruSections(ProxyOperation):
 class ProxyTransform(ProxyOperation):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: Transform)
-    
+
     def set_shape(self, shape):
         raise NotImplementedError
-    
+
     def set_operations(self, operations):
         raise NotImplementedError
 
 
 class Operation(Shape):
     """ Base class for Operations that are applied to other shapes.
-    
+
     """
     #: Reference to the implementation control
     proxy = Typed(ProxyOperation)
-    
+
     def _update_proxy(self, change):
         if change['name'] == 'axis':
             dx, dy, dz = self.x, self.y, self.z
@@ -215,44 +217,39 @@ class Operation(Shape):
             for c in self.children:
                 if isinstance(c, Shape):
                     c.position = (c.x+dx, c.y+dy, c.z+dz)
-        else:
-            super(Operation, self)._update_proxy(change)
-        self.proxy.update_display(change)
+        super(Operation, self)._update_proxy(change)
 
 
 class BooleanOperation(Operation):
     """ A base class for a boolean operation on two or more shapes.
-    
+
     Attributes
     ----------
-    
+
     shape1: Shape
         The first shape argument of the operation.
     shape2: Shape
         The second shape argument of the operation.
-    
+
     """
 
     shape1 = d_(Instance(object))
-    
+
     shape2 = d_(Instance(object))
-    
-    #: Optional pave filler
-    pave_filler = d_(Instance(object))#BOPAlgo_PaveFiller))
-    
-    @observe('shape1', 'shape2', 'pave_filler')
+
+    @observe('shape1', 'shape2')
     def _update_proxy(self, change):
         super(BooleanOperation, self)._update_proxy(change)
-        
-        
+
+
 class Common(BooleanOperation):
     """ An operation that results in the intersection or common volume
-    of the two shapes. This operation is repeated to give the intersection 
+    of the two shapes. This operation is repeated to give the intersection
     all child shapes.
 
     Examples
     ----------
-    
+
     Common:
         Box:
             pass
@@ -260,21 +257,21 @@ class Common(BooleanOperation):
             radius = 2
         Torus:
             radius = 1
-    
-    
+
+
     """
     #: Reference to the implementation control
     proxy = Typed(ProxyCommon)
 
 
 class Cut(BooleanOperation):
-    """ An operation that results in the subtraction of the second and 
-    following shapes the first shape.  This operation is repeated for all 
+    """ An operation that results in the subtraction of the second and
+    following shapes the first shape.  This operation is repeated for all
     additional child shapes if more than two are given.
 
     Examples
     ----------
-    
+
     Cut:
         Box:
             dx = 2
@@ -282,245 +279,270 @@ class Cut(BooleanOperation):
             dz = 2
         Box:
             pass
-        
+
         # etc...
-    
+
     """
     #: Reference to the implementation control
     proxy = Typed(ProxyCut)
 
 
 class Fuse(BooleanOperation):
-    """ An operation that results in the addition all of the child shapes. 
-    
+    """ An operation that results in the addition all of the child shapes.
+
    Examples
    ----------
-   
+
    Fuse:
        Box:
            pass
        Box:
            position = (1,0,0)
-       
+
     """
     #: Reference to the implementation control
     proxy = Typed(ProxyFuse)
 
 
 class LocalOperation(Operation):
-    """ A base class for operations on the edges of shapes. 
-    
+    """ A base class for operations on the edges of shapes.
+
     """
 
 
 class Fillet(LocalOperation):
-    """ Applies fillet operation to the first child shape. 
-    
+    """ Applies fillet operation to the first child shape.
+
     Attributes
     ----------
-    
+
     shape: String
         The fillet shape type apply
     radius: Float
         Radius of the fillet. Must be less than the face width.
-    edges: List of edges, optional
+    operations: List of edges, optional
         List of edges to apply the operation to. If not given all edges will
-        be used.  Used in conjunction with the `shape_edges` attribute. 
-    
+        be used.  Used in conjunction with the `topology.edges` attribute.
+
     Examples
     --------
-    
+
     Fillet:
-        #: Fillet the first 4 edges of the box (left side) 
-        edges = [e for i, e in enumerate(box.shape_edges) if i < 4]
+        #: Fillet the first 4 edges of the box (left side)
+        operations = [e for i, e in enumerate(box.topology.edges) if i < 4]
         radius = 0.1
         Box: box:
             pass
-        
+
     """
     #: Reference to the implementation control
     proxy = Typed(ProxyFillet)
-    
+
     #: Fillet shape type
-    shape = d_(Enum('rational', 'angular', 'polynomial')).tag(view=True,
-                                                              group='Fillet')
-    
+    shape_type = d_(Enum('rational', 'angular', 'polynomial')).tag(
+        view=True, group='Fillet')
+
     #: Radius of fillet
     radius = d_(Float(1, strict=False)).tag(view=True, group='Fillet')
-    
-    #: Edges to apply fillet to
-    #: Leave blank to use all edges of the shape 
-    edges = d_(ContainerList(object)).tag(view=True, group='Fillet')
-    
-    @observe('shape', 'radius', 'edges')
+
+    #: Edges to apply fillet to and parameters
+    #: Leave blank to use all edges of the shape
+    operations = d_(List()).tag(view=True, group='Fillet')
+
+    @observe('shape_type', 'radius', 'operations')
     def _update_proxy(self, change):
         super(Fillet, self)._update_proxy(change)
 
 
 class Chamfer(LocalOperation):
-    """ Applies Chamfer operation to the first child shape. 
-   
+    """ Applies Chamfer operation to the first child shape.
+
     Attributes
     ----------
-    
+
     distance: Float
        The distance of the chamfer to apply
     distance2: Float
        The second distance of the chamfer to apply
-    edges: List of edges, optional
-       List of edges to apply the operation to. If not given all edges will
-       be used.  Used in conjunction with the `shape_edges` attribute.
-    faces: List of faces, optional
-       List of faces to apply the operation to. If not given, all faces will
-       be used.  Used in conjunction with the `shape_edges` attribute. 
-    
+    operations: List of edges or faces, optional
+       List of edges or faces to apply the operation to. If not given the first
+       face will be used.  Used in conjunction with the `topology` attribute.
+
     Examples
     --------
-    
+
     Chamfer:
         #: Fillet the top of the cylinder
-        faces = [cyl.shape_faces[0]]
+        operations = [cyl.topology.faces[0]]
         distance = 0.2
         Cylinder: cyl:
            pass
-       
+
     """
     #: Reference to the implementation control
     proxy = Typed(ProxyChamfer)
-    
+
     #: Distance of chamfer
     distance = d_(Float(1, strict=False)).tag(view=True, group='Chamfer')
-    
+
     #: Second of chamfer (leave 0 if not used)
     distance2 = d_(Float(0, strict=False)).tag(view=True, group='Chamfer')
-    
-    #: Edges to apply chamfer to
-    #: Leave blank to use all edges of the shape 
-    edges = d_(ContainerList()).tag(view=True, group='Chamfer')
 
-    #: Faces to apply the chamfer to
-    faces = d_(ContainerList()).tag(view=True, group='Chamfer')
-    
-    @observe('distance', 'distance2', 'edges', 'faces')
+    #: Edges or faces to apply chamfer to
+    operations = d_(List()).tag(view=True, group='Chamfer')
+
+    @observe('distance', 'distance2', 'operations')
     def _update_proxy(self, change):
         super(Chamfer, self)._update_proxy(change)
 
 
 class Offset(Operation):
-    """ An operation that create an Offset of the first child shape.
-    
+    """ An operation that create an Offset wire of the first child shape.
+
     Attributes
     ----------
-    
+
     offset: Float
         The offset distance
     offset_mode: String
-        Defines the construction type of parallels applied to the free edges 
+        Defines the construction type of parallels applied to the free edges
         of the shape
     intersection: Bool
-        Intersection specifies how the algorithm must work in order to limit 
+        Intersection specifies how the algorithm must work in order to limit
         the parallels to two adjacent shapes
     join_type: String
-        Defines how to fill the holes that may appear between parallels to 
+        Defines how to fill the holes that may appear between parallels to
         the two adjacent faces
-    
-        
+
+
     Examples
     --------
-    
+
     See examples/operations.enaml
-        
+
     """
 
     #: Reference to the implementation control
     proxy = Typed(ProxyOffset)
-    
+
+    #: Whether the offset should be closed
+    closed = d_(Bool(True))
+
     #: Offset
     offset = d_(Float(1, strict=False)).tag(view=True, group='Offset')
-    
+
     #: Offset mode
-    offset_mode = d_(Enum('skin', 'pipe', 'recto_verso')).tag(view=True,
-                                                              group='Offset')
-    
+    offset_mode = d_(Enum('skin', 'pipe', 'recto_verso')).tag(
+        view=True, group='Offset')
+
     #: Intersection
     intersection = d_(Bool(False)).tag(view=True, group='Offset')
-    
+
     #: Join type
-    join_type = d_(Enum('arc', 'tangent', 'intersection')).tag(view=True,
-                                                               group='Offset')
-        
-    @observe('offset', 'offset_mode', 'intersection', 'join_type')
+    join_type = d_(Enum('arc', 'tangent', 'intersection')).tag(
+        view=True, group='Offset')
+
+    @observe('offset', 'offset_mode', 'intersection', 'join_type', 'closed')
     def _update_proxy(self, change):
         super(Offset, self)._update_proxy(change)
 
 
-class ThickSolid(Offset):
-    """ An operation that creates a hollowed out solid from shape.
-    
+class OffsetShape(Offset):
+    """ An operation that create an OffsetShape from the first child shape.
+
     Attributes
     ----------
-    
-    closing_faces: List, optional
-        List of faces that bound the solid.
-        
+
+    offset: Float
+        The offset distance
+    offset_mode: String
+        Defines the construction type of parallels applied to the free edges
+        of the shape
+    intersection: Bool
+        Intersection specifies how the algorithm must work in order to limit
+        the parallels to two adjacent shapes
+    join_type: String
+        Defines how to fill the holes that may appear between parallels to
+        the two adjacent faces
+
+
     Examples
     --------
-    
+
+    See examples/operations.enaml
+
+    """
+    #: Reference to the implementation control
+    proxy = Typed(ProxyOffsetShape)
+
+
+class ThickSolid(Offset):
+    """ An operation that creates a hollowed out solid from shape.
+
+    Attributes
+    ----------
+
+    closing_faces: List, optional
+        List of faces that bound the solid.
+
+    Examples
+    --------
+
     ThickSolid:
         #: Creates an open box with a thickness of 0.1
         offset = 0.1
-        Box: box1:
+        Box: box:
             position = (4,-4,0)
         # Get top face
-        closing_faces << [sorted(box1.shape_faces,key=top_face)[0]] 
-        
+        faces << [sorted(box.topology.faces,key=top_face)[0]]
+
     """
     #: Reference to the implementation control
     proxy = Typed(ProxyThickSolid)
-    
+
     #: Closing faces
-    closing_faces = d_(ContainerList()).tag(view=True, group='ThickSolid')
-    
-    @observe('closing_faces')
+    faces = d_(List()).tag(view=True, group='ThickSolid')
+
+    @observe('faces')
     def _update_proxy(self, change):
         super(ThickSolid, self)._update_proxy(change)
 
 
 class Pipe(Operation):
     """ An operation that extrudes a profile along a spline, wire, or path.
-    
+
     Attributes
     ----------
-    
+
     spline: Edge or Wire
         The spline to extrude along.
     profile: Wire
         The profile to extrude.
     fill_mode: String, optional
         The fill mode to use.
-    
-        
+
+
     Examples
     --------
-    
+
     See examples/pipes.enaml
-        
+
     """
     #: Reference to the implementation control
     proxy = Typed(ProxyPipe)
-    
+
     #: Spline to make the pipe along
     spline = d_(ForwardInstance(WireFactory))
-    
+
     #: Profile to make the pipe from
     profile = d_(Instance(Shape))
-    
+
     #: Fill mode
     fill_mode = d_(Enum(None, 'corrected_frenet', 'fixed', 'frenet',
                         'constant_normal', 'darboux', 'guide_ac', 'guide_plan',
                         'guide_ac_contact', 'guide_plan_contact',
                         'discrete_trihedron')).tag(view=True, group='Pipe')
-    
+
     @observe('spline', 'profile', 'fill_mode')
     def _update_proxy(self, change):
         super(Pipe, self)._update_proxy(change)
@@ -529,13 +551,13 @@ class Pipe(Operation):
 class AbstractRibSlot(Operation):
     #: Base shape
     shape = d_(Instance(Shape))
-    
+
     #: Profile to make the pipe from
     contour = d_(Instance(Shape))
-    
+
     #: Profile to make the pipe from
     plane = d_(Instance(Shape))
-    
+
     #: Fuse (False to remove, True to add)
     fuse = d_(Bool(False)).tag(view=True)
 
@@ -543,10 +565,10 @@ class AbstractRibSlot(Operation):
 class LinearForm(AbstractRibSlot):
     #: Reference to the implementation control
     proxy = Typed(ProxyLinearForm)
-    
+
     #: Direction
     direction1 = d_(Instance((list, tuple))).tag(view=True)
-    
+
     #: Modify
     modify = d_(Bool(False)).tag(view=True)
 
@@ -554,57 +576,57 @@ class LinearForm(AbstractRibSlot):
 class RevolutionForm(AbstractRibSlot):
     #: Reference to the implementation control
     proxy = Typed(ProxyRevolutionForm)
-    
+
     #: Height 1
     height1 = d_(Float(1.0, strict=False)).tag(view=True)
-    
+
     #: Height 2
     height2 = d_(Float(1.0, strict=False)).tag(view=True)
-    
+
     #: Sliding
     sliding = d_(Bool(False)).tag(view=True)
-    
-        
+
+
 class ThruSections(Operation):
     """ An operation that extrudes a shape by means of going through a series
-     of profile sections along a spline or path.  
-    
+     of profile sections along a spline or path.
+
     Attributes
     ----------
-    
+
     solid: Bool
         If True, build a solid otherwise build a shell.
     ruled: Bool
         If False, smooth out the surfaces using approximation
     precision: Float, optional
         The precision to use for approximation.
-        
+
     Examples
     --------
-    
+
     See examples/thru_sections.enaml
-        
+
     """
     #: Reference to the implementation control
     proxy = Typed(ProxyThruSections)
-    
-    #: isSolid is set to true if the construction algorithm is required 
+
+    #: isSolid is set to true if the construction algorithm is required
     #: to build a solid or to false if it is required to build a shell
     #: (the default value),
     solid = d_(Bool(False)).tag(view=True, group='Through Sections')
-    
-    #: ruled is set to true if the faces generated between the edges 
+
+    #: ruled is set to true if the faces generated between the edges
     #: of two consecutive wires are ruled surfaces or to false
     #: (the default value)
     #: if they are smoothed out by approximation
     ruled = d_(Bool(False)).tag(view=True, group='Through Sections')
-    
+
     #: pres3d defines the precision criterion used by the approximation
     #:  algorithm;
-    #: the default value is 1.0e-6. Use AddWire and AddVertex to define 
+    #: the default value is 1.0e-6. Use AddWire and AddVertex to define
     #: the successive sections of the shell or solid to be built.
     precision = d_(Float(1e-6)).tag(view=True, group='Through Sections')
-    
+
     @observe('solid', 'ruled', 'precision')
     def _update_proxy(self, change):
         super(ThruSections, self)._update_proxy(change)
@@ -613,7 +635,7 @@ class ThruSections(Operation):
 class TransformOperation(Atom):
     #: Point
     point = Coerced(tuple)
-    
+
     def _default_point(self):
         return (0.0, 0.0, 0.0)
 
@@ -621,20 +643,20 @@ class TransformOperation(Atom):
 class Rotate(TransformOperation):
     #: Rotation axis
     direction = Coerced(tuple)
-    
+
     def _default_direction(self):
         return (0.0, 0.0, 1.0)
-    
+
     #: Angle
     angle = Float(0.0, strict=False)
-    
+
 
 class Translate(TransformOperation):
     #: Position
     x = Float(0.0, strict=False)
     y = Float(0.0, strict=False)
     z = Float(0.0, strict=False)
-    
+
     def __init__(self, x=0, y=0, z=0, **kwargs):
         super(Translate, self).__init__(x=x, y=y, z=z, **kwargs)
 
@@ -651,17 +673,17 @@ class Mirror(TransformOperation):
     x = Float(0.0, strict=False)
     y = Float(0.0, strict=False)
     z = Float(0.0, strict=False)
-    
+
     def __init__(self, x=0, y=0, z=0, **kwargs):
         super(Mirror, self).__init__(x=x, y=y, z=z, **kwargs)
 
 
 class Transform(Operation):
     """ An operation that Transform's an existing shape (or a copy).
-    
+
     Attributes
     ----------
-    
+
     shape: Shape or None
         Shape to transform. If none is given it will use the first child. If
         given it will make a transformed copy the reference shape.
@@ -669,27 +691,27 @@ class Transform(Operation):
         Mirror transformation to apply to the shape. Should be a list for each
         axis (True, False, True).
     scale: Tuple or List
-        Scale to apply to the shape. Should be a list of float values 
+        Scale to apply to the shape. Should be a list of float values
         for each axis ex. (2, 2, 2).
     rotate: Tuple or List
-        Rotation to apply to the shape. Should be a list of float values 
+        Rotation to apply to the shape. Should be a list of float values
         (in radians) for each axis ex. (0, math.pi/2, 0).
     translate: Tuple or List
-        Translation to apply to the shape. Should be a list of float values 
+        Translation to apply to the shape. Should be a list of float values
         for each axis ex. (0, 0, 100).
-        
+
     Examples
     --------
-    
+
     Transform:
         operations = [Rotate(direction=(1, 0, 0), angle=math.pi/4)]
         Box: box:
             pass
-            
+
     #: Or
     Cylinder: cyl
         pass
-    
+
     Transform:
         #: Create a copy and move it
         shape = cyl
@@ -698,18 +720,18 @@ class Transform(Operation):
             Scale(s=2),
             Rotate(direction=(0,0,1), angle=math.pi/2)
         ]
-        
+
     """
     #: Reference to the implementation control
     proxy = Typed(ProxyTransform)
-    
+
     #: Shape to transform
     #: if none is given the first child will be used
-    shape = d_(Instance(Shape))
-    
+    shape = d_(Instance(object))
+
     #: Transform ops
-    operations = d_(ContainerList(TransformOperation))
-    
+    operations = d_(List(TransformOperation))
+
     @observe('operations')
     def _update_proxy(self, change):
         super(Transform, self)._update_proxy(change)

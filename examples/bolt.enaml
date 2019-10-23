@@ -1,0 +1,128 @@
+# Created in DeclaraCAD
+from math import sin, cos, radians, sqrt, pi, tan
+from declaracad.occ.api import *
+
+enamldef Hexagon(Polygon):
+    attr radius: float = 1.0
+    points = [(radius*cos(radians(a)), radius*sin(radians(a)), 0)
+               for a in range(0, 420, 60)]
+    
+enamldef HexNut(Transform):
+    attr thickness = 2
+    attr outer_radius = 3
+    attr inner_radius = 1.5
+    Chamfer:
+        distance = outer_radius/10
+        attr top_face = prism.topology.faces[7]
+        attr bottom_face = prism.topology.faces[8]
+        operations = [top_face, bottom_face]
+        Prism: prism:
+            vector = (0, 0, thickness)
+            Cut:
+                Face:
+                    Hexagon:
+                        radius << outer_radius
+                Face:
+                    Circle:
+                        radius << inner_radius
+
+
+enamldef HexBolt(Part): bolt:
+    """ Hexagonal Head Bolt  """
+    #: Height of head
+    attr H: float = 2.0
+
+    #: Length of bolt
+    attr length: float = 20.0
+
+    # Dimension C / 2
+    attr C: float = 6.4
+    attr B: float = 5.5
+    attr D: float = 5.3
+
+    # Dimension d1 / 2
+    attr d1: float = 3.0
+
+    # Size of thread
+    attr d: float = 0.5
+    attr s: float = 2*D
+
+    # Fillet radius of head and bolt
+    attr r: float = 0.2
+
+    attr thread_height: float = d1/4
+    attr k: float = 0.6
+    
+    func make_cylinder_surface(radius):
+        cylinder = Cylinder(radius=radius)
+        cylinder.render()
+        return cylinder.topology.faces[0]
+    
+    #Cut:
+    Fuse:  fuse:
+        color = 'lightblue'
+        #transparency = 0.9
+        Prism: head:
+            vector = (0, 0, H)
+            Face:
+                Wire:
+                    Hexagon: hexagon:
+                        radius << C/2
+        Revol: revol:
+        #    #: Axis of rotation
+            direction = (0, 0, 1)
+            Face:
+                Wire:
+                    Polygon:
+                        points = [
+                            (0, 0, 0),
+                            (B/2, 0, 0),
+                            (B/2, 0, H),
+                            (d1/2+r, 0, H)
+                        ]
+                    Arc:
+                        # Circle center and orientation
+                        direction = (0, 1, 0)
+                        position = (d1/2+r, 0, H+r)
+                        radius = r
+                        # start, end
+                        points = [(d1/2+r, 0, H), (d1/2, 0, H+r)]
+                    Polygon:
+                        points = [
+                            (d1/2, 0, H+r),
+                            (d1/2, 0, H+length-k),
+                            (d1/2-k, 0, H+length),
+                            (0, 0, H+length),
+                            (0, 0, 0)
+                        ]
+    ThruSections:
+        color := fuse.color
+        Wire:
+                # Note: When a surface is given on a curve  the shape is converted to 2d
+                # the wire automatically converts it back to 3d
+                TrimmedCurve: c1:
+                    surface = make_cylinder_surface(d1/2)
+                    v = 2*pi
+                    Ellipse: e1:
+                        position = (2*pi, bolt.length*3/4, 0)
+                        direction = (pi/8, bolt.length/4, 0)
+                        major_radius = 16*pi
+                        minor_radius = bolt.length/30
+        Wire:
+                TrimmedCurve: c2:
+                    surface = make_cylinder_surface(d1/2+0.4)
+                    v = c1.v
+                    Ellipse: e2:
+                        position = e1.position
+                        direction = e1.direction
+                        major_radius = e1.major_radius-pi/4
+                        minor_radius = 0
+                        
+enamldef Assembly(Part):
+    HexBolt:  bolt:
+        material = 'steel'
+        length = 15.0
+        
+    
+    #ThruSections:
+    

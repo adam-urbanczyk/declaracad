@@ -1,0 +1,52 @@
+"""
+Build a spring by building a circle along a helical bspline
+
+"""
+from math import pi, sin, cos
+from declaracad.occ.api import *
+
+
+enamldef Spring(Transform):
+    #: Radius of spring helix
+    attr r = 30
+
+    #: Number of turns of the srping
+    attr height = 100
+    attr turns: int = 6
+    #: Thickness of the spring coil
+    attr thickness = 5
+    # The cut operation takes a lot of time
+    Cut:
+        tolerance = 10e-3
+        Pipe:
+            BSpline:  spline:
+                attr ppr = 4
+                points=[
+                        # To make a progressive spring change the z coordinate
+                        # here as needed
+                        (r*cos(pi/ppr*i), r*sin(pi/ppr*i), height/(2*turns)*i/ppr)
+                        # The +1 makes it start and end at the same angle
+                        for i in range(2*turns*ppr+1)
+                    ]
+            Face: profile:
+                Circle:
+                    radius = thickness/2
+                    position = spline.points[0]
+                    #direction = (0, 1, 0)
+                    # Direction depends on the spline
+                    direction = spline.get_value_at(0, derivative=1)[1]
+
+        # Cut Top and bottom planes
+        HalfSpace: bottom_side:
+            position = (0, 0, spline.points[0].z+thickness/2)
+            side = (0, 0, z - 1)
+        HalfSpace: top_side:
+            # Center
+            position = (0, 0, spline.points[-1].z-thickness/2)
+            side = (0, 0, z + 1)
+
+
+enamldef Assembly(Part):
+    Spring:
+        color = 'steelblue'
+

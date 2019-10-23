@@ -1,0 +1,74 @@
+# Created in DeclaraCAD
+from math import sin, cos, radians
+from declaracad.occ.api import *
+
+enamldef BallBearing(Part):
+    """ Based on the diagram from  
+    https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Ftse3.mm.bing.net%2Fth%3Fid%3DOIP.KR-aiIl1rNQsc6xBzdbzAQHaKI%26pid%3DApi&f=1
+     
+    """
+    attr width = 34
+    attr outer_diameter = 180
+    attr bore_diameter = 100
+    attr pitch_diameter = (outer_diameter-bore_diameter)/2 + bore_diameter
+    attr thickness = (outer_diameter-bore_diameter)/8
+    attr ball_diameter = 24
+    attr num_balls = 10
+    attr chamfer_distance  = 2
+    Chamfer: outer_sleeve:
+        distance = chamfer_distance
+        material = 'steel'
+        Cut: 
+            Cylinder:
+                radius = outer_diameter/2
+                height = width
+            Cylinder:
+                radius = outer_diameter/2-thickness
+                height = width
+            Torus: channel:
+                radius = pitch_diameter/2
+                radius2 = ball_diameter/2
+                position = (0, 0, width/2)
+    Chamfer: inner_sleeve:
+        distance = chamfer_distance        
+        material = outer_sleeve.material
+        Cut: 
+            Cylinder:
+                radius = bore_diameter/2+thickness
+                height = width
+            Cylinder:
+                radius = bore_diameter/2
+                height = width
+            Transform:
+                shape = channel
+    Looper:
+        iterable << range(0, num_balls)
+        Sphere:
+            material = 'steel'
+            radius = ball_diameter/2
+            attr a = radians(loop_index*360/num_balls)
+            position = (
+                    channel.radius*cos(a), 
+                    channel.radius*sin(a), 
+                    width/2)
+    Prism: front_shield:
+        color = 'black'
+        transparency = 0.8
+        vector = (0, 0, width/10)
+        Cut:
+            Face:
+                Circle:
+                        radius = outer_diameter/2-thickness
+            Face:    
+                    Circle:
+                        radius = bore_diameter/2+thickness
+    Transform: rear_shield:
+        color = front_shield.color
+        transparency = front_shield.transparency
+        shape = front_shield
+        operations = [Translate(z=width-front_shield.vector[2])]
+        
+        
+enamldef Assembly(Part):
+    BallBearing:
+        pass

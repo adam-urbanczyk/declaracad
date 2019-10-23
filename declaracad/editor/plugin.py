@@ -29,7 +29,6 @@ from enaml.core.enaml_compiler import EnamlCompiler
 from enaml.workbench.core.execution_event import ExecutionEvent
 from enaml.layout.api import InsertItem, InsertTab, RemoveItem
 from types import ModuleType
-from future.utils import exec_
 from glob import glob
 
 
@@ -185,41 +184,46 @@ class EditorPlugin(Plugin):
             removed = old.difference(new)
             added = new.difference(old)
         elif change['type'] == 'load':
-            old = set([Document()])
-            new = set(self.documents)
-            #: Determine which changed
-            removed = old.difference(new)
-            added = new.difference(old)
+            removed = {item.doc for item in self.get_editor_items()}
+            added = set(self.documents)
 
         #: Update operations to apply
         ops = []
-        removed_targets = []
+        removed_targets = set()
 
         #: Remove any old items
         for doc in removed:
             for item in self.get_editor_items():
                 if item.doc == doc:
-                    removed_targets.append(item.name)
+                    removed_targets.add(item.name)
                     ops.append(RemoveItem(item=item.name))
 
         # Remove ops
-        area.update_layout(ops)
+        if ops:
+            log.debug(ops)
+            area.update_layout(ops)
 
         # Add each one at a time
-        targets = [item.name for item in area.dock_items()
+        targets = set([item.name for item in area.dock_items()
                    if (item.name.startswith("editor-item") and
-                   item.name not in removed_targets)]
+                   item.name not in removed_targets)])
+
+        log.debug("Editor added=%s removed=%s targets=%s", added, removed, targets)
 
         # Sort documents so active is last so it's on top when we restore
         # from a previous state
         for doc in sorted(added, key=lambda d: int(d == self.active_document)):
             item = create_editor_item(area, plugin=self, doc=doc)
             if targets:
-                op = InsertTab(item=item.name, target=targets[-1])
+                op = InsertTab(item=item.name, target=list(targets)[-1])
             else:
                 op = InsertItem(item=item.name)
-            targets.append(item.name)
-            area.update_layout(op)
+            targets.add(item.name)
+            log.debug(op)
+            try:
+                area.update_layout(op)
+            except Exception as e:
+                log.exception(e)
 
         # Now save it
         self.save_dock_area(change)
@@ -309,15 +313,15 @@ class EditorPlugin(Plugin):
         opened = [d for d in docs if d.name == path]
         if not opened:
             return
-        log.debug("Closing '{}'".format(path))
+        log.debug("Closing '%s'", path)
         doc = opened[0]
         self.documents.remove(doc)
 
-        #: If we removed al of them
+        # If we removed al of them
         if not self.documents:
             self.documents = self._default_documents()
 
-        #: If we closed the active document
+        # If we closed the active document
         if self.active_document == doc:
             self.active_document = self.documents[0]
 
@@ -332,7 +336,7 @@ class EditorPlugin(Plugin):
             if doc.name == path:
                 self.active_document = doc
                 return
-        log.debug("Opening '{}'".format(path))
+        log.debug("Opening '%s'", path)
 
         #: Otherwise open it
         doc = Document(name=path, unsaved=False)
@@ -427,6 +431,7 @@ class EditorPlugin(Plugin):
             result: list
                 List of autocompletion strings
         """
+        return []
         try:
             #: TODO: Move to separate process
             line, column = cursor

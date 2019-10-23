@@ -1,0 +1,29 @@
+"""
+Demonstrate using a halfspace to cut along ap lane
+
+"""
+from math import pi, sin, cos
+from declaracad.occ.api import *
+
+
+enamldef Assembly(Part):
+    # To visualize the plane being cut
+    Plane: p:
+        color = 'blue'
+        transparency = 0.9
+        position = (5, 5, 7)
+        direction = (1, 1, 1)
+        bounds = [(-30,-30), (30, 30)]
+    Cut:
+        Box:
+            dz = 20
+            dx = 10
+            dy = 30
+        HalfSpace:
+            # If no child is given a plane is built using the position and direction
+            position = p.position
+            direction = p.direction
+
+            # A point do define which side of the plane to cut off
+            side = (0, 0, 1)
+

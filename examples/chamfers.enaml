@@ -1,0 +1,82 @@
+""" This example shows how to use chamfer operations
+
+See https://dev.opencascade.org/doc/overview/html/occt_user_guides__modeling_algos.html#occt_modalg_6
+for more on how this works.
+
+"""
+
+from declaracad.occ.api import Part, Box, Chamfer
+
+
+enamldef Assembly(Part):
+    name = "Chamfer Operations"
+
+    Chamfer:
+        # If no operations are given it applies to all faces
+        distance = 20
+        Box:
+            position = (-300, 0, 0)
+            dx = 200
+            dy = 200
+            dz = 200
+
+    Chamfer:
+        # Or you can supply which faces to apply the chamfer to
+        # and you can change the slope by specifying distance2
+        color = 'red'
+        distance = 20
+        distance2 = 40
+        attr top_face = self.children[0].topology.faces[5]
+        attr bottom_face = self.children[0].topology.faces[4]
+        operations = [top_face, bottom_face]
+        Box:
+            position = (300, 0, 0)
+            dx = 200
+            dy = 200
+            dz = 200
+
+    Chamfer:
+        # You also supply specify different chamfer distances for each chamfer
+        color = 'purple'
+        operations = [
+            (20, self.children[0].topology.faces[5]),
+            (50, self.children[0].topology.faces[4]),
+        ]
+        Box:
+            dx = 200
+            dy = 200
+            dz = 200
+
+    Chamfer:
+        # You can supply a tuple of (edge, face) to define which edges of a
+        # given face should be chamfered
+        color = 'blue'
+        distance = 20
+        attr top_face = self.children[0].topology.faces[5]
+        attr top_edges = self.children[0].topology.edges_from_face(top_face)
+        operations = [
+            (top_edges[0], top_face),
+            (top_edges[2], top_face)
+        ]
+        Box:
+            position = (0, -300, 0)
+            dx = 200
+            dy = 200
+            dz = 200
+
+    Chamfer:
+        # You also supply the chamfer distances for these as well
+        color = 'green'
+        attr top_face = self.children[0].topology.faces[5]
+        attr bottom_face = self.children[0].topology.faces[4]
+        attr top_edges = self.children[0].topology.edges_from_face(top_face)
+        operations = [
+            (70, 20, top_edges[0], top_face),
+            (50, top_edges[2], top_face),
+            (50, bottom_face)
+        ]
+        Box:
+            position = (0, 300, 0)
+            dx = 200
+            dy = 200
+            dz = 200

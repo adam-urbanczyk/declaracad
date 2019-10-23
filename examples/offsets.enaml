@@ -1,0 +1,20 @@
+# Created in DeclaraCAD
+import random
+from math import pi
+from declaracad.occ.api import *
+from enaml.core.api import Looper
+from enaml.colors import SVG_COLORS
+
+
+enamldef Assembly(Part):
+    Part:
+        Circle: circle:
+            radius = 3
+        Looper:
+            iterable << range(10)
+            Offset:
+                color = random.choice(list(SVG_COLORS.keys()))
+                offset = -(circle.radius*(0.9-loop_index*0.1))
+                Transform:
+                    shape = circle
+

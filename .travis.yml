@@ -1,0 +1,56 @@
+matrix:
+  fast_finish: true
+  include:
+    - os: linux
+      dist: xenial
+      env:
+        - PYTHON=3.6
+
+
+before_script:
+  # And OpenGL support
+  - sudo apt update -qq -y
+  - export DEBIAN_FRONTEND=noninteractive
+  - sudo apt -yq --force-yes install libgl1-mesa-dev libgl1-mesa-glx mesa-common-dev libglapi-mesa libgbm1 libgl1-mesa-dri mesa-utils
+
+
+  # Install miniconda
+  - travis_retry wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  - conda info -a
+
+  # Install conda build and anaconda-client
+  - conda install anaconda-client conda-build -q
+
+  # Install python
+  - conda install python=$PYTHON pyqt -q
+
+  # Install depencencies
+  - conda install -c trelau -c conda-forge pyocct -q
+
+  # Install declaracad
+  - pip install -e .
+
+  # Install testing utils
+  - pip install pytest pytest-coverage pytest-qt codecov
+
+  # Make sure glxgears works to ensure GL is ok
+  - xvfb-run -s "-screen 0 1920x1080x24 +extension GLX +extension RENDER" glxinfo
+
+script:
+  - xvfb-run -s "-screen 0 1920x1080x24 +extension GLX +extension RENDER" py.test tests --cov declaracad --cov-report xml -v
+
+after_script:
+  - cat ~/.config/declaracad/logs/*.txt
+
+after_success:
+  - codecov
+
+  # Build install package
+  - conda-build recipe
+
+
