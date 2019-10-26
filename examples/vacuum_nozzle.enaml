@@ -1,0 +1,53 @@
+# Created in DeclaraCAD
+from math import sin, cos, radians
+from declaracad.occ.api import *
+
+enamldef Assembly(Part):
+    attr thickness = 1/8 
+    Cut:
+        Fuse:
+          ThickSolid:
+            offset = thickness
+            faces = [f for (i,f) in enumerate(body.topology.faces) if i in (0,3)]
+            Fuse:   body:
+                Cylinder: head:
+                    radius = 1/2
+                    height = 1
+                    direction = (1/2, 0, 1)
+                    position = (shaft.diameter, 0, 1)
+                ThruSections:
+                        solid = True
+                        Wire:
+                            Circle: c1:
+                                radius << shaft.radius + 1/2
+                        Wire:
+                            Circle: c2:
+                                direction = (0.1, 0, 1)
+                                position = (0, 0, 1/4)
+                                radius << c1.radius#+0.2
+                        Wire:
+                            Circle: c3:
+                                direction = head.direction
+                                position = (0.7, 0, 0.7)
+                                radius << head.radius*1.2
+                        Wire:
+                            Circle: 
+                                direction = head.direction
+                                position = head.position
+                                radius = head.radius
+          Cylinder:
+                radius = shaft.radius+thickness
+                height = 1/2
+                position = (0, 0, 3/4)                    
+        Cylinder: shaft:
+            attr diameter = 1
+            transparency = 0.7
+            material = 'steel'
+            radius = diameter/2
+            height = 4  
+    
+    #Transform:
+    #    shape = c2
+    #Transform:
+    #    shape = c3
+

@@ -54,6 +54,7 @@ from OCCT.Quantity import Quantity_Color, Quantity_NOC_BLACK
 from OCCT.Prs3d import Prs3d_Drawer
 from OCCT.TopoDS import TopoDS_Shape
 from OCCT.TopAbs import TopAbs_FACE, TopAbs_EDGE, TopAbs_WIRE
+from OCCT.TopLoc import TopLoc_Location
 from OCCT.V3d import V3d_Viewer, V3d_View, V3d_TypeOfOrientation
 
 from declaracad.occ.qt.utils import (
@@ -789,12 +790,9 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     def _expand_shapes(self, shapes):
         expansion = []
         for s in shapes:
-            for c in s.children():
-                if isinstance(c, OccPart):
-                    expansion.extend(self._expand_shapes(c.shapes))
-            if hasattr(s, 'shapes'):
-                expansion.extend(self._expand_shapes(s.shapes))
-            else:
+            if isinstance(s, OccPart):
+                expansion.extend(self._expand_shapes(s.children()))
+            elif isinstance(s, OccShape):
                 expansion.append(s)
         return expansion
 
@@ -812,10 +810,12 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             log.debug("Rendering...")
 
             #: Expand all parts otherwise we lose the material information
-            shapes = self._expand_shapes(self.shapes[:])
+            shapes = self._expand_shapes(self.shapes)
             if not shapes:
                 log.debug("No shapes to display")
                 return
+
+            self.set_selection_mode(self.declaration.selection_mode)
 
             last_shape = shapes[-1]
             for occ_shape in shapes:
@@ -824,6 +824,11 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                 if not topods_shape:
                     log.error("{} has no shape!".format(occ_shape))
                     continue
+
+                parent = occ_shape.parent()
+                if parent and isinstance(parent, OccPart):
+                    # TODO: Build transform for nested parts
+                    topods_shape.Location(TopLoc_Location(parent.transform))
 
                 # Save the mapping of topods_shape to declaracad shape
                 displayed_shapes[topods_shape] = occ_shape
@@ -844,6 +849,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             # Update bounding box
             bbox = self.get_bounding_box(displayed_shapes.keys())
             self.declaration.bbox = BBox(*bbox)
+
+
         except:
             log.error("Failed to display shapes: {}".format(
                 traceback.format_exc()))

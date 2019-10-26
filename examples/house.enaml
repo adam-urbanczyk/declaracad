@@ -5,8 +5,7 @@ from declaracad.occ.api import (
     Cut, Fuse, Offset, Fillet, Transform, ThickSolid, Pipe,
     Rotate
 )
-from OCC.gp import gp_Dir, gp_Ax1, gp_Pnt
-from OCC.gce import gce_MakeDir
+from OCCT.gp import gp_Dir, gp_Ax1, gp_Pnt
 
 def inch(ft):
     return ft/12.0
@@ -18,7 +17,7 @@ def distance(p0,p1):
 def center(a,b,c):
     return (a/2.0, b/2.0,c/2.0)
 
-def angle(p0,p1):
+def angle(p0, p1):
     # Returns angle vector of two x,y points
     dx,dy = p1[0]-p0[0],p1[1]-p0[1]
     a = math.atan2(dy, dx)
@@ -108,17 +107,6 @@ enamldef Wall(Fuse):
                                                                
 enamldef Assembly(Part):
     name = "House"
-    
-    Looper:
-        iterable << [
-            (0,0),
-            (0,25),
-            (45,25),
-            (45,0),
-            (0,0)
-        ]
-        Point:
-            position << (loop_item[0],loop_item[1],0) 
     
     Wall:
         # Ext

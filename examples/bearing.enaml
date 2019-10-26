@@ -3,9 +3,9 @@ from math import sin, cos, radians
 from declaracad.occ.api import *
 
 enamldef BallBearing(Part):
-    """ Based on the diagram from  
+    """ Based on the diagram from
     https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Ftse3.mm.bing.net%2Fth%3Fid%3DOIP.KR-aiIl1rNQsc6xBzdbzAQHaKI%26pid%3DApi&f=1
-     
+
     """
     attr width = 34
     attr outer_diameter = 180
@@ -18,7 +18,7 @@ enamldef BallBearing(Part):
     Chamfer: outer_sleeve:
         distance = chamfer_distance
         material = 'steel'
-        Cut: 
+        Cut:
             Cylinder:
                 radius = outer_diameter/2
                 height = width
@@ -30,9 +30,9 @@ enamldef BallBearing(Part):
                 radius2 = ball_diameter/2
                 position = (0, 0, width/2)
     Chamfer: inner_sleeve:
-        distance = chamfer_distance        
+        distance = chamfer_distance
         material = outer_sleeve.material
-        Cut: 
+        Cut:
             Cylinder:
                 radius = bore_diameter/2+thickness
                 height = width
@@ -48,8 +48,8 @@ enamldef BallBearing(Part):
             radius = ball_diameter/2
             attr a = radians(loop_index*360/num_balls)
             position = (
-                    channel.radius*cos(a), 
-                    channel.radius*sin(a), 
+                    channel.radius*cos(a),
+                    channel.radius*sin(a),
                     width/2)
     Prism: front_shield:
         color = 'black'
@@ -59,7 +59,7 @@ enamldef BallBearing(Part):
             Face:
                 Circle:
                         radius = outer_diameter/2-thickness
-            Face:    
+            Face:
                     Circle:
                         radius = bore_diameter/2+thickness
     Transform: rear_shield:
@@ -67,8 +67,10 @@ enamldef BallBearing(Part):
         transparency = front_shield.transparency
         shape = front_shield
         operations = [Translate(z=width-front_shield.vector[2])]
-        
-        
+
+
 enamldef Assembly(Part):
-    BallBearing:
+    BallBearing: bb:
         pass
+
+

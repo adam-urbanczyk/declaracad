@@ -15,13 +15,13 @@ from atom.api import Constant, Enum, Float, Unicode
 from declaracad.occ.plugin import ModelExporter, load_model
 
 from OCCT.STEPControl import STEPControl_Writer, STEPControl_AsIs
-from OCCT.Interface import (
-    Interface_Static_SetCVal as SetCVal,
-    Interface_Static_SetIVal as SetIVal,
-    Interface_Static_SetRVal as SetRVal
-)
+from OCCT.Interface import Interface_Static
 from OCCT.IFSelect import IFSelect_RetDone
 
+
+SetCVal = Interface_Static.SetCVal_
+SetIVal = Interface_Static.SetIVal_
+SetRVal = Interface_Static.SetRVal_
 
 VERTEX_MODES = {'one compound': 0, 'single vertex': 1}
 PRECISION_MODES = {'least': -1, 'average': 0, 'greatest': 1, 'session': 2}

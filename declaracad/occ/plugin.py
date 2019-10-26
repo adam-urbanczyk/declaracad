@@ -227,6 +227,8 @@ class ViewerProcess(ProcessLineReceiver):
         elif response_id == 'capture_output':
             # Script output capture it
             self.output = response['result'].split("\n")
+        elif response_id == 'shape_selection':
+            self.output.append(str(response['result']))
         elif response_id is not None:
             # Lookup the deferred object that should be stored for this id
             # when it is called and invoke the callback or errback based on the

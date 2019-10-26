@@ -9,36 +9,60 @@ Created on Sep 30, 2016
 
 @author: jrm
 """
+from math import pi
 from atom.api import Typed
 from ..part import ProxyPart
 from .occ_shape import OccDependentShape, OccShape
 
-from OCCT.TopoDS import TopoDS_Compound
+from OCCT.TopoDS import TopoDS_Compound, TopoDS_Shape
 from OCCT.BRep import BRep_Builder
+from OCCT.BRepBuilderAPI import BRepBuilderAPI_Transform
+from OCCT.gp import gp, gp_Trsf, gp_Ax1, gp_Ax3, gp_Vec, gp_Dir
+
+
+
+DX = gp.DX_()
+AY = gp_Ax1()
+AY.SetDirection(gp.DY_())
 
 
 class OccPart(OccDependentShape, ProxyPart):
     #: A reference to the toolkit shape created by the proxy.
     builder = Typed(BRep_Builder)
 
-    #: The compound shape
-    shape = Typed(TopoDS_Compound)
-
-    @property
-    def shapes(self):
-        return [child for child in self.children()
-                if isinstance(child, OccShape)]
+    #: Transform
+    transform = Typed(gp_Trsf)
 
     def update_shape(self, change=None):
         """ Create the toolkit shape for the proxy object.
 
         """
+        d = self.declaration
         builder = self.builder = BRep_Builder()
         shape = TopoDS_Compound()
         builder.MakeCompound(shape)
-        for child in self.shapes:
+        for child in self.children():
+            if not isinstance(child, OccShape):
+                continue
             if child.shape is None:
                 continue
-            # Not infinite planes cannot be added to a compound!
+            # Note infinite planes cannot be added to a compound!
             builder.Add(shape, child.shape)
-        self.shape = shape
+
+        bbox = self.get_bounding_box(shape)
+
+        # Move to position and align along direction axis
+        t = gp_Trsf()
+        if d.direction == DX:
+            # The "normal" direction is DX so if we want this to point
+            # in DX the gp_Ax3 method does not work
+            t.SetRotation(AY, -pi/2)
+        else:
+            axis = gp_Ax3()
+            axis.SetDirection(d.direction.proxy)
+            t.SetTransformation(axis)
+
+        t.SetTranslationPart(gp_Vec(*d.position))
+        self.transform = t
+        part = BRepBuilderAPI_Transform(shape, t, False)
+        self.shape = part.Shape()

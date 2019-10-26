@@ -60,6 +60,12 @@ class BBox(Atom):
         return (self.xmin, self.ymin, self.zmin,
                 self.xmax, self.ymax, self.zmax)[key]
 
+    def _get_center(self):
+        return Point(self.xmin + self.dx/2,
+                     self.ymin + self.dy/2,
+                     self.zmin + self.dz/2)
+    center = Property(_get_center, cached=True)
+
 
 class ProxyShape(ProxyControl):
     #: A reference to the Shape declaration.
@@ -293,25 +299,31 @@ class Point(Atom):
     # Operations support
     # ========================================================================
     def __add__(self, other):
-        p = coerce_point(other)
-        return self.__class__(self.x + p.x, self.y+ p.y, self.z + p.z)
+        p = self.__coerce__(other)
+        return self.__class__(self.x + p.x, self.y + p.y, self.z + p.z)
 
     def __sub__(self, other):
-        p = coerce_point(other)
+        p = self.__coerce__(other)
         return self.__class__(self.x - p.x, self.y - p.y, self.z - p.z)
 
     def __eq__(self, other):
-        p = coerce_point(other)
+        p = self.__coerce__(other)
         return self.proxy.IsEqual(p.proxy, 10e-6)
 
     def cross(self, other):
-        p = coerce_point(other)
-        cls = self.get_member('proxy').validate_mode[-1]
-        return coerce_point(self.proxy.Crossed(p.proxy), cls=cls)
+        p = self.__coerce__(other)
+        return self.__coerce__(self.proxy.Crossed(p.proxy))
 
     def dot(self, other):
-        p = coerce_point(other)
+        p = self.__coerce__(other)
         return self.proxy.Dot(p.proxy)
+
+    @classmethod
+    def __coerce__(self, other):
+        return coerce_point(other)
+
+    def __repr__(self):
+        return "<Point: x=%s y=%s z=%s>" % self[:]
 
 
 class Direction(Point):
@@ -319,6 +331,13 @@ class Direction(Point):
 
     def _default_proxy(self):
         return gp_Dir(self.x, self.y, self.z)
+
+    @classmethod
+    def __coerce__(self, other):
+        return coerce_point(other, cls=Direction)
+
+    def __repr__(self):
+        return "<Direction: x=%s y=%s z=%s>" % self[:]
 
 
 def coerce_point(arg, cls=Point):
