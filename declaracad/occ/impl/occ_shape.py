@@ -179,6 +179,9 @@ class Topology(Atom):
                 topology_type, allowed_types))
 
         shape = self.shape
+        if shape is None:
+            return []
+
         topo_exp = TopExp_Explorer()
         # use self.myShape if nothing is specified
         if topological_entity is None and topology_type_to_avoid is None:
@@ -528,8 +531,6 @@ class OccShape(ProxyShape):
     def init_layout(self):
         """ Initialize the layout of the toolkit shape.
 
-
-
         """
         pass
 
@@ -555,7 +556,6 @@ class OccShape(ProxyShape):
     @observe('shape')
     def update_topology(self, change):
         self.topology = self._default_topology()
-
 
     def check_done(self, shape):
         """ Make sure the shape is done before attempting to access it

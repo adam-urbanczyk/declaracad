@@ -8,13 +8,58 @@ from enaml.colors import SVG_COLORS
 
 enamldef Assembly(Part):
     Part:
+        # To offset a shape specify the shape parameter or a child
         Circle: circle:
             radius = 3
-        Looper:
-            iterable << range(10)
-            Offset:
-                color = random.choice(list(SVG_COLORS.keys()))
-                offset = -(circle.radius*(0.9-loop_index*0.1))
-                Transform:
-                    shape = circle
+        Offset:
+            color = 'blue'
+            offset = -1
+            shape = circle
+    Part:
+        # Offets can be negative or posisitve
+        Polygon: square:
+            position = (10, 0)
+            points = [(0, 0), (0, 10), (10, 10), (10, 0), (0, 0)]
+        Offset:
+            color = 'blue'
+            offset = 2
+            shape = square
+        Offset:
+            color = 'green'
+            offset = -2
+            shape = square
 
+    Part:
+        # Offset curves can be closed (default) or open
+        Bezier: curve:
+            points = [(0, 10), (2, 15), (7, 8)]
+        Offset:
+            color = 'blue'
+            offset = 0.5
+            shape = curve
+        Offset:
+            color = 'green'
+            offset = 0.25
+            shape = curve
+            closed = False
+
+    Part:
+        # To offset a surface use OffsetShape
+        Sphere: sphere:
+            radius = 1
+            transparency = 0.7
+            position = (-10, 0, 0)
+        OffsetShape:
+            transparency = 0.7
+            offset = 0.5
+            shape = sphere
+
+    Part:
+        # OffsetShape can also work on faces and surfaces
+        Box: box:
+            position = (0, -10, 0)
+        Looper:
+            iterable << range(6) # topology is not available yet
+            OffsetShape:
+                offset = 1
+                shape = box.topology.faces[loop_item]

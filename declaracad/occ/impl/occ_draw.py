@@ -346,7 +346,7 @@ class OccPolygon(OccLine, ProxyPolygon):
             shape.Add(p)
         if d.closed:
             shape.Close()
-        self.shape = shape.Shape()
+        self.shape = shape.Wire()
 
     def set_closed(self, closed):
         self.create_shape()

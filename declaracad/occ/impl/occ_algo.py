@@ -15,7 +15,7 @@ from ..algo import (
     ProxyOperation, ProxyBooleanOperation, ProxyCommon, ProxyCut, ProxyFuse,
     ProxyFillet, ProxyChamfer, ProxyOffset, ProxyOffsetShape, ProxyThickSolid,
     ProxyPipe, ProxyThruSections,
-    ProxyTransform, Translate, Rotate, Scale, Mirror
+    ProxyTransform, Translate, Rotate, Scale, Mirror, Shape
 )
 from .occ_shape import OccShape, OccDependentShape
 from OCCT.BRepAlgoAPI import (
@@ -231,22 +231,34 @@ class OccOffset(OccOperation, ProxyOffset):
         'intersection': GeomAbs_Intersection,
     }
 
+    def get_shape_to_offset(self):
+        d = self.declaration
+        if d.shape:
+            shape = d.shape
+            if isinstance(shape, Shape):
+                return shape.proxy.shape
+            return shape
+        else:
+            #: Get the shape to apply the fillet to
+            child = self.get_first_child()
+            return child.shape
+
     def update_shape(self, change=None):
         d = self.declaration
-
-        #: Get the shape to apply the fillet to
-        child = self.get_first_child()
-
-        shape = child.shape
+        shape = self.get_shape_to_offset()
         if isinstance(shape, TopoDS_Edge):
             shape = BRepBuilderAPI_MakeWire(shape).Wire()
         elif not isinstance(shape, (TopoDS_Wire, TopoDS_Face)):
+            t = type(shape)
             raise TypeError(
-                "Unsupported child shape when using planar mode")
+                "Unsupported child shape %s when using planar mode" % t)
         offset_shape = BRepOffsetAPI_MakeOffset(
             shape, self.join_types[d.join_type], not d.closed)
         offset_shape.Perform(d.offset)
         self.shape = offset_shape.Shape()
+
+    def set_shape(self, shape):
+        self.update_shape()
 
     def set_offset(self, offset):
         self.update_shape()
@@ -267,13 +279,10 @@ class OccOffsetShape(OccOffset, ProxyOffsetShape):
 
     def update_shape(self, change=None):
         d = self.declaration
-
-        #: Get the shape to apply the fillet to
-        child = self.get_first_child()
-
+        shape = self.get_shape_to_offset()
         offset_shape = BRepOffsetAPI_MakeOffsetShape()
         offset_shape.PerformByJoin(
-            child.shape,
+            shape,
             d.offset,
             d.tolerance,
             self.offset_modes[d.offset_mode],
@@ -288,29 +297,24 @@ class OccThickSolid(OccOffset, ProxyThickSolid):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_offset_a_p_i___make_thick_solid.html')
 
-    def get_faces(self, child):
+    def get_faces(self, occ_shape):
         d = self.declaration
         if d.faces:
             return d.faces
-        for face in child.topology.faces:
+        for face in occ_shape.topology.faces:
             return [face]
 
     def update_shape(self, change=None):
         d = self.declaration
-
-        #: Get the shape to apply the fillet to
-        child = self.get_first_child()
-        assert child.shape is not None, \
-            "Cannot create thick solid from empty shape: %s" % child.declaration
-
+        shape = self.get_shape_to_offset()
         faces = TopTools_ListOfShape()
-        for f in self.get_faces(child):
+        for f in self.get_faces(shape):
             faces.Append(f)
         assert not faces.IsEmpty()
 
         thick_solid = BRepOffsetAPI_MakeThickSolid()
         thick_solid.MakeThickSolidByJoin(
-            child.shape,
+            shape,
             faces,
             d.offset,
             d.tolerance,

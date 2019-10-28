@@ -15,7 +15,7 @@ from atom.api import (
 )
 from enaml.core.declarative import d_
 
-from .shape import ProxyShape, Shape
+from .shape import ProxyShape, Shape, TopoDS_Shape
 
 
 def WireFactory():
@@ -86,6 +86,9 @@ class ProxyChamfer(ProxyOperation):
 class ProxyOffset(ProxyOperation):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: Offset)
+
+    def set_shape(self, shape):
+        raise NotImplementedError
 
     def set_closed(self, closed):
         raise NotImplementedError
@@ -442,7 +445,11 @@ class Offset(Operation):
     join_type = d_(Enum('arc', 'tangent', 'intersection')).tag(
         view=True, group='Offset')
 
-    @observe('offset', 'offset_mode', 'intersection', 'join_type', 'closed')
+    #: The shape to offset if given
+    shape = d_(Instance((Shape, TopoDS_Shape)))
+
+    @observe('offset', 'offset_mode', 'intersection', 'join_type', 'closed',
+             'shape')
     def _update_proxy(self, change):
         super(Offset, self)._update_proxy(change)
 
