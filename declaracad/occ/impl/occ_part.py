@@ -41,13 +41,13 @@ class OccPart(OccDependentShape, ProxyPart):
         builder = self.builder = BRep_Builder()
         shape = TopoDS_Compound()
         builder.MakeCompound(shape)
-        for child in self.children():
-            if not isinstance(child, OccShape):
+        for c in self.children():
+            if not isinstance(c, OccShape):
                 continue
-            if child.shape is None:
+            if c.shape is None or not c.declaration.display:
                 continue
             # Note infinite planes cannot be added to a compound!
-            builder.Add(shape, child.shape)
+            builder.Add(shape, c.shape)
 
         bbox = self.get_bounding_box(shape)
 

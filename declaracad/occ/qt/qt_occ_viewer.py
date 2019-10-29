@@ -792,7 +792,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         for s in shapes:
             if isinstance(s, OccPart):
                 expansion.extend(self._expand_shapes(s.children()))
-            elif isinstance(s, OccShape):
+            elif isinstance(s, OccShape) and s.declaration.display:
                 expansion.append(s)
         return expansion
 
@@ -828,7 +828,9 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                 parent = occ_shape.parent()
                 if parent and isinstance(parent, OccPart):
                     # TODO: Build transform for nested parts
-                    topods_shape.Location(TopLoc_Location(parent.transform))
+                    l = topods_shape.Location().Multiplied(
+                        TopLoc_Location(parent.transform))
+                    topods_shape.Location(l)
 
                 # Save the mapping of topods_shape to declaracad shape
                 displayed_shapes[topods_shape] = occ_shape

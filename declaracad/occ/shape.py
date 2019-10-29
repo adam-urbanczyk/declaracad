@@ -367,6 +367,10 @@ class Shape(ToolkitObject):
     #: Reference to the implementation control
     proxy = Typed(ProxyShape)
 
+    #: Whether the shape should be displayed and exported when in a part
+    #: If set to false this shape will be excluded from the rendered part
+    display = d_(Bool(True))
+
     #: The tolerance to use for operations that may require it.
     tolerance = d_(Float(10**-6, strict=False))
 
@@ -439,7 +443,7 @@ class Shape(ToolkitObject):
     #: Bounding box of this shape
     bbox = Property(_get_bounding_box, cached=True)
 
-    @observe('color', 'transparency')
+    @observe('color', 'transparency', 'display')
     def _update_proxy(self, change):
         super(Shape, self)._update_proxy(change)
 
