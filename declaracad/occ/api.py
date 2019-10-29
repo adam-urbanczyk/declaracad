@@ -10,7 +10,7 @@ Created on Dec 13, 2017
 @author: jrm
 """
 from .algo import (
-    Cut, Common, Fuse,
+    Cut, Common, Fuse, Split, Intersection,
     Fillet, Chamfer,
     Offset, OffsetShape,
     ThickSolid,

@@ -11,13 +11,8 @@ Created on Sep 27, 2016
 """
 from atom.api import Int, Dict, Instance, set_default
 from enaml.application import timed_call
-from ..algo import (
-    ProxyOperation, ProxyBooleanOperation, ProxyCommon, ProxyCut, ProxyFuse,
-    ProxyFillet, ProxyChamfer, ProxyOffset, ProxyOffsetShape, ProxyThickSolid,
-    ProxyPipe, ProxyThruSections,
-    ProxyTransform, Translate, Rotate, Scale, Mirror, Shape
-)
-from .occ_shape import OccShape, OccDependentShape
+
+from OCCT.BOPAlgo import BOPAlgo_Splitter, BOPAlgo_Section
 from OCCT.BRepAlgoAPI import (
     BRepAlgoAPI_Fuse, BRepAlgoAPI_Common,
     BRepAlgoAPI_Cut
@@ -53,13 +48,26 @@ from OCCT.GeomFill import (
 from OCCT.gp import (
     gp_Trsf, gp_Vec, gp_Pnt, gp_Ax1, gp_Dir, gp_Pnt2d
 )
+from OCCT.TColgp import TColgp_Array1OfPnt2d
 from OCCT.TopTools import TopTools_ListOfShape
 from OCCT.TopoDS import (
     TopoDS, TopoDS_Edge, TopoDS_Face, TopoDS_Wire, TopoDS_Shape
 )
-from OCCT.TColgp import TColgp_Array1OfPnt2d
+
 
 from declaracad.core.utils import log
+from declaracad.occ.algo import (
+    ProxyOperation, ProxyBooleanOperation, ProxyCommon, ProxyCut, ProxyFuse,
+    ProxyFillet, ProxyChamfer, ProxyOffset, ProxyOffsetShape, ProxyThickSolid,
+    ProxyPipe, ProxyThruSections, ProxySplit, ProxyIntersection,
+    ProxyTransform, Translate, Rotate, Scale, Mirror, Shape
+)
+from .occ_shape import OccShape, OccDependentShape
+
+def coerce_shape(shape):
+    if isinstance(shape, Shape):
+        return shape.proxy.shape
+    return shape
 
 
 class OccOperation(OccDependentShape, ProxyOperation):
@@ -78,6 +86,9 @@ class OccBooleanOperation(OccOperation, ProxyBooleanOperation):
     """ Base class for a boolean shape operation.
 
     """
+
+    def _do_operation(self, shape1, shape2):
+        raise NotImplementedError()
 
     def update_shape(self, change=None):
         d = self.declaration
@@ -114,10 +125,61 @@ class OccCut(OccBooleanOperation, ProxyCut):
 
 class OccFuse(OccBooleanOperation, ProxyFuse):
     """ Fuse all the child shapes together. """
-    reference = set_default('https://dev.opencascade.org/doc/refman/html/'
-                            'class_b_rep_algo_a_p_i___fuse.html')
+    reference = set_default(
+        'https://dev.opencascade.org/doc/overview/html/'
+        'occt_user_guides__boolean_operations.html#occt_algorithms_7')
     def _do_operation(self, shape1, shape2):
         return BRepAlgoAPI_Fuse(shape1, shape2).Shape()
+
+
+class OccIntersection(OccBooleanOperation, ProxyIntersection):
+    reference = set_default(
+        'https://dev.opencascade.org/doc/overview/html/'
+        'occt_user_guides__boolean_operations.html#occt_algorithms_10a')
+
+    def update_shape(self, change=None):
+        section = BOPAlgo_Section()
+        d = self.declaration
+        if d.shape1:
+            section.AddArgument(coerce_shape(d.shape1))
+        if d.shape2:
+            section.AddArgument(coerce_shape(d.shape2))
+        for c in self.children():
+            section.AddArgument(c.shape)
+        section.Perform()
+        if section.HasErrors():
+            raise ValueError("Could not intersect shape %s" % d)
+        self.shape = section.Shape()
+
+
+class OccSplit(OccBooleanOperation, ProxySplit):
+    """ Fuse all the child shapes together. """
+    reference = set_default(
+        'https://dev.opencascade.org/doc/overview/html/'
+        'occt_user_guides__boolean_operations.html#occt_algorithms_8')
+
+    def update_shape(self, change=None):
+        splitter = BOPAlgo_Splitter()
+        d = self.declaration
+        tools = TopTools_ListOfShape()
+        if d.shape1:
+            shape = d.shape1
+            splitter.AddArgument(shape)
+        else:
+            shape = None
+        if d.shape2:
+            tools.Append(d.shape2)
+        for c in self.children():
+            if shape:
+                tools.Append(c.shape)
+            else:
+                shape = c.shape
+                splitter.AddArgument(shape)
+        splitter.SetTools(tools)
+        splitter.Perform()
+        if splitter.HasErrors():
+            raise ValueError("Could not split shape %s" % d)
+        self.shape = splitter.Shape()
 
 
 class OccFillet(OccOperation, ProxyFillet):
@@ -234,10 +296,7 @@ class OccOffset(OccOperation, ProxyOffset):
     def get_shape_to_offset(self):
         d = self.declaration
         if d.shape:
-            shape = d.shape
-            if isinstance(shape, Shape):
-                return shape.proxy.shape
-            return shape
+            return coerce_shape(d.shape)
         else:
             #: Get the shape to apply the fillet to
             child = self.get_first_child()
@@ -475,11 +534,7 @@ class OccTransform(OccOperation, ProxyTransform):
         #: Get the shape to apply the tranform to
         if d.shape:
             make_copy = True
-            if isinstance(d.shape, TopoDS_Shape):
-                original = d.shape
-            else:
-                original = d.shape.proxy.shape
-
+            original = coerce_shape(d.shape)
         else:
             # Use the first child
             make_copy = False

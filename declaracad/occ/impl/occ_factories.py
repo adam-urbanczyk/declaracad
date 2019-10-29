@@ -92,6 +92,11 @@ def occ_hyperbola_factory():
     return OccHyperbola
 
 
+def occ_intersection_factory():
+    from .occ_algo import OccIntersection
+    return OccIntersection
+
+
 def occ_line_factory():
     from .occ_draw import OccLine
     return OccLine
@@ -170,6 +175,11 @@ def occ_segment_factory():
 def occ_sphere_factory():
     from .occ_shape import OccSphere
     return OccSphere
+
+
+def occ_split_factory():
+    from .occ_algo import OccSplit
+    return OccSplit
 
 
 def occ_svg_factory():
@@ -251,11 +261,14 @@ OCC_FACTOIRES = {
     'Revolution': occ_revolution_factory,
 
     #: Operations
-    'Common': occ_common_factory,
-    'Cut': occ_cut_factory,
-    'Fuse': occ_fuse_factory,
-    'Fillet': occ_fillet_factory,
     'Chamfer': occ_chamfer_factory,
+    'Cut': occ_cut_factory,
+    'Common': occ_common_factory,
+    'Fuse': occ_fuse_factory,
+    'Intersection': occ_intersection_factory,
+    'Split': occ_split_factory,
+    'Fillet': occ_fillet_factory,
+
     'OffsetShape': occ_offset_shape_factory,
     'ThickSolid': occ_thick_solid_factory,
     'Pipe': occ_pipe_factory,

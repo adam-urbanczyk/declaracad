@@ -1,0 +1,19 @@
+# Created in DeclaraCAD
+from declaracad.occ.api import *
+from enaml.core.api import Looper
+
+
+enamldef Assembly(Part):
+    Split: split:
+        # Split the sphere in half along the x axis
+        display = False
+        Sphere:
+            radius = 3
+        Plane:
+            direction = (1, 0, 0)
+    Transform:
+        shape = split.topology.solids[0]
+        operations = [Translate(x=1)]
+    Transform:
+        shape = split.topology.solids[1]
+        operations = [Translate(x=-1)]

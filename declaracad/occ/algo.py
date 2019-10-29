@@ -55,6 +55,13 @@ class ProxyFuse(ProxyBooleanOperation):
     declaration = ForwardTyped(lambda: Fuse)
 
 
+class ProxySplit(ProxyBooleanOperation):
+    declaration = ForwardTyped(lambda: Split)
+
+class ProxyIntersection(ProxyBooleanOperation):
+    declaration = ForwardTyped(lambda: Intersection)
+
+
 class ProxyFillet(ProxyOperation):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: Fillet)
@@ -246,9 +253,8 @@ class BooleanOperation(Operation):
 
 
 class Common(BooleanOperation):
-    """ An operation that results in the intersection or common volume
-    of the two shapes. This operation is repeated to give the intersection
-    all child shapes.
+    """ An operation that results in the common volume of the two shapes.
+    This operation is repeated to give the intersection all child shapes.
 
     Examples
     ----------
@@ -293,18 +299,57 @@ class Cut(BooleanOperation):
 class Fuse(BooleanOperation):
     """ An operation that results in the addition all of the child shapes.
 
-   Examples
-   ----------
+    Examples
+    ----------
 
-   Fuse:
-       Box:
-           pass
-       Box:
-           position = (1,0,0)
+    Fuse:
+        Box:
+            pass
+        Box:
+            position = (1,0,0)
 
     """
     #: Reference to the implementation control
     proxy = Typed(ProxyFuse)
+
+
+class Split(BooleanOperation):
+    """ An operation that splits the first shape by all of the other shapes.
+
+    Examples
+    ----------
+
+    Split:
+        # Splits the sphere along the x axis
+        Sphere:
+            radius = 2
+        Plane:
+            position = (1,0,0)
+
+    """
+    #: Reference to the implementation control
+    proxy = Typed(ProxySplit)
+
+
+class Intersection(BooleanOperation):
+    """ An operation that gives the intersection by the first shape and all of
+    the other shapes. The result is always an Edge, Wire, or Vertex. To get a
+    filled shape, use the `Common` operation instead.
+
+
+    Examples
+    ----------
+
+    Intersection:
+        # Draws the intersection wires of the box sliced by the plane
+        Box:
+            pass
+        Plane:
+            position = (1/2,0,0)
+
+    """
+    #: Reference to the implementation control
+    proxy = Typed(ProxyIntersection)
 
 
 class LocalOperation(Operation):
