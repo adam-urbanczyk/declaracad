@@ -12,7 +12,7 @@ Created on Sep 30, 2016
 """
 from atom.api import (
     Atom, Tuple, Instance, Bool, Str, Float, Property, Coerced, Typed,
-    ForwardTyped, List, Enum, observe
+    ForwardTyped, List, Enum, Event, observe
 )
 
 from contextlib import contextmanager
@@ -452,6 +452,10 @@ class Shape(ToolkitObject):
         """ Clear the cached references when the shape changes. """
         for k in ('bbox', 'topology'):
             self.get_member(k).reset(self)
+        self.constructed()
+
+    #: Triggered when the shape is constructed
+    constructed = Event()
 
     def render(self):
         """ Generates and returns the actual shape from the declaration.
