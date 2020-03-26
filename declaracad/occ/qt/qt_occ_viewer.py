@@ -318,8 +318,10 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
     #: Displayed Shapes
     _displayed_shapes = Dict()
+    _displayed_dimensions = Dict()
     _ais_shapes = List()
     _selected_shapes = List()
+
 
     #: Shapes
     shapes = Property(lambda self: self.get_shapes(), cached=True)
@@ -789,11 +791,14 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         timed_call(10, self._do_update)
 
     def clear_display(self):
+        """ Remove all shapes and dimensions drawn """
         # Erase all just hides them
-        ais_context = self.ais_context
+        remove = self.ais_context.Remove
         for ais_shape in self._ais_shapes:
-            ais_context.Remove(ais_shape, False)
-        ais_context.UpdateCurrentViewer()
+            remove(ais_shape, False)
+        for ais_dim in self._displayed_dimensions.keys():
+            remove(ais_dim, False)
+        self.ais_context.UpdateCurrentViewer()
 
     def reset_view(self):
         """ Reset to default zoom and orientation """
@@ -862,13 +867,16 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
             # Display all dimensions
             log.debug("Adding {} dimensions...".format(len(self.dimensions)))
+            displayed_dimensions ={}
             for item in self.dimensions:
                 dim = item.dimension
                 if dim is not None and item.declaration.display:
+                    displayed_dimensions[dim] = item
                     self.display_ais(dim)
 
             self._ais_shapes = ais_shapes
             self._displayed_shapes = displayed_shapes
+            self._displayed_dimensions = displayed_dimensions
 
             # Update bounding box
             bbox = self.get_bounding_box(displayed_shapes.keys())

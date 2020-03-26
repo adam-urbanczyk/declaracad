@@ -52,18 +52,21 @@ class OccDimension(ProxyDimension):
         dim.SetDimensionAspect(aspect)
 
     def update_dimension(self):
-        """ Recreates the dimension
+        """ Recreates the dimension catching any errors
 
         """
-        self.create_dimension()
-        self.init_dimension()
+        try:
+            self.create_dimension()
+            self.init_dimension()
+        except Exception as e:
+            self.dimension = None
+            log.exception(e)
 
     def activate_top_down(self):
         """ Activate the proxy for the top-down pass.
 
         """
-        self.create_dimension()
-        self.init_dimension()
+        self.update_dimension()
 
     def activate_bottom_up(self):
         """ Activate the proxy tree for the bottom-up pass.
