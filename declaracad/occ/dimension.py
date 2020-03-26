@@ -9,8 +9,8 @@ Created on March 25, 2020
 
 @author: jrm
 """
-from atom.api import Bool, Coerced, List, Typed, ForwardTyped, observe
-from enaml.colors import ColorMember
+from atom.api import Bool, Coerced, Float, List, Typed, ForwardTyped, observe
+from enaml.colors import ColorMember, Color
 from enaml.core.declarative import d_
 from enaml.widgets.control import ProxyControl
 from enaml.widgets.toolkit_object import ToolkitObject
@@ -31,7 +31,16 @@ class ProxyDimension(ProxyControl):
     def set_color(self, color):
         raise NotImplementedError
 
-    def set_position(self, position):
+    def set_direction(self, direction):
+        raise NotImplementedError
+
+    def set_flyout(self, flyout):
+        raise NotImplementedError
+
+    def set_extension_size(self, size):
+        raise NotImplementedError
+
+    def set_arrow_tail_size(self, size):
         raise NotImplementedError
 
 
@@ -71,17 +80,27 @@ class Dimension(ToolkitObject):
     def _default_color(self):
         return Color(0, 0, 0)
 
-    #: A tuple or list of the (x, y, z) position of this shape. This is
-    #: coerced into a Point. The position is relative to the dimensions axis.
-    position = d_(Coerced(Point, coercer=coerce_point))
+    #: A tuple or list of the (x, y, z) direction of this shape. This is
+    #: coerced into a Point. The direction is relative to the dimensions axis.
+    direction = d_(Coerced(Point, coercer=coerce_point))
 
-    def _default_position(self):
+    def _default_direction(self):
         return Point(10, 10, 10)
+
+    #: Set the flyout distance.
+    flyout = d_(Float(0.0, strict=False))
+
+    #: Set the extension length (distance from arrow to text).
+    extension_size = d_(Float(0.0, strict=False))
+
+    #: Set the arrow tail length.
+    arrow_tail_size = d_(Float(0.0, strict=False))
 
     #: List of shapes to create the dimension
     shapes = d_(List())
 
-    @observe('display', 'shapes', 'color', 'position')
+    @observe('display', 'shapes', 'color', 'direction', 'flyout',
+             'extension_size', 'arrow_tail_size')
     def _update_proxy(self, change):
         super(Dimension, self)._update_proxy(change)
 

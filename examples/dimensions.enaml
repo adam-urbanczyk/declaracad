@@ -13,5 +13,5 @@ enamldef Assembly(Part):
         shapes = [box.topology.edges[0]]
     LengthDimension:
         color = 'black'
-        position = (-5, 10, 0)
+        direction = (-5, 10, 0)
         shapes = [box.topology.vertices[1], box.topology.vertices[4]]

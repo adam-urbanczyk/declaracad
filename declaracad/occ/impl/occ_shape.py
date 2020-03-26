@@ -14,8 +14,10 @@ from atom.api import (
     Atom, Bool, Instance, Typed, Unicode, Property, observe, set_default
 )
 
+from OCCT import GeomAbs
 from OCCT.Bnd import Bnd_Box
 from OCCT.BRep import BRep_Builder, BRep_Tool
+from OCCT.BRepAdaptor import BRepAdaptor_Curve
 from OCCT.BRepBndLib import BRepBndLib
 from OCCT.BRepBuilderAPI import (
     BRepBuilderAPI_MakeShape, BRepBuilderAPI_MakeFace,
@@ -28,7 +30,6 @@ from OCCT.BRepPrimAPI import (
     BRepPrimAPI_MakeRevol,
 )
 from OCCT.BRepTools import BRepTools, BRepTools_WireExplorer
-
 
 from OCCT.gp import (
     gp_Pnt, gp_Dir, gp_Vec, gp_Ax1, gp_Ax2, gp_Ax3, gp_Trsf, gp_Pln
@@ -493,6 +494,68 @@ class Topology(Atom):
         for i in self._loop_topo(TopAbs_FACE, solid):
             cnt += 1
         return cnt
+
+    # -------------------------------------------------------------------------
+    # Utilities
+    # -------------------------------------------------------------------------
+    def as_curve(self, shape):
+        """ Attempt to cast the shape (an edge or wire) to a curve
+
+        Returns
+        -------
+        curve: BRepAdaptor_Curve or None
+            The curve or None if it could not be created
+        """
+        try:
+            if isinstance(shape, TopoDS_Edge):
+                edge = shape
+            else:
+                edge = TopoDS.Edge_(shape)
+            return BRepAdaptor_Curve(edge)
+        except:
+            return None
+
+    def is_circle(self, shape):
+        """ Check if an edge or wire is a part of a circle.
+        This can be used to see if an edge can be used for radius dimensions.
+
+        Returns
+        -------
+        bool: Bool
+            Whether the shape is a part of circle
+        """
+        curve = self.as_curve(shape)
+        if curve is None:
+            return False
+        return curve.GetType() == GeomAbs.GeomAbs_Circle
+
+    def is_ellipse(self, shape):
+        """ Check if an edge or wire is a part of an ellipse.
+        This can be used to see if an edge can be used for radius dimensions.
+
+        Returns
+        -------
+        bool: Bool
+            Whether the shape is a part of an ellipse
+        """
+        curve = self.as_curve(shape)
+        if curve is None:
+            return False
+        return curve.GetType() == GeomAbs.GeomAbs_Ellipse
+
+    def is_line(self, shape):
+        """ Check if an edge or wire is a line.
+        This can be used to see if an edge can be used for length dimensions.
+
+        Returns
+        -------
+        bool: Bool
+            Whether the shape is a part of a line
+        """
+        curve = self.as_curve(shape)
+        if curve is None:
+            return False
+        return curve.GetType() == GeomAbs.GeomAbs_Line
 
 
 class OccShape(ProxyShape):

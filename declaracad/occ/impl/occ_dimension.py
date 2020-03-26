@@ -16,7 +16,7 @@ from OCCT.AIS import (
 )
 from OCCT.BRep import BRep_Tool
 from OCCT.GC import GC_MakePlane
-from OCCT.gp import gp_Pnt
+from OCCT.gp import gp_Pnt, gp_Dir
 from OCCT.TopoDS import TopoDS_Edge, TopoDS_Vertex
 
 from ..dimension import (
@@ -45,10 +45,17 @@ class OccDimension(ProxyDimension):
         dim = self.dimension
         if dim is None:
             return
+        if d.flyout:
+            dim.SetFlyout(d.flyout)
+
         aspect = dim.DimensionAspect()
         if d.color:
             color, transparency = color_to_quantity_color(d.color)
             aspect.SetCommonColor(color)
+        if d.arrow_tail_size:
+            aspect.SetArrowTailSize(d.arrow_tail_size)
+        if d.extension_size:
+            aspect.SetExtensionSize(d.extension_size)
         dim.SetDimensionAspect(aspect)
 
     def update_dimension(self):
@@ -86,8 +93,28 @@ class OccDimension(ProxyDimension):
     def set_color(self, color):
         self.update_dimension()
 
-    def set_position(self, position):
+    def set_direction(self, direction):
         self.update_dimension()
+
+    def set_flyout(self, flyout):
+        self.update_dimension()
+
+    def set_extension_size(self, size):
+        self.update_dimension()
+
+    def set_arrow_tail_size(self, size):
+        self.update_dimension()
+
+    # -------------------------------------------------------------------------
+    # Utils
+    # -------------------------------------------------------------------------
+    def make_custom_plane(self, dimension):
+        d = self.declaration
+        pln = dimension.GetPlane()
+        axis = pln.Axis()
+        axis.SetDirection(gp_Dir(*d.direction))
+        pln.SetAxis(axis)
+        return pln
 
 
 class OccAngleDimension(OccDimension, ProxyAngleDimension):
@@ -107,7 +134,7 @@ class OccLengthDimension(OccDimension, ProxyLengthDimension):
         d = self.declaration
         p1 = BRep_Tool.Pnt_(v1)
         p2 = BRep_Tool.Pnt_(v2)
-        p3 = (d.position + p2).proxy
+        p3 = (d.direction + p2).proxy
         return GC_MakePlane(p1, p2, p3).Value().Pln()
 
     def create_dimension(self):
@@ -121,6 +148,9 @@ class OccLengthDimension(OccDimension, ProxyLengthDimension):
         elif isinstance(s, TopoDS_Vertex):
             s2 = d.shapes[1]
             args = (s, s2, self.make_plane(s, s2))
+
+        if not args:
+            args = d.shapes
 
         self.dimension = AIS_LengthDimension(*args)
 
