@@ -218,7 +218,6 @@ class OccSvgRect(OccSvgNode):
                 gp_Pnt(x+w, y+h, 0), gp_Pnt(x, y+h, 0),
                 True
             )
-            shape.Close()
             return shape.Wire()
         elif rx == 0:
             rx = ry

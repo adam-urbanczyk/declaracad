@@ -62,8 +62,9 @@ from declaracad.occ.qt.utils import (
 )
 from declaracad.occ.impl.occ_part import OccPart
 from declaracad.occ.impl.occ_shape import OccShape
+from declaracad.occ.impl.occ_dimension import OccDimension
 from declaracad.occ.widgets.occ_viewer import (
-    ProxyOccViewer, ViewerSelectionEvent
+    ProxyOccViewer, ViewerSelection
 )
 from declaracad.occ.shape import BBox
 
@@ -103,7 +104,7 @@ class QtViewer3d(QOpenGLWidget):
         super(QtViewer3d, self).__init__(*args, **kwargs)
         self._lock_rotation = False
         self._lock_zoom = False
-        self._drawbox = False
+        self._drawbox = None
         self._zoom_area = False
         self._select_area = False
         self._inited = False
@@ -240,7 +241,7 @@ class QtViewer3d(QOpenGLWidget):
         if event.button() == Qt.LeftButton:
             pt = event.pos()
 
-            area = self._select_area and self._drawbox
+            area = self._drawbox if self._select_area else None
             self.proxy.update_selection(
                 pos=(pt.x(), pt.y()),
                 area=area,
@@ -261,7 +262,7 @@ class QtViewer3d(QOpenGLWidget):
         dy = pt.y() - self.dragStartPos.y()
         if abs(dx) <= tolerance and abs(dy) <= tolerance:
             return
-        self._drawbox = [self.dragStartPos.x(), self.dragStartPos.y(), dx, dy]
+        self._drawbox = (self.dragStartPos.x(), self.dragStartPos.y(), dx, dy)
         self.update()
 
     def mouseMoveEvent(self, event):
@@ -277,21 +278,21 @@ class QtViewer3d(QOpenGLWidget):
             #dy = pt.y() - self.dragStartPos.y()
             if not self._lock_rotation:
                 view.Rotation(pt.x(), pt.y())
-            self._drawbox = False
+            self._drawbox = None
         # DYNAMIC ZOOM
         elif (buttons == Qt.RightButton and not modifiers == Qt.ShiftModifier):
             view.Redraw()
             view.Zoom(abs(self.dragStartPos.x()), abs(self.dragStartPos.y()),
                       abs(pt.x()), abs(pt.y()))
             self.dragStartPos = pt
-            self._drawbox = False
+            self._drawbox = None
         # PAN
         elif buttons == Qt.MidButton:
             dx = pt.x() - self.dragStartPos.x()
             dy = pt.y() - self.dragStartPos.y()
             self.dragStartPos = pt
             view.Pan(dx, -dy)
-            self._drawbox = False
+            self._drawbox = None
         # DRAW BOX
         # ZOOM WINDOW
         elif (buttons == Qt.RightButton and modifiers == Qt.ShiftModifier):
@@ -302,7 +303,7 @@ class QtViewer3d(QOpenGLWidget):
             self._select_area = True
             self.draw_box(event)
         else:
-            self._drawbox = False
+            self._drawbox = None
             ais_context = self.proxy.ais_context
             ais_context.MoveTo(pt.x(), pt.y(), view, True)
 
@@ -323,6 +324,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     #: Shapes
     shapes = Property(lambda self: self.get_shapes(), cached=True)
 
+    #: Dimensions
+    dimensions = List()
 
     # -------------------------------------------------------------------------
     # OpenCascade specific members
@@ -336,8 +339,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     v3d_window = Typed(V3d_Window)
 
     def get_shapes(self):
-        return [c for c in self.children()
-                if not isinstance(c, QtToolkitObject)]
+        return [c for c in self.children() if not isinstance(c, QtControl)]
 
     def create_widget(self):
         self.widget = QtViewer3d(parent=self.parent_widget())
@@ -410,20 +412,30 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         self.v3d_window = window
 
     def child_added(self, child, update=True):
-        if not isinstance(child, OccShape):
+        if isinstance(child, OccShape):
+            self.get_member('shapes').reset(self)
+            child.observe('shape', self.update_display)
+            if update:
+                self.update_display()
+        elif isinstance(child, OccDimension):
+            child.observe('dimension', self.update_display)
+            if update:
+                self.update_display()
+        else:
             return super().child_added(child)
-        self.get_member('shapes').reset(self)
-        child.observe('shape', self.update_display)
-        if update:
-            self.update_display()
 
     def child_removed(self, child, update=True):
-        if not isinstance(child, OccShape):
+        if isinstance(child, OccShape):
+            self.get_member('shapes').reset(self)
+            child.unobserve('shape', self.update_display)
+            if update:
+                self.update_display()
+        elif isinstance(child, OccDimension):
+            child.observe('dimension', self.update_display)
+            if update:
+                self.update_display()
+        else:
             return super().child_removed(child)
-        self.get_member('shapes').reset(self)
-        child.unobserve('shape', self.update_display)
-        if update:
-            self.update_display()
 
     # -------------------------------------------------------------------------
     # Viewer API
@@ -768,8 +780,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         #log.debug("Selected: %s", selection)
         # Set selection
         self._selected_shapes = shapes
-        d.selection(ViewerSelectionEvent(
-            selection=selection, parameters=(pos, area)))
+        d.selection = ViewerSelection(
+            selection=selection, position=pos, area=area)
 
     def update_display(self, change=None):
         """ Queue an update request """
@@ -787,13 +799,15 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         """ Reset to default zoom and orientation """
         self.v3d_view.Reset()
 
-    def _expand_shapes(self, shapes):
+    def _expand_shapes(self, shapes, dimensions):
         expansion = []
         for s in shapes:
             if isinstance(s, OccPart):
-                expansion.extend(self._expand_shapes(s.children()))
+                expansion.extend(self._expand_shapes(s.children(), dimensions))
             elif isinstance(s, OccShape) and s.declaration.display:
                 expansion.append(s)
+            elif isinstance(s, OccDimension):
+                dimensions.append(s)
         return expansion
 
     def _do_update(self):
@@ -810,7 +824,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             log.debug("Rendering...")
 
             #: Expand all parts otherwise we lose the material information
-            shapes = self._expand_shapes(self.shapes)
+            self.dimensions = []
+            shapes = self._expand_shapes(self.children(), self.dimensions)
             if not shapes:
                 log.debug("No shapes to display")
                 return
@@ -844,6 +859,13 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                     occ_shape is last_shape)
                 if ais_shape:
                     ais_shapes.append(ais_shape)
+
+            # Display all dimensions
+            log.debug("Adding {} dimensions...".format(len(self.dimensions)))
+            for item in self.dimensions:
+                dim = item.dimension
+                if dim is not None and item.declaration.display:
+                    self.display_ais(dim)
 
             self._ais_shapes = ais_shapes
             self._displayed_shapes = displayed_shapes

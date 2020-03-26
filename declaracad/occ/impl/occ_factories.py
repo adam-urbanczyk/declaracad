@@ -157,6 +157,11 @@ def occ_raw_shape_factory():
     return OccRawShape
 
 
+def occ_rectangle_factory():
+    from .occ_draw import OccRectangle
+    return OccRectangle
+
+
 def occ_revol_factory():
     from .occ_shape import OccRevol
     return OccRevol
@@ -237,8 +242,28 @@ def occ_wire_factory():
     return OccWire
 
 
+def occ_angle_dimension_factory():
+    from .occ_dimension import OccAngleDimension
+    return OccAngleDimension
+
+
+def occ_length_dimension_factory():
+    from .occ_dimension import OccLengthDimension
+    return OccLengthDimension
+
+
+def occ_diameter_dimension_factory():
+    from .occ_dimension import OccDiameterDimension
+    return OccDiameterDimension
+
+
+def occ_radius_dimension_factory():
+    from .occ_dimension import OccRadiusDimension
+    return OccRadiusDimension
+
+
 #: Part
-OCC_FACTOIRES = {
+OCC_FACTORIES = {
     'Part': occ_part_factory,
     'Face': occ_face_factory,
     'RawShape': occ_raw_shape_factory,
@@ -276,25 +301,33 @@ OCC_FACTOIRES = {
     'Transform': occ_transform_factory,
 
     #: Draw
-    'Plane': occ_plane_factory,
-    'Vertex': occ_vertex_factory,
-    'Line': occ_line_factory,
-    'Segment': occ_segment_factory,
     'Arc': occ_arc_factory,
+    'Bezier': occ_bezier_factory,
+    'BSpline': occ_bspline_factory,
     'Circle': occ_circle_factory,
     'Ellipse': occ_ellipse_factory,
     'Hyperbola': occ_hyperbola_factory,
-    'Parabola': occ_parabola_factory,
-    'Polygon': occ_polygon_factory,
-    'Bezier': occ_bezier_factory,
-    'BSpline': occ_bspline_factory,
+    'Line': occ_line_factory,
     'Offset': occ_offset_factory,
-    'Wire': occ_wire_factory,
+    'Parabola': occ_parabola_factory,
+    'Plane': occ_plane_factory,
+    'Polygon': occ_polygon_factory,
+    'Rectangle': occ_rectangle_factory,
+    'Segment': occ_segment_factory,
+    'Svg': occ_svg_factory,
     'Text': occ_text_factory,
     'TrimmedCurve': occ_trimmed_curve_factory,
-    'Svg': occ_svg_factory,
+    'Vertex': occ_vertex_factory,
+    'Wire': occ_wire_factory,
+
+
+    #: Dimensions
+    'AngleDimension': occ_angle_dimension_factory,
+    'LengthDimension': occ_length_dimension_factory,
+    'DiameterDimension': occ_diameter_dimension_factory,
+    'RadiusDimension': occ_radius_dimension_factory,
 }
 
 #: Install it
-QT_FACTORIES.update(OCC_FACTOIRES)
+QT_FACTORIES.update(OCC_FACTORIES)
 

@@ -20,8 +20,12 @@ from .algo import (
     Transform, Translate, Rotate, Scale, Mirror
 )
 
+from .dimension import (
+    AngleDimension, DiameterDimension, LengthDimension, RadiusDimension
+)
+
 from .draw import (
-    Plane, Vertex, Edge, Line,
+    Plane, Vertex, Edge, Line, Rectangle,
     Segment, Arc, Circle, Ellipse, Hyperbola,
     Parabola, Polygon,
     BSpline, Bezier,

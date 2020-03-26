@@ -11,7 +11,7 @@ Created on Sep 26, 2016
 """
 from atom.api import (
    Atom, Event, List, Tuple, Bool, Int, Enum, Typed, ForwardTyped, observe,
-   Coerced, Dict, Str, Float, set_default
+   Coerced, Dict, Str, Float, Instance, set_default
 )
 from enaml.core.declarative import d_
 from enaml.colors import Color, ColorMember, parse_color
@@ -36,12 +36,15 @@ def gradient_coercer(arg):
 
 
 
-class ViewerSelectionEvent(Atom):
+class ViewerSelection(Atom):
     #: Selected shape or shapes
     selection = Dict()
 
-    #: Parameters such as coodrinates or selection area
-    parameters = Tuple()
+    #: Selection position, may be None
+    position = Instance(tuple)
+
+    #: Selection area, may be None
+    area = Instance(tuple)
 
 
 class ProxyOccViewer(ProxyControl):
@@ -141,7 +144,8 @@ class OccViewer(Control):
         'shape', 'shell', 'face', 'edge', 'wire', 'vertex'))
 
     #: Selected items
-    selection = d_(Event(ViewerSelectionEvent), writable=False)
+    selection = d_(Typed(ViewerSelection), writable=False)
+
 
     #: View direction
     view_mode = d_(Enum('iso', 'top', 'bottom', 'left', 'right', 'front',

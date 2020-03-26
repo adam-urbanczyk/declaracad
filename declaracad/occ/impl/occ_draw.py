@@ -43,9 +43,12 @@ from ..shape import coerce_point, coerce_direction
 from ..draw import (
     ProxyPlane, ProxyVertex, ProxyLine, ProxyCircle, ProxyEllipse,
     ProxyHyperbola, ProxyParabola, ProxyEdge, ProxyWire, ProxySegment, ProxyArc,
-    ProxyPolygon, ProxyBSpline, ProxyBezier, ProxyTrimmedCurve, ProxyText
+    ProxyPolygon, ProxyBSpline, ProxyBezier, ProxyTrimmedCurve, ProxyText,
+    ProxyRectangle
 )
 from .occ_shape import OccShape, OccDependentShape, coerce_axis
+from .occ_svg import make_ellipse
+
 
 
 #: Track registered fonts
@@ -108,6 +111,15 @@ class OccEdge(OccShape, ProxyEdge):
 
     curve = Typed(Geom_TrimmedCurve)
 
+    def get_transform(self):
+        d = self.declaration
+        t = gp_Trsf()
+        axis = gp_Ax3()
+        axis.SetDirection(d.direction.proxy)
+        t.SetTransformation(axis)
+        t.SetTranslationPart(gp_Vec(*d.position))
+        return t
+
     def make_edge(self, *args):
         d = self.declaration
         if d.surface:
@@ -151,15 +163,10 @@ class OccLine(OccEdge, ProxyLine):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'classgp___lin.html')
 
-
-    def get_transformed_points(self):
+    def get_transformed_points(self, points=None):
         d = self.declaration
-        t = gp_Trsf()
-        axis = gp_Ax3()
-        axis.SetDirection(d.direction.proxy)
-        t.SetTransformation(axis)
-        t.SetTranslationPart(gp_Vec(*d.position))
-        return [p.proxy.Transformed(t) for p in d.points]
+        t = self.get_transform()
+        return [p.proxy.Transformed(t) for p in points or d.points]
 
     def create_shape(self):
         d = self.declaration
@@ -467,6 +474,77 @@ class OccTrimmedCurve(OccEdge, ProxyTrimmedCurve):
 
     def set_v(self, v):
         self.update_shape()
+
+
+class OccRectangle(OccEdge, ProxyRectangle):
+    def create_shape(self):
+        d = self.declaration
+        t = self.get_transform()
+        w, h = d.width, d.height
+        if d.rx or d.ry:
+            rx, ry = d.rx, d.ry
+            if not ry:
+                ry = rx
+            elif not rx:
+                rx = ry
+
+            # Bottom
+            p1 = gp_Pnt(0+rx, 0, 0)
+            p2 = gp_Pnt(0+w-rx, 0, 0)
+
+            # Right
+            p3 = gp_Pnt(w, ry, 0)
+            p4 = gp_Pnt(w, h-ry, 0)
+
+            # Top
+            p5 = gp_Pnt(w-rx, h, 0)
+            p6 = gp_Pnt(rx, h, 0)
+
+            # Left
+            p7 = gp_Pnt(0, h-ry, 0)
+            p8 = gp_Pnt(0, ry, 0)
+            shape = BRepBuilderAPI_MakeWire()
+
+            # Bottom
+            shape.Add(BRepBuilderAPI_MakeEdge(p1, p2).Edge())
+
+            # Arc bottom right
+            c = make_ellipse((w-rx, ry, 0), rx, ry)
+            shape.Add(BRepBuilderAPI_MakeEdge(
+                GC_MakeArcOfEllipse(c, p2, p3, False).Value()).Edge())
+
+            # Right
+            shape.Add(BRepBuilderAPI_MakeEdge(p3, p4).Edge())
+
+            # Arc top right
+            c.SetLocation(gp_Pnt(w-rx, h-ry, 0))
+            shape.Add(BRepBuilderAPI_MakeEdge(
+                GC_MakeArcOfEllipse(c, p4, p5, False).Value()).Edge())
+
+            # Top
+            shape.Add(BRepBuilderAPI_MakeEdge(p5, p6).Edge())
+
+            # Arc top left
+            c.SetLocation(gp_Pnt(rx, h-ry, 0))
+            shape.Add(BRepBuilderAPI_MakeEdge(
+                GC_MakeArcOfEllipse(c, p6, p7, False).Value()).Edge())
+
+            # Left
+            shape.Add(BRepBuilderAPI_MakeEdge(p7, p8).Edge())
+
+            # Arc bottom left
+            c.SetLocation(gp_Pnt(rx, ry, 0))
+            shape.Add(BRepBuilderAPI_MakeEdge(
+                GC_MakeArcOfEllipse(c, p8, p1, False).Value()).Edge())
+
+            shape = shape.Wire()
+            shape.Closed(True)
+        else:
+            shape = BRepBuilderAPI_MakePolygon(
+                gp_Pnt(0, 0, 0), gp_Pnt(w, 0, 0),
+                gp_Pnt(w, h, 0), gp_Pnt(0, h, 0), True).Wire()
+        rect = BRepBuilderAPI_Transform(shape, t, False).Shape()
+        self.shape = TopoDS.Wire_(rect)
 
 
 class OccWire(OccDependentShape, ProxyWire):

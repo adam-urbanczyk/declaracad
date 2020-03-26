@@ -27,6 +27,9 @@ from enaml.widgets.api import (
 )
 
 from .widgets.api import OccViewer, OccViewerClippedPlane
+from .dimension import (
+    AngleDimension, LengthDimension, RadiusDimension, DiameterDimension
+)
 from .plugin import ViewerProcess, load_model, EmptyFileError
 
 
@@ -39,6 +42,7 @@ def expand_dict(p):
 enamldef ModelViewer(OccViewer): viewer:
     attr p0 = None
     attr clipped_planes: dict = {} # Map axis to tuple of (lower, upper)
+    attr dimensions: list = []
     attr show_console: bool = False
     attr shapes: list = []
     Include:
@@ -50,6 +54,8 @@ enamldef ModelViewer(OccViewer): viewer:
             minimum_size = (640, 240)
     Include:
         objects << viewer.shapes
+    Include:
+        objects << viewer.dimensions
 #     on_mouse_press::
 #         display, event = change['value']
 #         #print 'mouse_press',event
@@ -185,6 +191,21 @@ enamldef ModelViewer(OccViewer): viewer:
             Action:
                 text = 'Clear all'
                 triggered :: viewer.clipped_planes = {}
+        #Menu:
+            #title = 'Dimensions'
+            #Action:
+                #text = 'Add Length'
+                #triggered ::
+                    #if viewer.selection:
+                        #s = viewer.selection.selection.items()
+                        #dims = viewer.dimensions[:]
+                        #dims.append(
+                            #LengthDimension(shapes=viewer.selection))
+                        #viewer.dimensions = dims
+
+            #Action:
+                #text = 'Clear all'
+                #triggered :: viewer.dimensions = []
         Menu:
             title = 'Rendering'
             Looper:

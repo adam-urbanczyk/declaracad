@@ -1,10 +1,6 @@
 import math
 from enaml.core.api import Looper, Conditional
-from declaracad.occ.api import (
-    Box, Prism, Face, Segment, Arc, Wire, Point, Part,
-    Cut, Fuse, Offset, Fillet, Transform, ThickSolid, Pipe,
-    Rotate
-)
+from declaracad.occ.api import *
 from OCCT.gp import gp_Dir, gp_Ax1, gp_Pnt
 
 def inch(ft):
@@ -36,6 +32,11 @@ def angle(p0, p1):
     #d = d.Crossed(gp_Dir(abs(dy),abs(dx),0))
     
     return  (d.X(),d.Y(),d.Z())
+
+enamldef Floor(Box):
+    pass
+    
+
 
 enamldef Wall(Fuse):
     attr R = 13 # R value
@@ -104,6 +105,28 @@ enamldef Wall(Fuse):
                     dx << distance(points[loop_index-1],points[loop_index])#+thickness
                     dy << thickness
                     dz << height
+
+enamldef Room(Part):
+    attr outline: list = []
+    
+    Prism:
+        vector = (0, 0, 8)
+        color = 'antiquewhite'
+        Cut:
+            Face:
+                Polygon: poly:
+                    points << outline
+            Face:
+                Offset:
+                    offset = -inch(1/2)
+                    shape = poly
+    #Face:
+    #    color = 'tan'
+    #    Transform:
+    #        shape = poly
+    #Offset:
+    #    offset = inch(1/2)
+    #    shape = poly
                                                                
 enamldef Assembly(Part):
     name = "House"
@@ -117,9 +140,16 @@ enamldef Assembly(Part):
             (45,0),
             (0,0)
         ]
+    #Floor:
+    #    color = 'brown'
+    #    dx = 45
+    #    dy = 25
+    #    dz = inch(1)
+    #    position = (0, 0, -dz)
         
     Wall:
         # Master BR
+        color = 'tan'
         points = [
             (12,0),
             (12,12),
@@ -139,5 +169,23 @@ enamldef Assembly(Part):
             (11,18),
             (11,25),
         ]
+    
+    Room:
+        #: BR 3
+        outline = [
+            (12,0),
+            (12,12),
+            (22,12),
+            (22,0),
+            (12,0),
+        ]
+    Wall:
+        #: LR
+        points = [
+            (22, 12-thickness),
+            (45, 12-thickness)
+        
+        ]
+    
     
 

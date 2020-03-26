@@ -11,8 +11,12 @@ from OCCT.Graphic3d import Graphic3d_MaterialAspect
 from OCCT.Quantity import Quantity_Color, Quantity_TOC_RGB
 
 
+OCC_COLOR_CACHE = {}
+
+
 def color_to_quantity_color(color):
-    """ Convert an enaml color to an Quantity_Color
+
+    """ Convert an enaml color to an Quantity_Color. The result is cached.
 
     Parameters
     ----------
@@ -24,12 +28,16 @@ def color_to_quantity_color(color):
     result: (Quantity_Color, float or None)
         A tuple of the color and transparency
     """
-    transparency = None
-    if color.alpha != 255:
-        transparency = 1-color.alpha/255.0
-    color = Quantity_Color(
-        color.red/255., color.green/255., color.blue/255., Quantity_TOC_RGB)
-    return (color, transparency)
+    result = OCC_COLOR_CACHE.get(color.argb)
+    if result is None:
+        transparency = None
+        if color.alpha != 255:
+            transparency = 1-color.alpha/255.0
+        occ_color = Quantity_Color(
+            color.red/255., color.green/255., color.blue/255., Quantity_TOC_RGB)
+        result = (occ_color, transparency)
+        OCC_COLOR_CACHE[color.argb] = result
+    return result
 
 
 def material_to_material_aspect(material):

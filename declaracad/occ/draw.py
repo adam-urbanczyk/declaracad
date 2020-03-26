@@ -71,6 +71,23 @@ class ProxyArc(ProxyEdge):
         raise NotImplementedError
 
 
+class ProxyRectangle(ProxyEdge):
+    #: A reference to the shape declaration.
+    declaration = ForwardTyped(lambda: Rectangle)
+
+    def set_rx(self, rx):
+        raise NotImplementedError
+
+    def set_ry(self, ry):
+        raise NotImplementedError
+
+    def set_width(self, w):
+        raise NotImplementedError
+
+    def set_height(self, h):
+        raise NotImplementedError
+
+
 class ProxyCircle(ProxyEdge):
     #: A reference to the shape declaration.
     declaration = ForwardTyped(lambda: Circle)
@@ -502,6 +519,35 @@ class Polygon(Line):
     @observe('closed')
     def _update_proxy(self, change):
         super(Polygon, self)._update_proxy(change)
+
+
+class Rectangle(Edge):
+    """ A Wire in the shape of a Rectangle with optional radius'd corners.
+
+    Examples
+    ---------
+
+    Wire:
+        Rectangle:
+            width = 10
+            height = 5
+
+    """
+    proxy = Typed(ProxyRectangle)
+
+    #: Width of the rectangle
+    width = d_(Float(1, strict=False)).tag(view=True)
+
+    #: Height of the rectangle
+    height = d_(Float(1, strict=False)).tag(view=True)
+
+    #: Radius of the corner
+    rx = d_(Float(0, strict=False)).tag(view=True)
+    ry = d_(Float(0, strict=False)).tag(view=True)
+
+    @observe('width', 'height', 'rx', 'ry')
+    def _update_proxy(self, change):
+        super(Rectangle, self)._update_proxy(change)
 
 
 class BSpline(Line):

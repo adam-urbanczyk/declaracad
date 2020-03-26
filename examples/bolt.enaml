@@ -6,7 +6,7 @@ enamldef Hexagon(Polygon):
     attr radius: float = 1.0
     points = [(radius*cos(radians(a)), radius*sin(radians(a)), 0)
                for a in range(0, 420, 60)]
-    
+
 enamldef HexNut(Transform):
     attr thickness = 2
     attr outer_radius = 3
@@ -52,12 +52,12 @@ enamldef HexBolt(Part): bolt:
 
     attr thread_height: float = d1/4
     attr k: float = 0.6
-    
+
     func make_cylinder_surface(radius):
         cylinder = Cylinder(radius=radius)
         cylinder.render()
         return cylinder.topology.faces[0]
-    
+
     #Cut:
     Fuse:  fuse:
         color = 'lightblue'
@@ -117,12 +117,8 @@ enamldef HexBolt(Part): bolt:
                         direction = e1.direction
                         major_radius = e1.major_radius-pi/4
                         minor_radius = 0
-                        
+
 enamldef Assembly(Part):
     HexBolt:  bolt:
         material = 'steel'
         length = 15.0
-        
-    
-    #ThruSections:
-    

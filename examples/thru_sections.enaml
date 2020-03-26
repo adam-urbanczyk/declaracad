@@ -1,6 +1,6 @@
 from enaml.core.api import Looper
 from declaracad.occ.api import (
-    ThruSections, Cut, Wire, Circle, Part
+    ThickSolid, ThruSections, Wire, Circle, Part
 )
 
 enamldef Assembly(Part):
@@ -10,8 +10,10 @@ enamldef Assembly(Part):
     attr diameter = 3
 
     #: Make a faucet like shape
-    Cut:
-        ThruSections:
+    ThickSolid:
+        offset = thickness
+        faces = faucet.topology.faces[2:4]
+        ThruSections: faucet:
             solid = True
             Wire:
                 Circle: c1:
@@ -27,19 +29,4 @@ enamldef Assembly(Part):
                     position << (c1.x+6,c1.y,c1.z+3)
                     direction = (0,0,-1)
                     radius << c1.radius*0.6
-
-        ThruSections:
-            solid = True
-            Wire:
-                Circle: ci1:
-                    axis := c1.axis
-                    radius << c1.radius-thickness/2.0
-            Wire:
-                Circle: ci2:
-                    axis := c2.axis
-                    radius << c2.radius-thickness/2.0
-            Wire:
-                Circle: ci3:
-                    axis := c3.axis
-                    radius << c3.radius-thickness/2.0
 

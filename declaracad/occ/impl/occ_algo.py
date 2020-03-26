@@ -93,7 +93,8 @@ class OccBooleanOperation(OccOperation, ProxyBooleanOperation):
     def update_shape(self, change=None):
         d = self.declaration
         if d.shape1 and d.shape2:
-            shape = self._do_operation(d.shape1, d.shape2)
+            shape = self._do_operation(
+                coerce_shape(d.shape1), coerce_shape(d.shape2))
         else:
             shape = None
 

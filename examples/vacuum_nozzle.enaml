@@ -41,11 +41,13 @@ enamldef Assembly(Part):
                 position = (0, 0, 3/4)                    
         Cylinder: shaft:
             attr diameter = 1
-            transparency = 0.7
-            material = 'steel'
             radius = diameter/2
             height = 4  
     
+    Transform:
+        transparency = 0.7
+        material = 'steel'
+        shape = shaft
     #Transform:
     #    shape = c2
     #Transform:

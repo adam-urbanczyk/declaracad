@@ -1,0 +1,17 @@
+# Created in DeclaraCAD
+from declaracad.occ.api import *
+from OCCT.gp import gp_Pln
+
+enamldef Assembly(Part):
+    Box: box:
+        transparency = 0.8
+        dx = 10
+        dy = 10
+        dz = 20
+    LengthDimension:
+        color = 'black'
+        shapes = [box.topology.edges[0]]
+    LengthDimension:
+        color = 'black'
+        position = (-5, 10, 0)
+        shapes = [box.topology.vertices[1], box.topology.vertices[4]]

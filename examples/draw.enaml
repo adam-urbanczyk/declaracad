@@ -1,7 +1,7 @@
 from math import sin, cos, pi
 from declaracad.occ.api import (
     Part, Wire, Circle, Ellipse, Line, Polygon, BSpline, Bezier, Arc,
-    Text
+    Rectangle, Text
 )
 
 enamldef Assembly(Part):
@@ -37,7 +37,17 @@ enamldef Assembly(Part):
             attr turns = 10
             attr r = 3
             points = [(r*cos(pi/4*i), r*sin(pi/4*i), i/4) for i in range(turns*4+1)]
-
+    Wire:
+        color = 'green'
+        Rectangle:
+            width = 10
+            height = 5
+    Wire:
+        color = 'purple'
+        Rectangle:
+            width = 5
+            height = width
+            rx = 2
     #Wire:
     #    color = 'black'
     #    Text:
