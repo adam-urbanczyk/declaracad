@@ -86,6 +86,9 @@ class ProxyShape(ProxyControl):
     def set_transparency(self, alpha):
         pass
 
+    def set_texture(self, texture):
+        pass
+
     def get_bounding_box(self):
         raise NotImplementedError
 
@@ -352,6 +355,43 @@ def coerce_direction(arg):
     return coerce_point(arg, cls=Direction)
 
 
+class TextureParameters(Atom):
+    """ Texture parametric parameter ranges
+    """
+    enabled = Bool(True)
+    u = Float(0.0, strict=False)
+    v = Float(0.0, strict=False)
+
+
+def coerce_texture(arg):
+    if isinstance(arg, dict):
+        return TextureParameters(**arg)
+    enabled = arg[2] if len(arg) > 2 else True
+    return TextureParameters(u=arg[0], v=arg[1], enabled=enabled)
+
+
+class Texture(Atom):
+
+    #: Path to the texture file or image
+    path = Str()
+
+    #: If given, repeat in the u and v dimension
+    repeat = Coerced(TextureParameters,
+                     kwargs={'enabled': True, 'u': 1, 'v': 1},
+                     coercer=coerce_texture)
+
+    #: If given, adjust th eorigin to the u and v dimension
+    origin = Coerced(TextureParameters,
+                     kwargs={'enabled': True, 'u': 0, 'v': 0},
+                     coercer=coerce_texture)
+
+    #: If given, scale in the u and v dimension
+    scale = Coerced(TextureParameters,
+                    kwargs={'enabled': True, 'u': 1, 'v': 1},
+                    coercer=coerce_texture)
+
+
+
 class Shape(ToolkitObject):
     """ Abstract shape component that can be displayed on the screen
     and represented by the framework.
@@ -388,6 +428,9 @@ class Shape(ToolkitObject):
 
     #: The opacity of the shape used for display.
     transparency = d_(Float(strict=False)).tag(view=True, group='Display')
+
+    #: Texture to apply to the shape
+    texture = d_(Instance(Texture))
 
     #: x position
     x = d_(Property(lambda self: self.position[0],
@@ -443,7 +486,7 @@ class Shape(ToolkitObject):
     #: Bounding box of this shape
     bbox = Property(_get_bounding_box, cached=True)
 
-    @observe('color', 'transparency', 'display')
+    @observe('color', 'transparency', 'display', 'texture')
     def _update_proxy(self, change):
         super(Shape, self)._update_proxy(change)
 

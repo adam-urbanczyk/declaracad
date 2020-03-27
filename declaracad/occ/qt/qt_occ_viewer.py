@@ -8,6 +8,7 @@ The full license is in the file LICENSE, distributed with this software.
 Created on Sep 26, 2016
 
 """
+import os
 import sys
 import logging
 import traceback
@@ -25,7 +26,7 @@ from enaml.application import deferred_call, timed_call
 from OCCT import Aspect, Graphic3d, TopAbs, V3d
 from OCCT.AIS import (
     AIS_InteractiveContext, AIS_Shape, AIS_Shaded, AIS_WireFrame,
-    AIS_ColoredDrawer
+    AIS_ColoredDrawer, AIS_TexturedShape
 )
 from OCCT.Aspect import (
     Aspect_DisplayConnection, Aspect_TOTP_LEFT_LOWER, Aspect_GFM_VER
@@ -54,6 +55,7 @@ from OCCT.Quantity import Quantity_Color, Quantity_NOC_BLACK
 from OCCT.Prs3d import Prs3d_Drawer
 from OCCT.TopoDS import TopoDS_Shape
 from OCCT.TopAbs import TopAbs_FACE, TopAbs_EDGE, TopAbs_WIRE
+from OCCT.TCollection import TCollection_AsciiString
 from OCCT.TopLoc import TopLoc_Location
 from OCCT.V3d import V3d_Viewer, V3d_View, V3d_TypeOfOrientation
 
@@ -623,7 +625,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         self.ais_context.Display(ais_shape, update)
 
     def display_shape(self, shape, color=None, transparency=None,
-                      material=None, update=True):
+                      material=None, texture=None, update=True):
         """ Display a shape.
 
         Parameters
@@ -636,13 +638,37 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             The transparency (0 to 1).
         material: String
             The material to render the shape.
+        texture: declaracad.occ.shape.Texture
+            The texture to apply to the shape.
 
         Returns
         -------
         ais_shape: OCCT.AIS.AIS_Shape
             The AIS_Shape created for the part.
         """
-        ais_shape = AIS_Shape(shape)
+        if texture is not None:
+            ais_shape = AIS_TexturedShape(shape)
+
+            if os.path.exists(texture.path):
+
+                ais_shape.SetTextureFileName(
+                    TCollection_AsciiString(texture.path))
+
+                params = texture.repeat
+                ais_shape.SetTextureRepeat(params.enabled, params.u, params.v)
+
+                params = texture.origin
+                ais_shape.SetTextureOrigin(params.enabled, params.u, params.v)
+
+                params = texture.scale
+                ais_shape.SetTextureScale(params.enabled, params.u, params.v)
+
+                ais_shape.SetTextureMapOn()
+                ais_shape.SetDisplayMode(3)
+
+        else:
+            ais_shape = AIS_Shape(shape)
+
         if color:
             color, alpha = color_to_quantity_color(color)
             ais_shape.SetColor(color)
@@ -837,7 +863,6 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
             self.set_selection_mode(self.declaration.selection_mode)
 
-            last_shape = shapes[-1]
             for occ_shape in shapes:
                 d = occ_shape.declaration
                 topods_shape = occ_shape.shape
@@ -845,6 +870,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                     log.error("{} has no shape!".format(occ_shape))
                     continue
 
+                # Translate part locations
                 parent = occ_shape.parent()
                 if parent and isinstance(parent, OccPart):
                     # TODO: Build transform for nested parts
@@ -861,7 +887,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                     d.color,
                     d.transparency,
                     d.material,
-                    occ_shape is last_shape)
+                    d.texture,
+                    update=False)
                 if ais_shape:
                     ais_shapes.append(ais_shape)
 
@@ -872,7 +899,10 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                 dim = item.dimension
                 if dim is not None and item.declaration.display:
                     displayed_dimensions[dim] = item
-                    self.display_ais(dim)
+                    self.display_ais(dim, update=False)
+
+            # Update
+            self.ais_context.UpdateCurrentViewer()
 
             self._ais_shapes = ais_shapes
             self._displayed_shapes = displayed_shapes

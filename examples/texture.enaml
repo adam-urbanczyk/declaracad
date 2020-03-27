@@ -1,0 +1,17 @@
+# Created in DeclaraCAD
+from declaracad.occ.api import *
+from OCCT.gp import gp_Pln
+
+enamldef Assembly(Part):
+    Box: box:
+        dx = 1000
+        dy = 1000
+        dz = 2000
+
+    Transform:
+        shape = box.topology.faces[1]
+        color = 'white'
+        texture = Texture(
+            path='/home/jrm/Pictures/rail-guide-cross-section.png',
+            scale = {'enabled':False}
+        )
