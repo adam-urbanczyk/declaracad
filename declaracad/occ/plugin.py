@@ -262,6 +262,8 @@ class ViewerProcess(ProcessLineReceiver):
 
     def outConnectionLost(self):
         if not self.terminated:
+            # Clear the filename on crash so it works when reset
+            self.filename = ''
             self.restart()
         log.warning("renderer | stdout closed")
 

@@ -772,8 +772,10 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         while ais_context.MoreSelected():
             if ais_context.HasSelectedShape():
                 i = None
+                found = False
                 topods_shape = ais_context.SelectedShape()
                 shape_type = topods_shape.ShapeType()
+                attr = str(shape_type).split("_")[-1].lower() + 's'
 
                 # Try quick lookup
                 occ_shape = displayed_shapes.get(topods_shape)
@@ -781,9 +783,9 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                     shapes.append(topods_shape)
                     selection[occ_shape.declaration] = {
                         'shapes': {0: topods_shape}}
+                    found = True
                 else:
                     # Try long lookup based on topology
-                    attr = str(shape_type).split("_")[-1].lower() + 's'
                     for occ_shape in occ_shapes:
                         shape_list = getattr(occ_shape.topology, attr, None)
                         if shape_list is None:
@@ -800,7 +802,19 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                             if attr not in info:
                                 info[attr] = {}
                             info[attr][i] = topods_shape
+                            found = True
                             break
+
+                # Mark it as found we don't know what shape it's from
+                if not found:
+                    if None not in selection:
+                        selection[None] = {}
+                    if attr not in selection[None]:
+                        selection[None][attr] = {}
+                    info = selection[None][attr]
+                    # Just keep incrementing the index
+                    info[len(info)] = topods_shape
+
             ais_context.NextSelected()
 
         if shift:
@@ -872,11 +886,17 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
                 # Translate part locations
                 parent = occ_shape.parent()
-                if parent and isinstance(parent, OccPart):
+                if parent and isinstance(parent, OccPart) \
+                        and not topods_shape.Locked():
+
                     # TODO: Build transform for nested parts
                     l = topods_shape.Location().Multiplied(
                         TopLoc_Location(parent.transform))
                     topods_shape.Location(l)
+
+                    # HACK: Prevent doing this multiple times when the view is
+                    # force updated and the same part is rendered
+                    topods_shape.Locked(True)
 
                 # Save the mapping of topods_shape to declaracad shape
                 displayed_shapes[topods_shape] = occ_shape

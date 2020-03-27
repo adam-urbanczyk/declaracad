@@ -498,7 +498,12 @@ class Topology(Atom):
     # -------------------------------------------------------------------------
     # Utilities
     # -------------------------------------------------------------------------
-    def as_curve(self, shape):
+    @classmethod
+    def cast_shape(cls, topods_shape):
+        return cls.topo_factory[topods_shape.ShapeType()](topods_shape)
+
+    @classmethod
+    def cast_curve(cls, shape):
         """ Attempt to cast the shape (an edge or wire) to a curve
 
         Returns
@@ -515,7 +520,8 @@ class Topology(Atom):
         except:
             return None
 
-    def is_circle(self, shape):
+    @classmethod
+    def is_circle(cls, shape):
         """ Check if an edge or wire is a part of a circle.
         This can be used to see if an edge can be used for radius dimensions.
 
@@ -524,12 +530,13 @@ class Topology(Atom):
         bool: Bool
             Whether the shape is a part of circle
         """
-        curve = self.as_curve(shape)
+        curve = cls.cast_curve(shape)
         if curve is None:
             return False
         return curve.GetType() == GeomAbs.GeomAbs_Circle
 
-    def is_ellipse(self, shape):
+    @classmethod
+    def is_ellipse(cls, shape):
         """ Check if an edge or wire is a part of an ellipse.
         This can be used to see if an edge can be used for radius dimensions.
 
@@ -538,12 +545,13 @@ class Topology(Atom):
         bool: Bool
             Whether the shape is a part of an ellipse
         """
-        curve = self.as_curve(shape)
+        curve = cls.cast_curve(shape)
         if curve is None:
             return False
         return curve.GetType() == GeomAbs.GeomAbs_Ellipse
 
-    def is_line(self, shape):
+    @classmethod
+    def is_line(cls, shape):
         """ Check if an edge or wire is a line.
         This can be used to see if an edge can be used for length dimensions.
 
@@ -552,7 +560,7 @@ class Topology(Atom):
         bool: Bool
             Whether the shape is a part of a line
         """
-        curve = self.as_curve(shape)
+        curve = cls.cast_curve(shape)
         if curve is None:
             return False
         return curve.GetType() == GeomAbs.GeomAbs_Line

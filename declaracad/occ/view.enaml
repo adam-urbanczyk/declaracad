@@ -45,6 +45,18 @@ enamldef ModelViewer(OccViewer): viewer:
     attr dimensions: list = []
     attr show_console: bool = False
     attr shapes: list = []
+
+    func get_selected_shapes():
+        """ Get all selected shapes
+
+        """
+        shapes = []
+        if self.selection:
+            for s in self.selection.selection.values():
+                for mapping in s.values():
+                    shapes.extend(mapping.values())
+        return shapes
+
     Include:
         objects << list(expand_dict(clipped_planes))
     Conditional:
@@ -130,7 +142,12 @@ enamldef ModelViewer(OccViewer): viewer:
                     text = loop_item.title()
                     checkable = True
                     checked << viewer.selection_mode == loop_item
-                    triggered :: viewer.selection_mode = loop_item
+                    triggered ::
+                        if viewer.selection_mode == loop_item:
+                            # Force it if already set
+                            viewer.proxy.set_selection_mode(loop_item)
+                        else:
+                            viewer.selection_mode = loop_item
 
         Menu:
             title = 'View direction'
@@ -191,21 +208,48 @@ enamldef ModelViewer(OccViewer): viewer:
             Action:
                 text = 'Clear all'
                 triggered :: viewer.clipped_planes = {}
-        #Menu:
-            #title = 'Dimensions'
-            #Action:
-                #text = 'Add Length'
-                #triggered ::
-                    #if viewer.selection:
-                        #s = viewer.selection.selection.items()
-                        #dims = viewer.dimensions[:]
-                        #dims.append(
-                            #LengthDimension(shapes=viewer.selection))
-                        #viewer.dimensions = dims
-
-            #Action:
-                #text = 'Clear all'
-                #triggered :: viewer.dimensions = []
+        Menu:
+            title = 'Dimensions'
+            Action:
+                text = 'Show length'
+                triggered ::
+                    shapes = viewer.get_selected_shapes()
+                    if shapes:
+                        dims = viewer.dimensions[:]
+                        dims.append(
+                            LengthDimension(shapes=shapes[0:2]))
+                        viewer.dimensions = dims
+                        viewer.selection_mode = 'shape' # It changes so stay in sync
+            Action:
+                text = 'Show radius'
+                triggered ::
+                    shapes = viewer.get_selected_shapes()
+                    if shapes:
+                        dims = viewer.dimensions[:]
+                        dims.append(RadiusDimension(shapes=shapes[0:1]))
+                        viewer.dimensions = dims
+                        viewer.selection_mode = 'shape' # It changes so stay in sync
+            Action:
+                text = 'Show diameter'
+                triggered ::
+                    shapes = viewer.get_selected_shapes()
+                    if shapes:
+                        dims = viewer.dimensions[:]
+                        dims.append(DiameterDimension(shapes=shapes[0:1]))
+                        viewer.dimensions = dims
+                        viewer.selection_mode = 'shape' # It changes so stay in sync
+            Action:
+                text = 'Show angle'
+                triggered ::
+                    shapes = viewer.get_selected_shapes()
+                    if shapes:
+                        dims = viewer.dimensions[:]
+                        dims.append(AngleDimension(shapes=shapes))
+                        viewer.dimensions = dims
+                        viewer.selection_mode = 'shape' # It changes so stay in sync
+            Action:
+                text = 'Clear all'
+                triggered :: viewer.dimensions = []
         Menu:
             title = 'Rendering'
             Looper:
@@ -428,16 +472,15 @@ enamldef ViewerDockItem(DockItem): view:
     name = "3d-viewer-{}".format(id(self))
     title = "Viewer"
     alias renderer: viewer.renderer
+    attr editor_plugin << plugin.workbench.get_plugin('declaracad.editor')
     activated ::
         renderer.observe('errors', handle_errors)
         renderer.observe('output', handle_output)
 
     func handle_errors(change):
-        editor_plugin = plugin.workbench.get_plugin('declaracad.editor')
         editor_plugin.active_document.errors = change['value'].split("\n")
 
     func handle_output(change):
-        editor_plugin = plugin.workbench.get_plugin('declaracad.editor')
         if change['type'] in ('create', 'update'):
             editor_plugin.active_document.output = change['value']
         elif change['type'] == 'container':
@@ -480,4 +523,11 @@ enamldef ViewerDockItem(DockItem): view:
                 core = plugin.workbench.get_plugin("enaml.workbench.core")
                 core.invoke_command('declaracad.viewer.screenshot',
                                     {'target': view.name})
+        Action:
+            text = "Reload file"
+            triggered ::
+                viewer.renderer.filename = ''
+                viewer.renderer.filename = editor_plugin.active_document.name
+
+
 

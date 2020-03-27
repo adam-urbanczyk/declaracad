@@ -17,7 +17,8 @@ from OCCT.AIS import (
 from OCCT.BRep import BRep_Tool
 from OCCT.GC import GC_MakePlane
 from OCCT.gp import gp_Pnt, gp_Dir
-from OCCT.TopoDS import TopoDS_Edge, TopoDS_Vertex
+from OCCT.TopoDS import TopoDS, TopoDS_Edge, TopoDS_Vertex, TopoDS_Shape
+from OCCT.TopAbs import TopAbs_ShapeEnum
 
 from ..dimension import (
     ProxyDimension, ProxyAngleDimension, ProxyDiameterDimension,
@@ -28,6 +29,7 @@ from .occ_shape import Topology
 from declaracad.core.utils import log
 
 from declaracad.occ.qt.utils import color_to_quantity_color
+
 
 
 class OccDimension(ProxyDimension):
@@ -108,6 +110,10 @@ class OccDimension(ProxyDimension):
     # -------------------------------------------------------------------------
     # Utils
     # -------------------------------------------------------------------------
+    def get_shapes(self):
+        """ Get the shapes casted to the actual type """
+        return [Topology.cast_shape(s) for s in self.declaration.shapes]
+
     def make_custom_plane(self, dimension):
         d = self.declaration
         pln = dimension.GetPlane()
@@ -123,7 +129,7 @@ class OccAngleDimension(OccDimension, ProxyAngleDimension):
 
     def create_dimension(self):
         d = self.declaration
-        self.dimension = AIS_AngleDimension(*d.shapes)
+        self.dimension = AIS_AngleDimension(*self.get_shapes())
 
 
 class OccLengthDimension(OccDimension, ProxyLengthDimension):
@@ -139,19 +145,15 @@ class OccLengthDimension(OccDimension, ProxyLengthDimension):
 
     def create_dimension(self):
         d = self.declaration
-        s = d.shapes[0]
-        args = []
-
-        if isinstance(s, TopoDS_Edge):
+        if not d.shapes:
+            return
+        args = self.get_shapes()
+        s = args[0]
+        if len(args) == 1:
             topo = Topology(shape=s)
-            args = (s, self.make_plane(*topo.vertices_from_edge(s)[0:]))
-        elif isinstance(s, TopoDS_Vertex):
-            s2 = d.shapes[1]
-            args = (s, s2, self.make_plane(s, s2))
-
-        if not args:
-            args = d.shapes
-
+            args.append(self.make_plane(*topo.vertices_from_edge(s)[0:]))
+        elif isinstance(s, TopoDS_Vertex) and len(args) == 2:
+            args.append(self.make_plane(s, args[1]))
         self.dimension = AIS_LengthDimension(*args)
 
 
@@ -161,7 +163,7 @@ class OccRadiusDimension(OccDimension, ProxyRadiusDimension):
 
     def create_dimension(self):
         d = self.declaration
-        self.dimension = AIS_RadiusDimension(*d.shapes)
+        self.dimension = AIS_RadiusDimension(*self.get_shapes())
 
 
 class OccDiameterDimension(OccDimension, ProxyDiameterDimension):
@@ -170,4 +172,4 @@ class OccDiameterDimension(OccDimension, ProxyDiameterDimension):
 
     def create_dimension(self):
         d = self.declaration
-        self.dimension = AIS_DiameterDimension(*d.shapes)
+        self.dimension = AIS_DiameterDimension(*self.get_shapes())
