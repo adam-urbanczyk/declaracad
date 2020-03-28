@@ -145,13 +145,7 @@ class QtViewer3d(QOpenGLWidget):
         """ returns an the identifier of the GUI widget.
         It must be an integer
         """
-        win_id = self.winId()  # this returns either an int or voitptr
-        if sys.platform == "win32" and 'PyCObject' in str(type(win_id)):
-            import ctypes
-            ctypes.pythonapi.PyCObject_AsVoidPtr.restype = ctypes.c_void_p
-            ctypes.pythonapi.PyCObject_AsVoidPtr.argtypes = [ctypes.py_object]
-            return ctypes.pythonapi.PyCObject_AsVoidPtr(win_id)
-        return win_id
+        return self.winId()  # this returns either an int or voitptr
 
     def resizeEvent(self, event):
         if self._inited:
