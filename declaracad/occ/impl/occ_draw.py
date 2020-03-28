@@ -21,7 +21,9 @@ from OCCT.BRepBuilderAPI import (
 from OCCT.BRepLib import BRepLib
 from OCCT.BRepOffsetAPI import BRepOffsetAPI_MakeOffset
 from OCCT.Font import Font_BRepTextBuilder, Font_FontAspect, Font_FontMgr
-from OCCT.GC import GC_MakeSegment, GC_MakeArcOfCircle, GC_MakeArcOfEllipse
+from OCCT.GC import (
+    GC_MakeSegment, GC_MakeArcOfCircle, GC_MakeArcOfEllipse, GC_MakeLine
+)
 from OCCT.gp import (
     gp_Dir, gp_Pnt, gp_Lin, gp_Pln, gp_Circ, gp_Elips, gp_Vec, gp_Trsf,
     gp_Ax3, gp_Ax2, gp
@@ -32,7 +34,7 @@ from OCCT.TopoDS import (
 from OCCT.GeomAPI import GeomAPI_PointsToBSpline, GeomAPI
 from OCCT.Geom import (
     Geom_BezierCurve, Geom_BSplineCurve, Geom_TrimmedCurve, Geom_Plane,
-    Geom_Ellipse, Geom_Circle, Geom_Parabola, Geom_Hyperbola
+    Geom_Ellipse, Geom_Circle, Geom_Parabola, Geom_Hyperbola, Geom_Line
 )
 from OCCT.TColgp import TColgp_Array1OfPnt
 from OCCT.TCollection import TCollection_HAsciiString
@@ -163,6 +165,8 @@ class OccLine(OccEdge, ProxyLine):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'classgp___lin.html')
 
+    curve = Typed(Geom_Line)
+
     def get_transformed_points(self, points=None):
         d = self.declaration
         t = self.get_transform()
@@ -171,11 +175,11 @@ class OccLine(OccEdge, ProxyLine):
     def create_shape(self):
         d = self.declaration
         if len(d.points) == 2:
-            args = self.get_transformed_points()
+            curve = GC_MakeLine(*self.get_transformed_points()).Value()
         else:
-            args = (gp_Lin(coerce_axis(d.axis)),)
-            self.curve = args[0]
-        self.shape = self.make_edge(*args)
+            curve = GC_MakeLine(d.position.proxy, d.direction.proxy).Value()
+        self.curve = curve
+        self.shape = self.make_edge(curve)
 
     def set_points(self, points):
         self.create_shape()
@@ -293,8 +297,9 @@ class OccEllipse(OccEdge, ProxyEllipse):
 
     def create_shape(self):
         d = self.declaration
-        curve = self.curve = Geom_Ellipse(
-            coerce_axis(d.axis), d.major_radius, d.minor_radius)
+        major = max(d.major_radius, d.minor_radius)
+        minor = min(d.major_radius, d.minor_radius)
+        curve = self.curve = Geom_Ellipse(coerce_axis(d.axis), major, minor)
         self.shape = self.make_edge(curve)
 
     def set_major_radius(self, r):
@@ -313,8 +318,9 @@ class OccHyperbola(OccEdge, ProxyHyperbola):
 
     def create_shape(self):
         d = self.declaration
-        curve = self.curve = Geom_Hyperbola(
-            coerce_axis(d.axis), d.major_radius, d.minor_radius)
+        major = max(d.major_radius, d.minor_radius)
+        minor = min(d.major_radius, d.minor_radius)
+        curve = self.curve = Geom_Hyperbola(coerce_axis(d.axis), major, minor)
         self.shape = self.make_edge(curve)
 
     def set_major_radius(self, r):
@@ -465,7 +471,10 @@ class OccTrimmedCurve(OccEdge, ProxyTrimmedCurve):
     def update_shape(self, change=None):
         d = self.declaration
         child = self.get_first_child()
-        curve = BRep_Tool.Curve_(child.shape, 0, 1)[0]
+        if hasattr(child, 'curve'):
+            curve = child.curve
+        else:
+            curve = BRep_Tool.Curve_(child.shape, 0, 1)[0]
         trimmed_curve = self.curve = Geom_TrimmedCurve(curve, d.u, d.v)
         self.shape = self.make_edge(trimmed_curve)
 
