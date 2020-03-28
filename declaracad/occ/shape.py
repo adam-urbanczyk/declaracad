@@ -10,6 +10,7 @@ Created on Sep 30, 2016
 
 @author: jrm
 """
+import math
 from atom.api import (
     Atom, Tuple, Instance, Bool, Str, Float, Property, Coerced, Typed,
     ForwardTyped, List, Enum, Event, observe
@@ -25,7 +26,7 @@ from enaml.widgets.toolkit_object import ToolkitObject
 from declaracad.core.utils import log
 
 #: TODO: This breaks the proxy pattern
-from OCCT.gp import gp_Pnt, gp_Dir
+from OCCT.gp import gp, gp_Pnt, gp_Dir
 from OCCT.TopoDS import TopoDS_Face, TopoDS_Shell, TopoDS_Shape
 
 
@@ -337,22 +338,56 @@ class Direction(Point):
 
     @classmethod
     def __coerce__(self, other):
-        return coerce_point(other, cls=Direction)
+        return coerce_direction(other)
 
     def __repr__(self):
         return "<Direction: x=%s y=%s z=%s>" % self[:]
 
+    @classmethod
+    def XY(cls, x, y):
+        # Create a direction in the 2d XY plane with Z normal
+        dir = gp.DZ_().Rotated(gp.OZ_(), math.atan2(y, x))
+        return Direction(dir.X(), dir.Y(), dir.Z())
 
-def coerce_point(arg, cls=Point):
-    if isinstance(arg, cls):
-        return arg
+    @classmethod
+    def XZ(cls, x, y):
+        # Create a direction in the XY plane
+        dir = gp_Dir()
+        dir.Rotate(gp.OY_(), math.atan2(y, x))
+        return Direction(dir.X(), dir.Y(), dir.Z())
+
+    @classmethod
+    def YZ(cls, x, y):
+        # Create a direction in the XY plane
+        dir = gp_Dir()
+        dir.Rotate(gp.OX_(), math.atan2(y, x))
+        return Direction(dir.X(), dir.Y(), dir.Z())
+
+
+def coerce_point(arg):
     if hasattr(arg, 'XYZ'): # copy from gp_Pnt, gp_Vec, gp_Dir, etc..
-        return cls(arg.X(), arg.Y(), arg.Z())
-    return cls(*arg)
+        return Point(arg.X(), arg.Y(), arg.Z())
+    if isinstance(arg, Point):
+        return arg
+    if isinstance(arg, dict):
+        return Point(**arg)
+    return Point(*arg)
 
 
 def coerce_direction(arg):
-    return coerce_point(arg, cls=Direction)
+    if hasattr(arg, 'XYZ'): # copy from gp_Pnt2d, gp_Vec2d, gp_Dir2d, etc..
+        return Direction(arg.X(), arg.Y(), arg.Z())
+    if isinstance(arg, Direction):
+        return arg
+    if isinstance(arg, dict):
+        return Direction(**arg)
+    return Direction(*arg)
+
+
+def coerce_rotation(arg):
+    if isinstance(arg, (int, float)):
+        return float(arg)
+    return float(math.atan2(*arg))
 
 
 class TextureParameters(Atom):
@@ -451,18 +486,22 @@ class Shape(ToolkitObject):
     def _default_position(self):
         return Point(0, 0, 0)
 
-    #: A tuple or list of the (u, v, w) vector of this shape. This is
+    #: A tuple or list of the (u, v, w) normal vector of this shape. This is
     #: coerced into a Vector setting the orentation of the shape.
+    #: This is effectively the working plane.
     direction = d_(Coerced(Direction, coercer=coerce_direction))
 
     def _default_direction(self):
         return Direction(0, 0, 1)
 
+    #: Rotation about the normal vector in radians
+    rotation = d_(Coerced(float, coercer=coerce_rotation))
+
     def _get_axis(self):
-        return (self.position, self.direction)
+        return (self.position, self.direction, self.rotation)
 
     def _set_axis(self, axis):
-        self.position, self.direction = axis
+        self.position, self.direction, self.rotation = axis
 
     #: A tuple or list of the (u, v, w) axis of this shape. This is
     #: coerced into a Vector that defines the x, y, and z orientation of

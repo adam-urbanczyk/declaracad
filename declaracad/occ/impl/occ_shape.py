@@ -68,8 +68,10 @@ from declaracad.core.utils import log
 
 
 def coerce_axis(value):
-    pos, dir = value
-    return gp_Ax2(pos.proxy, dir.proxy)
+    pos, dir, rotation = value
+    axis = gp_Ax2(pos.proxy, dir.proxy)
+    axis.Rotate(axis.Axis(), rotation)
+    return axis
 
 
 class WireExplorer(Atom):
@@ -726,6 +728,7 @@ class OccFace(OccDependentShape, ProxyFace):
     def shape_to_face(self, shape):
         if isinstance(shape, OccShape):
             shape = shape.shape
+        shape = Topology.cast_shape(shape)
         if isinstance(shape, (TopoDS_Face, TopoDS_Wire)):
             return shape
         if isinstance(shape, TopoDS_Edge):
