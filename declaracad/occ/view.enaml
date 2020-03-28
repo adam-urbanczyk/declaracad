@@ -52,6 +52,7 @@ enamldef ModelViewer(OccViewer): viewer:
     attr keymap = {
         'd': menu_dimensions.keymap,
         'v': menu_view_direction.keymap,
+        's': menu_selection_mode.keymap,
         'l': {
             'x': lambda: viewer.rotate_view(x=math.radians(-90)),
             'y': lambda: viewer.rotate_view(y=math.radians(-90)),
@@ -183,20 +184,27 @@ enamldef ModelViewer(OccViewer): viewer:
 
         Action:
             separator = True
-        Menu:
+        Menu: menu_selection_mode:
             title = 'Selection'
+            attr keymap = {
+                m[0]: lambda m=m: set_selection_mode(m)
+                for m in viewer.get_member('selection_mode').items
+            }
+
+            func set_selection_mode(mode):
+                if viewer.selection_mode == mode:
+                    # Force it if already set
+                    viewer.proxy.set_selection_mode(mode)
+                else:
+                    viewer.selection_mode = mode
+
             Looper:
                 iterable << viewer.get_member('selection_mode').items
                 Action:
                     text = loop_item.title()
                     checkable = True
                     checked << viewer.selection_mode == loop_item
-                    triggered ::
-                        if viewer.selection_mode == loop_item:
-                            # Force it if already set
-                            viewer.proxy.set_selection_mode(loop_item)
-                        else:
-                            viewer.selection_mode = loop_item
+                    triggered :: set_selection_mode(loop_item)
 
         Menu: menu_view_direction:
             title = 'View direction'
