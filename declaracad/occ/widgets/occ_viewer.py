@@ -122,6 +122,12 @@ class ProxyOccViewer(ProxyControl):
     def zoom_factor(self, zoom):
         raise NotImplementedError
 
+    def rotate_view(self, x=0, y=0, z=0):
+        raise NotImplementedError
+
+    def turn_view(self, x=0, y=0, z=0):
+        raise NotImplementedError
+
     def reset_view(self):
         raise NotImplementedError
 
@@ -233,6 +239,14 @@ class OccViewer(Control):
     def zoom_factor(self, factor):
         """ Zoom in by a given factor """
         self.proxy.zoom_factor(factor)
+
+    def rotate_view(self, *args, **kwargs):
+        """ Rotate by the given number of degrees about the current axis"""
+        self.proxy.rotate_view(*args, **kwargs)
+
+    def turn_view(self, *args, **kwargs):
+        """ Rotate by the given number of degrees about the current axis"""
+        self.proxy.turn_view(*args, **kwargs)
 
     def reset_view(self):
         """ Reset zoom to defaults """

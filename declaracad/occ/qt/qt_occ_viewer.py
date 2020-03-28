@@ -102,6 +102,7 @@ BLACK = Quantity_Color(Quantity_NOC_BLACK)
 
 
 class QtViewer3d(QOpenGLWidget):
+
     def __init__(self, *args, **kwargs):
         super(QtViewer3d, self).__init__(*args, **kwargs)
         self._lock_rotation = False
@@ -125,6 +126,7 @@ class QtViewer3d(QOpenGLWidget):
             'mouse_released': [],
         }
         self.proxy = None
+        self._last_code = None
 
         # enable Mouse Tracking
         self.setMouseTracking(True)
@@ -160,6 +162,7 @@ class QtViewer3d(QOpenGLWidget):
         if self._fire_event('key_pressed', event):
             return
         code = event.key()
+
         #if code in self._key_map:
         #    self._key_map[code]()
         #else:
@@ -585,6 +588,12 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
     def zoom_factor(self, factor):
         self.v3d_view.SetZoom(factor)
+
+    def rotate_view(self, x=0, y=0, z=0):
+        self.v3d_view.Rotate(x, y, z, True)
+
+    def turn_view(self, x=0, y=0, z=0):
+        self.v3d_view.Turn(x, y, z, True)
 
     def fit_all(self):
         view = self.v3d_view

@@ -10,15 +10,17 @@ Created on Sep 28, 2016
 @author: jrm
 """
 import os
+import math
 import traceback
 from atom.api import Atom
 
 
 from declaracad.core.api import DockItem, EmbeddedWindow
-from declaracad.core.utils import load_icon, capture_output
+from declaracad.core.utils import log, load_icon, capture_output
 
 import enaml
 from enaml.core.api import Looper, Include, Conditional
+from enaml.application import timed_call, deferred_call
 from enaml.layout.api import align, hbox
 from enaml.qt.QtCore import Qt
 from enaml.widgets.api import (
@@ -45,6 +47,24 @@ enamldef ModelViewer(OccViewer): viewer:
     attr dimensions: list = []
     attr show_console: bool = False
     attr shapes: list = []
+
+    # Last key event
+    attr keymap = {
+        'd': menu_dimensions.keymap,
+        'v': menu_view_direction.keymap,
+        'l': {
+            'x': lambda: viewer.rotate_view(x=math.radians(-90)),
+            'y': lambda: viewer.rotate_view(y=math.radians(-90)),
+            'z': lambda: viewer.rotate_view(z=math.radians(-90)),
+        },
+        'r': {
+            'x': lambda: viewer.rotate_view(x=math.radians(90)),
+            'y': lambda: viewer.rotate_view(y=math.radians(90)),
+            'z': lambda: viewer.rotate_view(z=math.radians(90)),
+        },
+    }
+    attr last_key: str = ""
+    attr keypress_timeout: int = 2000
 
     func get_selected_shapes():
         """ Get all selected shapes
@@ -98,6 +118,25 @@ enamldef ModelViewer(OccViewer): viewer:
     #    display, event = change['value']
     #    print 'mouse_release',event
     #    raise StopIteration
+    key_pressed ::
+        key = change['value'][1].text()
+        last_key = self.last_key
+        self.last_key = key
+
+        log.debug(f"Key sequence {last_key} {key}")
+
+        # Lookup the key sequence
+        keymap = self.keymap.get(last_key)
+        action = None
+        if keymap is not None:
+            action = keymap.get(key)
+
+        # Clear the last key after a timeout
+        if action is not None:
+            deferred_call(action)
+            self.last_key = ''
+        #else:
+        #    timed_call(self.keypress_timeout, setattr, self, 'last_key', '')
 
     Menu:
         context_menu = True
@@ -112,14 +151,6 @@ enamldef ModelViewer(OccViewer): viewer:
             triggered :: viewer.reset_view()
         Action:
             separator = True
-        Action:
-            text = 'Zoom in'
-            triggered :: viewer.zoom_factor(2)
-        Action:
-            text = 'Zoom out'
-            triggered :: viewer.zoom_factor(1/2)
-        Action:
-            separator = True
         Menu:
             title = 'Navigation'
             Action:
@@ -132,6 +163,24 @@ enamldef ModelViewer(OccViewer): viewer:
                 tool_tip = 'Disable zooming with the mouse or touchpad'
                 checkable = True
                 checked := viewer.lock_zoom
+            Action:
+                text = 'Zoom in'
+                triggered :: viewer.zoom_factor(2)
+            Action:
+                text = 'Zoom out'
+                triggered :: viewer.zoom_factor(1/2)
+            Looper:
+                iterable = ('x', 'y', 'z')
+                Action:
+                    text = 'Rotate %s left' % loop_item
+                    tool_tip = 'Rotate view counter clockwise around the %s axis' % loop_item
+                    triggered :: viewer.rotate_view({loop_item: math.radians(-90)})
+                Action:
+                    text = 'Rotate %s right' % loop_item
+                    tool_tip = 'Rotate view counter clockwise around the %s axis' % loop_item
+                    triggered :: viewer.rotate_view({loop_item: math.radians(90)})
+
+
         Action:
             separator = True
         Menu:
@@ -149,20 +198,29 @@ enamldef ModelViewer(OccViewer): viewer:
                         else:
                             viewer.selection_mode = loop_item
 
-        Menu:
+        Menu: menu_view_direction:
             title = 'View direction'
+            attr keymap = {
+                vm[0]: lambda vm=vm: set_view_mode(vm)
+                for vm in viewer.get_member('view_mode').items
+            }
+
+            func set_view_mode(mode):
+                log.debug(f"Set view mode {mode}")
+                if viewer.view_mode == mode:
+                    # Force it if already set
+                    viewer.proxy.set_view_mode(mode)
+                else:
+                    viewer.view_mode = mode
+
             Looper:
                 iterable << viewer.get_member('view_mode').items
                 Action:
                     text = loop_item.title()
                     checkable = True
                     checked << viewer.view_mode == loop_item
-                    triggered ::
-                        if viewer.view_mode == loop_item:
-                            # Force it if already set
-                            viewer.proxy.set_view_mode(loop_item)
-                        else:
-                            viewer.view_mode = loop_item
+                    triggered :: set_view_mode(loop_item)
+
         Menu:
             title = 'Clip planes'
             Looper:
@@ -208,10 +266,17 @@ enamldef ModelViewer(OccViewer): viewer:
             Action:
                 text = 'Clear all'
                 triggered :: viewer.clipped_planes = {}
-        Menu:
+        Menu: menu_dimensions:
             title = 'Dimensions'
-            Action:
+            attr keymap = {
+                'l': action_show_length.triggered,
+                'r': action_show_radius.triggered,
+                'd': action_show_diameter.triggered,
+                'a': action_show_angle.triggered,
+            }
+            Action: action_show_length:
                 text = 'Show length'
+                tool_tip = 'Add a length dimension from the current selection'
                 triggered ::
                     shapes = viewer.get_selected_shapes()
                     if shapes:
@@ -220,8 +285,9 @@ enamldef ModelViewer(OccViewer): viewer:
                             LengthDimension(shapes=shapes[0:2]))
                         viewer.dimensions = dims
                         viewer.selection_mode = 'shape' # It changes so stay in sync
-            Action:
+            Action: action_show_radius:
                 text = 'Show radius'
+                tool_tip = 'Add a radius dimension from the current selection'
                 triggered ::
                     shapes = viewer.get_selected_shapes()
                     if shapes:
@@ -229,8 +295,9 @@ enamldef ModelViewer(OccViewer): viewer:
                         dims.append(RadiusDimension(shapes=shapes[0:1]))
                         viewer.dimensions = dims
                         viewer.selection_mode = 'shape' # It changes so stay in sync
-            Action:
+            Action: action_show_diameter:
                 text = 'Show diameter'
+                tool_tip = 'Add a diameter dimension from the current selection'
                 triggered ::
                     shapes = viewer.get_selected_shapes()
                     if shapes:
@@ -238,8 +305,9 @@ enamldef ModelViewer(OccViewer): viewer:
                         dims.append(DiameterDimension(shapes=shapes[0:1]))
                         viewer.dimensions = dims
                         viewer.selection_mode = 'shape' # It changes so stay in sync
-            Action:
+            Action: action_show_angle:
                 text = 'Show angle'
+                tool_tip = 'Add an angle dimension from the current selection'
                 triggered ::
                     shapes = viewer.get_selected_shapes()
                     if shapes:
