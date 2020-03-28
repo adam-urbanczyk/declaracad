@@ -27,28 +27,28 @@ enamldef HexNut(Transform):
                         radius << inner_radius
 
 enamldef HexHead(Common): head:
-        """ A chamfered hex head """
-        attr height = 2.0
-        attr diameter = 6.4
-        # Set to 0 to disable
-        attr chamfer = diameter/15
-        Prism: 
-            vector = (0, 0, height)
-            Face:
-                Wire:
-                    Hexagon: hexagon:
-                        radius = diameter/2
-        Conditional:
-            condition << chamfer > 0
-            Cone: top_chamfer:
-                position = (0, 0, 0)
-                direction = (0, 0, 1)
-                radius = (diameter/2) + (head.height-chamfer)
-                height = (diameter/2 - chamfer)  + head.height
-            Transform:
-                operations = [Mirror(y=1), Translate(z=-height)]
-                shape = top_chamfer
-            
+    """ A chamfered hex head """
+    attr height = 2.0
+    attr diameter = 6.4
+    # Set to 0 to disable
+    attr chamfer = diameter/15
+    Prism:
+        vector = (0, 0, height)
+        Face:
+            Wire:
+                Hexagon: hexagon:
+                    radius = diameter/2
+    Conditional:
+        condition << chamfer > 0
+        Cone: top_chamfer:
+            position = (0, 0, 0)
+            direction = (0, 0, 1)
+            radius = (diameter/2) + (head.height-chamfer)
+            height = (diameter/2 - chamfer)  + head.height
+        Transform:
+            operations = [Mirror(y=1), Translate(z=-height)]
+            shape = top_chamfer
+
 
 enamldef HexBolt(Part): bolt:
     """ Hexagonal Head Bolt  """
@@ -83,12 +83,10 @@ enamldef HexBolt(Part): bolt:
 
     Fuse:  fuse:
         color = 'lightblue'
-        #transparency = 0.9
-        #Common:
         HexHead:
             height = H
-            diameter = C            
-        
+            diameter = C
+
         Revol: revol:
         #    #: Axis of rotation
             direction = (0, 0, 1)
@@ -119,25 +117,25 @@ enamldef HexBolt(Part): bolt:
     ThruSections:
         color := fuse.color
         Wire:
-                # Note: When a surface is given on a curve  the shape is converted to 2d
-                # the wire automatically converts it back to 3d
-                TrimmedCurve: c1:
-                    surface = make_cylinder_surface(d1/2)
-                    v = 2*pi
-                    Ellipse: e1:
-                        position = (2*pi, bolt.length*3/4, 0)
-                        direction = (pi/8, bolt.length/4, 0)
-                        major_radius = 16*pi
-                        minor_radius = bolt.length/30
+            # Note: When a surface is given on a curve  the shape is converted to 2d
+            # the wire automatically converts it back to 3d
+            TrimmedCurve: c1:
+                surface = make_cylinder_surface(d1/2)
+                v = 2*pi
+                Ellipse: e1:
+                    position = (2*pi, bolt.length*3/4, 0)
+                    direction = (pi/8, bolt.length/4, 0)
+                    major_radius = 16*pi
+                    minor_radius = bolt.length/30
         Wire:
-                TrimmedCurve: c2:
-                    surface = make_cylinder_surface(d1/2+0.4)
-                    v = c1.v
-                    Ellipse: e2:
-                        position = e1.position
-                        direction = e1.direction
-                        major_radius = e1.major_radius-pi/4
-                        minor_radius = 0
+            TrimmedCurve: c2:
+                surface = make_cylinder_surface(d1/2+0.4)
+                v = c1.v
+                Ellipse: e2:
+                    position = e1.position
+                    direction = e1.direction
+                    major_radius = e1.major_radius-pi/4
+                    minor_radius = 0
 
 enamldef Assembly(Part):
     HexBolt:  bolt:
