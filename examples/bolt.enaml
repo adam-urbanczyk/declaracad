@@ -26,6 +26,29 @@ enamldef HexNut(Transform):
                     Circle:
                         radius << inner_radius
 
+enamldef HexHead(Common): head:
+        """ A chamfered hex head """
+        attr height = 2.0
+        attr diameter = 6.4
+        # Set to 0 to disable
+        attr chamfer = diameter/15
+        Prism: 
+            vector = (0, 0, height)
+            Face:
+                Wire:
+                    Hexagon: hexagon:
+                        radius = diameter/2
+        Conditional:
+            condition << chamfer > 0
+            Cone: top_chamfer:
+                position = (0, 0, 0)
+                direction = (0, 0, 1)
+                radius = (diameter/2) + (head.height-chamfer)
+                height = (diameter/2 - chamfer)  + head.height
+            Transform:
+                operations = [Mirror(y=1), Translate(z=-height)]
+                shape = top_chamfer
+            
 
 enamldef HexBolt(Part): bolt:
     """ Hexagonal Head Bolt  """
@@ -58,16 +81,14 @@ enamldef HexBolt(Part): bolt:
         cylinder.render()
         return cylinder.topology.faces[0]
 
-    #Cut:
     Fuse:  fuse:
         color = 'lightblue'
         #transparency = 0.9
-        Prism: head:
-            vector = (0, 0, H)
-            Face:
-                Wire:
-                    Hexagon: hexagon:
-                        radius << C/2
+        #Common:
+        HexHead:
+            height = H
+            diameter = C            
+        
         Revol: revol:
         #    #: Axis of rotation
             direction = (0, 0, 1)
