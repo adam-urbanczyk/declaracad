@@ -62,7 +62,8 @@ from declaracad.occ.algo import (
     ProxyPipe, ProxyThruSections, ProxySplit, ProxyIntersection,
     ProxyTransform, Translate, Rotate, Scale, Mirror, Shape
 )
-from .occ_shape import OccShape, OccDependentShape
+
+from .occ_shape import OccShape, OccDependentShape, Topology
 
 def coerce_shape(shape):
     if isinstance(shape, Shape):
@@ -361,7 +362,13 @@ class OccThickSolid(OccOffset, ProxyThickSolid):
         d = self.declaration
         if d.faces:
             return d.faces
-        for face in occ_shape.topology.faces:
+
+        if isinstance(occ_shape, TopoDS_Shape):
+            topology = Topology(shape=occ_shape)
+        else:
+            topology = occ_shape.topology
+
+        for face in topology.faces:
             return [face]
 
     def update_shape(self, change=None):
