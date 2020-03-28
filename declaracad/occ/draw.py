@@ -269,6 +269,14 @@ class Line(Edge):
     #: List of points
     points = d_(List(Coerced(Pt, coercer=coerce_point)))
 
+    @property
+    def start(self):
+        return coerce_point(self.proxy.curve.StartPoint())
+
+    @property
+    def end(self):
+        return coerce_point(self.proxy.curve.EndPoint())
+
     @observe('points')
     def _update_proxy(self, change):
         super(Line, self)._update_proxy(change)
@@ -448,6 +456,14 @@ class Hyperbola(Edge):
     #: Minor radius of the hyperbola
     minor_radius = d_(Float(1, strict=False)).tag(view=True)
 
+    @property
+    def start(self):
+        return coerce_point(self.proxy.curve.StartPoint())
+
+    @property
+    def end(self):
+        return coerce_point(self.proxy.curve.EndPoint())
+
     @observe('major_radius', 'minor_radius')
     def _update_proxy(self, change):
         super(Hyperbola, self)._update_proxy(change)
@@ -484,6 +500,14 @@ class Parabola(Edge):
     #: Focal length of the parabola
     focal_length = d_(Float(1, strict=False)).tag(view=True)
 
+    @property
+    def start(self):
+        return coerce_point(self.proxy.curve.StartPoint())
+
+    @property
+    def end(self):
+        return coerce_point(self.proxy.curve.EndPoint())
+
     @observe('focal_length')
     def _update_proxy(self, change):
         super(Parabola, self)._update_proxy(change)
@@ -515,6 +539,16 @@ class Polygon(Line):
 
     #: Polygon is closed
     closed = d_(Bool(False)).tag(view=True)
+
+    @property
+    def start(self):
+        return self.points[0]
+
+    @property
+    def end(self):
+        if self.closed:
+            return self.points[0]
+        return self.points[-1]
 
     @observe('closed')
     def _update_proxy(self, change):
@@ -579,7 +613,7 @@ class Bezier(Line):
     proxy = Typed(ProxyBezier)
 
 
-class TrimmedCurve(Line):
+class TrimmedCurve(Edge):
     """ A TrimmedCurve built from a curve limited by two parameters.
 
     Examples
