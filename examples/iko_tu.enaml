@@ -1,0 +1,499 @@
+# Created in DeclaraCAD
+from declaracad.occ.api import *
+
+enamldef Profile(Wire):
+    # Profile of the  IKO Precision Position Table TU50
+    # based on the IKO rail guide 1580 TU
+    
+    # Track width
+    attr width = 50
+    attr height = 25
+    # Bolt spacing
+    attr bolt_spacing = 25
+    attr fillet_depth = 1.9
+    attr guide_offset = 0.25
+    attr guide_radius = 3
+    
+    Polygon: p1:
+        attr w = width / 2
+        attr o1 = guide_offset
+        attr h = height
+        attr t = 6
+        points = [
+            (0, 0.25),
+            (5, 0.25),
+            (7, 0),
+            (w-3, 0),
+            (w, 1.9),
+            (w, 12),
+            (w-o1, 12+o1),
+            (w-0.25, h - 0.5),
+            (w-0.25 - 0.5, h),
+            (w-t+2 - 0.5, 25),
+            (w-t+1, h-0.5),
+            (w-t, 16+2),
+            (w-t, 16),
+        ]
+    Arc: a1:
+        attr p = p1.points[-1]
+        position = (p.x, p.y -radius)
+        radius = 2.5
+        points = [(p.x, p.y-radius*2), p] 
+    Segment: s1:
+        attr p = a1.points[0]
+        points = [p, (p.x, p.y-2)]
+    Arc: a2:
+        attr p = s1.points[-1]
+        radius = 2.5
+        position = (p.x - radius, p.y)
+        points = [(p.x - radius, p.y - radius), p]
+    Segment: s2:
+        attr p = a2.points[0]
+        points = [p,  (0, p.y) ] 
+
+
+enamldef TrackProfile(Wire):
+    Profile: profile:
+        pass
+    Transform:
+            #: TODO coerce
+            operations = [Mirror(y=1)]
+            shape = profile
+        
+
+enamldef BoltHole(Fuse): bolt:
+    attr d = 1.9
+    attr r1 = 4
+    attr r2 = r1/2
+    attr h = 8
+    
+    # Bolt threads
+    Cylinder: b1:
+        position << bolt.position
+        direction = (0, 1, 0)
+        radius = r2
+        height = h
+    
+    # Head cutout
+    Cylinder: b2:
+        position << (b1.x, b1.y +d, b1.z)
+        direction = b1.direction
+        radius = r1
+        height = b1.height - d
+
+enamldef TU50(Cut):
+    #material = 'steel'
+    attr length = 150
+    attr n = 9
+    Prism:
+        vector = (0, 0, length)        
+        Face:
+                TrackProfile: profile:
+                    pass
+    BoltHole: h1:
+        position = (12.5, 0, 30)
+    
+    Looper:
+        attr x = 12.5
+        attr offset = 30
+        func gen_points(l):
+            start = offset
+            end = length - offset
+            d = (end-start) / (n-1)
+            pts = []
+            for i in range(n ):
+                z =  i * d
+                # Translation relative to the first point
+                pts.extend([
+                    (0, 0, z),
+                    (-2*x, 0, z),
+                ])
+                
+            return pts[1:] # First one is already placed
+        
+        iterable = gen_points(length)
+        Transform:
+            operations = [Translate(*loop_item)]
+            shape = h1
+            
+
+enamldef Profile2(Wire):
+    # Profile of the TU50F carriage
+    Polygon: p1:
+        points = [
+            (0, 20),
+            (10, 20 ),
+            (10, 20 + 2),
+            (17, 22)
+        ]
+    Bezier: b1:
+        attr p = p1.points[-1]
+        points = [
+            p, 
+            (p.x, p.y + 5),
+            (p.x + 5, p.y + 5),
+            (p.x + 5, p.y + 7),
+        ]
+    Segment: s1:
+        attr p = b1.points[-1]
+        points = [p, (p.x, p.y + 5)]
+    Bezier: b2:
+        attr p = s1.points[-1]
+        attr radius = 5
+        points = [
+            p, 
+            (p.x, p.y + radius),
+            (p.x + radius, p.y + radius),
+        ]
+    Segment: s2:
+        attr p = b2.points[-1]
+        points = [p, (p.x + 5, p.y)]
+    Bezier: b3:
+        attr p = s2.points[-1]
+        attr radius = b2.radius
+        points = [
+            p, 
+            (p.x + radius, p.y),
+            (p.x + radius, p.y + radius),
+        ]
+    Polygon: p2:
+        attr p = b3.points[-1]
+        attr offset = 0.25
+        attr w = (74-55)/2
+        points = [
+            p, 
+            (p.x, p.y + 5),
+            (p.x+offset, p.y + 5),
+            (p.x+offset, p.y + 10),
+            (p.x -w, p.y + 10),
+            (p.x -w, p.y + 5),
+        ]
+    Bezier: b4:
+        attr p = p2.points[-1]
+        attr radius = 3
+        points = [
+            p, 
+            (p.x, p.y - radius),
+            (p.x - radius, p.y - radius),
+        ]
+    Segment: s3:
+        attr p = b4.points[-1]
+        points = [p, (0, p.y)]
+    
+    
+enamldef Profile3(Wire):
+    attr slot_len = 5
+    Arc: a1:
+        position = (0, 35)
+        radius = 8
+        points = [(radius, y), (0, y + radius)]
+    Segment: s1:
+        attr p = a1.points[0]
+        points = [
+            p, (p.x, p.y - slot_len)
+        ]
+    Arc: a2:
+        attr p = s1.points[-1]
+        position = (0, p.y)
+        radius = a1.radius
+        points = [(0, y - radius), (radius, y)]
+        
+enamldef CarriageProfile(Cut):    
+    Face:
+        Wire:
+            Profile2: profile:
+                pass
+            Transform:
+                #: TODO coerce
+                operations = [Mirror(y=1)]
+                shape = profile
+    Face:
+        Wire:
+            Profile3: slot_profile:
+                pass
+            Transform:
+                #: TODO coerce
+                operations = [Mirror(y=1)]
+                shape = slot_profile
+
+
+enamldef CarriageMount(Transform): part:
+    attr length = 42.8
+    attr offset = 25
+    operations = [Translate(*self.position)]
+    Cut:
+        Prism:
+            vector = (0, 0, length)
+            CarriageProfile:
+                    pass
+        BoltHole: h1:
+            d = 5
+            position = (65/2, 55-h, (length-offset)/2)
+        Looper:
+            iterable = [
+                (0, 0, offset),
+                (-65, 0, 0),
+                (-65, 0, offset),
+            ]
+            Transform:
+                operations = [Translate(*loop_item)]
+                shape = h1
+    
+enamldef Carriage(Part): part:
+    position = (0, 0, 50)
+    attr length = 70
+    Box:
+        position = (-dx / 2, 6.25, 0)
+        dz = length
+        dy = 13.75
+        dx = 30
+    
+    CarriageMount:
+        position = (0, 0, (part.length-self.length)/2)
+        color = '#222'
+
+enamldef BumpStop(Transform):
+    attr thickness = 12
+    color = '#373a3f'
+    operations = [Translate(x, y, z - thickness/2)]
+    Prism:
+        vector = (0, 0, thickness)
+        Cut:
+            Face:
+                Rectangle: r1:
+                    position = (-width/2, -height /2)
+                    width = 24
+                    height = 19
+                    rx = 1
+                    ry = 1
+            Face:
+                Circle:
+                    radius = 6
+                
+enamldef RailEndMount(Part): part:
+    attr length = 58
+    color = "#bbb"
+
+    Cut:
+        color = part.color
+        Box: base:
+            position = (-dx/2, -dy/2, -dz/2)
+            dx = 50
+            dy = 40
+            dz = length
+        # Top cutout
+        Box:
+            position = (base.x, base.y+base.dy -dy, base.z)
+            dx = base.dx
+            dy = 5
+            dz = base.dz - 6
+        # Center cutout
+        Box:
+            position = (-dx/2, -dy/2, -dz/2  + 3)
+            dx = base.dx - 16 # Walls are 8mm
+            dy = base.dy
+            dz = base.dz - 18 # Front is 12mm back is 6mm
+        # Bottom side rail cutouts
+        Box: b1:
+            position = (-base.dx / 2, -base.dy/2, -base.dz/2)
+            dx = 8
+            dy = 10
+            dz = base.dz -6  
+        Transform:
+            operations = [Translate(x=base.dx - b1.dx)]
+            shape = b1
+            
+        # Font bottom cutout
+        Box:
+            position = (-base.dx/2 + 8, -base.dy/2, -base.dz/2)
+            dx = base.dx - 2 * 8
+            dy = 8
+            dz = 12
+        
+        # Screw cutouts
+        Cylinder: # Inner
+            position = (0,  0, base.z)
+            height = 12
+            radius = 10
+        Cylinder: # Outer
+            position = (0,  0, base.z + length-height)
+            height = 12
+            radius = 25/2
+        
+        # Bolt Cutouts
+        Box: h1:
+            position = (-base.dx / 2, base.dy/2-dy/2-5, base.dz/2-6 - dz + 0.5)
+            dx = 8
+            dy = 10
+            dz = 9            
+        # Mount hole
+        Cylinder: h2:
+            attr offset = h1.dx/2
+            direction = (0, 1, 0)
+            position  = (h1.x + offset, 
+                                base.y, 
+                                h1.z + h1.dy/2)
+            height = base.dy
+            radius = 2
+        Looper:
+            attr offset_x = base.dx - h1.dx
+            attr offset_z = -30
+            iterable = [
+                (offset_x, 0, 0),
+                (0, 0, offset_z),
+                (offset_x, 0, offset_z),
+            ]
+            Transform:
+                operations = [Translate(*loop_item)]
+                shape = h1
+            Transform:
+                operations = [Translate(*loop_item)]
+                shape = h2
+
+enamldef RailMount(Part): part:
+    color = "#bbb"
+    attr length = 15
+    attr shift = 2.5
+    attr hole_diameter = 18
+    Cut:
+        color = part.color
+        Box: base:
+            position = (-dx/2, -dy/2+shift, -dz/2)
+            dx = 50
+            dy = 25
+            dz = length
+        Cylinder: # Inner
+            position = (0,  0, base.z)
+            height = length
+            radius = hole_diameter/2
+        Prism: p1:
+            attr depth = 6
+            vector = (0, depth, 0)
+            Face:
+                Rectangle:
+                    direction = (0, 1, 0)
+                    position = (-base.dx/2-width/2, base.dy/2-depth+shift, -2)
+                    width = 16
+                    height = 16
+                    rx = 5
+        Transform:
+                operations = [Translate(x=base.dx)]
+                shape = p1
+        Cylinder: h1:
+            attr offset = 3
+            direction = (0, 1, 0)
+            position  = (base.x+offset, base.y, offset)
+            height = base.dy
+            radius = 2
+        Transform:
+                operations = [Translate(x=base.dx - 2*h1.offset)]
+                shape = h1
+                
+enamldef BumpStopEnd(Transform):
+    attr thickness = 5
+    attr hole_diameter = 12
+    color = '#373a3f'
+    operations = [Translate(x, y, z+thickness/2)]
+    Cut:
+        Box:
+            position = (-dx/2, -dy/2, -dz/2)
+            dx = 40
+            dy = 18
+            dz = thickness
+        Cylinder:
+            height = thickness
+            radius = hole_diameter/2
+            
+enamldef Profile4(Wire):
+    attr channel_width = 2
+    attr channel_radius = 1
+    Segment: s1:
+        points = [ (0, 1), (7, 1)]
+    Bezier: b1:
+        attr p = s1.points[-1]
+        attr r = 1
+        points = [p, (p.x + r, p.y), (p.x+r, 0)] 
+    Segment: s2: # Outside corner
+        attr p = b1.points[-1]
+        points = [p, (p.x + 17, 0)]
+    Bezier: b2:
+        attr p = s2.points[-1]
+        attr r = 2
+        points = [p, (p.x, p.y + r), (p.x - r, p.y + r)]
+    Segment: s3:
+        attr p = b2.points[-1]
+        points = [p, (p.x-12, p.y)]
+    Bezier: b3:
+        attr p = s3.points[-1]
+        attr r = 2
+        points = [p, (p.x, p.y + r), (p.x - r, p.y + r)]
+    Segment: s4:
+        attr p = b3.points[-1]
+        points = [p, (p.x-1, p.y)]
+    Bezier: b4:
+        attr p = s4.points[-1]
+        attr r = channel_radius
+        points = [p, (p.x, p.y-r), (p.x-r, p.y-r)] 
+    Segment: s5:
+        attr p = b4.points[-1]
+        points = [p, (p.x-channel_width, p.y)]
+    Bezier: b5:
+        attr p = s5.points[-1]
+        attr r = channel_radius
+        points = [p, (p.x-r, p.y), (p.x-r, p.y+r)] 
+    Segment: s6:
+        attr p = b5.points[-1]
+        points = [p, (p.x-channel_width, p.y)]
+    Bezier: b6:
+        attr p = s6.points[-1]
+        attr r = channel_radius
+        points = [p, (p.x, p.y-r), (p.x-r, p.y-r)] 
+    Segment: s7:
+        attr p = b6.points[-1]
+        points = [p, (p.x-channel_width/2, p.y)]
+
+enamldef CapProfile(Wire):
+    Profile4: profile:
+        pass
+    Transform:
+            operations = [Mirror(y=1)]
+            shape = profile
+
+enamldef RailCap(Transform):
+    attr length = 600
+    operations = [Translate(*self.position)]
+    Prism:
+        vector = (0, 0, length)
+        Face:
+            CapProfile:
+                pass
+            
+enamldef Assembly(Part):
+    TU50: guide:
+        color = '#8e8e8e'
+        length = 700
+
+    Carriage:
+        pass
+    
+    RailEndMount: end_mount:
+        position = (0, 35, guide.length-58/2+6)
+    BumpStop:
+        position = (0, 35, guide.length-end_mount.length-2)    
+    
+    RailMount: start_mount:
+        attr start = 3
+        position = (0, 35, self.length/2 + start)
+    BumpStopEnd:
+        position = (0, 35, start_mount.length + start_mount.start)
+        
+    Cylinder:
+        material = 'chrome'
+        position = (0, 35, 0)
+        radius = 5
+        height = 700
+        
+    RailCap:
+        color = "#bbb"
+        length = guide.length  - start_mount.start # + end_mount.length/2
+        position = (0, 50, start_mount.start)
