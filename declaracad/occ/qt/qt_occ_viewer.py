@@ -12,6 +12,7 @@ import os
 import sys
 import logging
 import traceback
+from datetime import datetime
 from atom.api import List, Dict, Typed, Int, Value, Property, Bool
 
 from enaml.qt import QtCore, QtGui
@@ -142,10 +143,16 @@ class QtViewer3d(QOpenGLWidget):
         #self.setMinimumSize(960, 720)
 
     def get_window_id(self):
-        """ returns an the identifier of the GUI widget.
-        It must be an integer
+        """ Returns an the identifier of the GUI widget.
         """
-        return self.winId()  # this returns either an int or voitptr
+        hwnd = self.winId()
+        if sys.platform == 'win32':
+            import ctypes
+            ctypes.pythonapi.PyCapsule_New.restype = ctypes.py_object
+            ctypes.pythonapi.PyCapsule_New.argtypes = [
+                ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p]
+            return ctypes.pythonapi.PyCapsule_New(hwnd, None, None)
+        return hwnd
 
     def resizeEvent(self, event):
         if self._inited:
@@ -863,6 +870,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         self._update_count -= 1
         if self._update_count != 0:
             return
+
+        start_time = datetime.now()
         try:
             view = self.v3d_view
 
@@ -879,8 +888,12 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                 return
 
             self.set_selection_mode(self.declaration.selection_mode)
+            n = len(shapes)
+            for i, occ_shape in enumerate(shapes):
+                if self._update_count != 0:
+                    log.debug("Aborted!")
+                    return # Another update coming abort
 
-            for occ_shape in shapes:
                 d = occ_shape.declaration
                 topods_shape = occ_shape.shape
                 if not topods_shape:
@@ -904,7 +917,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                 # Save the mapping of topods_shape to declaracad shape
                 displayed_shapes[topods_shape] = occ_shape
 
-                log.debug("Displaying {}".format(topods_shape))
+                log.debug("Displaying {} ({}%)".format(
+                    topods_shape, round(i*100 / n, 2)))
                 ais_shape = self.display_shape(
                     topods_shape,
                     d.color,
@@ -934,7 +948,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             # Update bounding box
             bbox = self.get_bounding_box(displayed_shapes.keys())
             self.declaration.bbox = BBox(*bbox)
-
+            log.debug("Took: {}".format(datetime.now() - start_time))
 
         except:
             log.error("Failed to display shapes: {}".format(
