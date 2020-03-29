@@ -48,7 +48,7 @@ from ..draw import (
     ProxyPolygon, ProxyBSpline, ProxyBezier, ProxyTrimmedCurve, ProxyText,
     ProxyRectangle
 )
-from .occ_shape import OccShape, OccDependentShape, coerce_axis
+from .occ_shape import OccShape, OccDependentShape, Topology, coerce_axis
 from .occ_svg import make_ellipse
 
 
@@ -133,26 +133,8 @@ class OccEdge(OccShape, ProxyEdge):
         return BRepBuilderAPI_MakeEdge(*args).Edge()
 
     def get_value_at(self, t, derivative=0):
-        if self.curve:
-            p = gp_Pnt()
-            if derivative == 0:
-                self.curve.D0(t, p)
-                return coerce_point(p)
-            v1 = gp_Vec()
-            if derivative == 1:
-                self.curve.D1(t, p, v1)
-                return (coerce_point(p), coerce_direction(v1))
-            v2 = gp_Vec()
-            if derivative == 2:
-                self.curve.D1(t, p, v1, v2)
-                return (coerce_point(p), coerce_direction(v1),
-                        coerce_direction(v2))
-            v3 = gp_Vec()
-            if derivative == 3:
-                self.curve.D3(t, p, v1, v2, v3)
-                return (coerce_point(p), coerce_direction(v1),
-                        coerce_direction(v2), coerce_direction(v3))
-
+        if self.curve is not None:
+            return Topology.get_value_at(self.curve, t, derivative)
         raise NotImplementedError(
                 "Cannot get value for %s" % self.declaration)
 

@@ -61,7 +61,8 @@ from OCCT.StlAPI import StlAPI_Reader
 from ..shape import (
     ProxyShape, ProxyFace, ProxyBox, ProxyCone, ProxyCylinder,
     ProxyHalfSpace, ProxyPrism, ProxySphere, ProxyWedge,
-    ProxyTorus, ProxyRevol, ProxyRawShape, ProxyLoadShape, BBox
+    ProxyTorus, ProxyRevol, ProxyRawShape, ProxyLoadShape, BBox,
+    coerce_point, coerce_direction
 )
 
 from declaracad.core.utils import log
@@ -566,6 +567,28 @@ class Topology(Atom):
         if curve is None:
             return False
         return curve.GetType() == GeomAbs.GeomAbs_Line
+
+    @classmethod
+    def get_value_at(cls, curve, t, derivative=0):
+        p = gp_Pnt()
+        if derivative == 0:
+            curve.D0(t, p)
+            return coerce_point(p)
+        v1 = gp_Vec()
+        if derivative == 1:
+            curve.D1(t, p, v1)
+            return (coerce_point(p), coerce_direction(v1))
+        v2 = gp_Vec()
+        if derivative == 2:
+            curve.D1(t, p, v1, v2)
+            return (coerce_point(p), coerce_direction(v1),
+                    coerce_direction(v2))
+        v3 = gp_Vec()
+        if derivative == 3:
+            curve.D3(t, p, v1, v2, v3)
+            return (coerce_point(p), coerce_direction(v1),
+                    coerce_direction(v2), coerce_direction(v3))
+        raise ValueError("Invalid derivative")
 
 
 class OccShape(ProxyShape):
