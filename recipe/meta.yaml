@@ -13,17 +13,20 @@ source:
 requirements:
   run:
   - pyocct
-  - pyqt>=5
-  - enaml>=0.10.3
-  - qtconsole
-  - pyflakes
-  - numpydoc
-  - markdown
-  - jsonpickle
   pip:
+    - PyQt5
+    - PyQtWebEngine
+    - enaml>=0.10.4
+    - qtconsole
+    - pyflakes
+    - numpydoc
+    - markdown
+    - jsonpickle
     - QScintilla
     - enamlx
-    - qt5reactor
+    - qt-reactor
+    - pyserial
+    - lxml
     - pywin32 # os[win32]
 
 build:
