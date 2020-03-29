@@ -21,7 +21,7 @@ from enaml.qt.QtCore import Qt, QRect
 from enaml.qt.QtGui import QPainter
 from enaml.qt.qt_control import QtControl
 from enaml.qt.qt_toolkit_object import QtToolkitObject
-from enaml.application import deferred_call, timed_call
+from enaml.application import deferred_call, timed_call, Application
 
 
 from OCCT import Aspect, Graphic3d, TopAbs, V3d
@@ -871,6 +871,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         if self._update_count != 0:
             return
 
+        qtapp = Application.instance()._qapp
         start_time = datetime.now()
         try:
             view = self.v3d_view
@@ -890,6 +891,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             self.set_selection_mode(self.declaration.selection_mode)
             n = len(shapes)
             for i, occ_shape in enumerate(shapes):
+                qtapp.processEvents()
                 if self._update_count != 0:
                     log.debug("Aborted!")
                     return # Another update coming abort
