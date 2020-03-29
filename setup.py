@@ -11,7 +11,7 @@ from setuptools import setup, find_packages
 
 
 requirements = [
-    'enaml>=0.10.3',
+    'enaml>=0.10.4',
     'jsonpickle',
     'qtconsole',
     'QScintilla',
@@ -22,10 +22,16 @@ requirements = [
     'pyserial',
     'lxml',
     'PyQt5',
+    'PyQtWebEngine',
 ]
 
 if sys.platform == 'win32':
-    requirements.append('pywin32')
+    requirements.extend([
+        'pywin32',
+        'git',
+        'service_identity',
+    ])
+
 
 
 def find_version():
