@@ -1,5 +1,5 @@
 """
-Copyright (c) 2017, Jairus Martin.
+Copyright (c) 2017-2020, Jairus Martin.
 
 Distributed under the terms of the GPL v3 License.
 
@@ -81,6 +81,8 @@ def main():
     viewer = subparsers.add_parser("view", help="View the given file")
     viewer.set_defaults(func=launch_viewer)
     viewer.add_argument("file", help="File to view")
+    viewer.add_argument("-w", "--watch", action='store_true',
+                        help="Watch for file changes and autoreload")
     viewer.add_argument("-f", "--frameless", action='store_true',
                         help="Frameless viewer")
 

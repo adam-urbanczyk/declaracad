@@ -24,7 +24,7 @@ from declaracad.core.utils import JSONRRCProtocol
 
 import enaml
 from enaml.qt.qt_application import QtApplication
-from enaml.application import timed_call
+from enaml.application import timed_call, deferred_call
 with enaml.imports():
     from declaracad.occ.view import ViewerWindow
 
@@ -39,8 +39,13 @@ class ViewerProtocol(JSONRRCProtocol):
     60 sec or it will assume it's owner has left and will exit.
 
     """
-    def __init__(self, view):
+    def __init__(self, view, watch=False):
         self.view = view
+        self.watch = watch
+        self._watched_files = {}
+        if watch:
+            print("Watching '%s' for changes..." % self.view.filename)
+            timed_call(1000, self.check_for_changes)
         self._exit_in_sec = 60
         super(ViewerProtocol).__init__()
 
@@ -100,6 +105,32 @@ class ViewerProtocol(JSONRRCProtocol):
             timed_call(self._exit_in_sec*1000, self.schedule_close)
             self._exit_in_sec = 0  # Clear timeout
 
+    def check_for_changes(self):
+        """ A simple poll loop to check if the file changed and if it has
+        reload it by bumping the version.
+
+        """
+        if self.watch:
+            timed_call(1000, self.check_for_changes)
+
+        try:
+            filename = self.view.filename
+            if os.path.exists(filename):
+                try:
+                    mtime = os.stat(filename).st_mtime
+                except:
+                    return
+
+                if filename not in self._watched_files:
+                    self._watched_files[filename] = mtime
+                elif self._watched_files[filename] != mtime:
+                    self._watched_files[filename] = mtime
+                    print("%s changed, reloading" % filename)
+                    deferred_call(self.handle_version, self.view.version + 1)
+        except Exception as e:
+            print(traceback.format_exc())
+
+
 
 def main(**kwargs):
     app = QtApplication()
@@ -107,12 +138,13 @@ def main(**kwargs):
 
     filename = kwargs.get('file', '-')
     frameless = kwargs.get('frameless', False)
+    watch = kwargs.get('watch', False)
 
     if not frameless and not os.path.exists(filename):
         raise ValueError("File %s does not exist!" % filename)
 
     view = ViewerWindow(filename=filename, frameless=frameless)
-    view.protocol = ViewerProtocol(view)
+    view.protocol = ViewerProtocol(view, watch)
     view.show()
     app.deferred_call(lambda: StandardIO(view.protocol))
     app.start()

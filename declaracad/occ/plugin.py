@@ -251,8 +251,6 @@ class ViewerProcess(ProcessLineReceiver):
             self.output.append(line)
 
     def errReceived(self, data):
-        if b'XCB error' in data:
-            return
         for line in data.split(b"\n"):
             try:
                 log.debug(f"render | err | {line.encode()}")
