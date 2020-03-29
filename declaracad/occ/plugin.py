@@ -170,12 +170,13 @@ class ViewerProcess(ProcessLineReceiver):
             timed_call(0, self.send_message, method, *args, **kwargs)
             return
         _id = kwargs.pop('_id')
+        _silent = kwargs.pop('_silent', False)
 
         request = {'jsonrpc': '2.0', 'method': method, 'params': args or kwargs}
         if _id is not None:
             request['id'] = _id
-
-        log.debug(f'renderer | sent | {request}')
+        if not _silent:
+            log.debug(f'renderer | sent | {request}')
         self.transport.write(jsonpickle.dumps(request).encode()+b'\r\n')
 
     def _default_process(self):
@@ -210,10 +211,11 @@ class ViewerProcess(ProcessLineReceiver):
     def lineReceived(self, line):
         try:
             line = line.decode()
-            log.debug(f"render | out | {line}")
             response = jsonpickle.loads(line)
         except Exception as e:
+            log.debug(f"render | out | {line}")
             response = {}
+
 
         #: Special case for startup
         response_id = response.get('id')
@@ -283,7 +285,7 @@ class ViewerProcess(ProcessLineReceiver):
         if self.terminated:
             return
         # Ping the viewer to tell it to keep alive
-        self.send_message("ping", _id="keep_alive")
+        self.send_message("ping", _id="keep_alive", _silent=True)
         timed_call(self._ping_rate*1000, self.schedule_ping)
 
     def __getattr__(self, name):
