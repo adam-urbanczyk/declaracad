@@ -16,7 +16,7 @@ from atom.api import Atom
 
 
 from declaracad.core.api import DockItem, EmbeddedWindow
-from declaracad.core.utils import log, load_icon, capture_output
+from declaracad.core.utils import log, load_icon, capture_output, format_title
 
 import enaml
 from enaml.core.api import Looper, Include, Conditional
@@ -25,7 +25,7 @@ from enaml.layout.api import align, hbox
 from enaml.qt.QtCore import Qt
 from enaml.widgets.api import (
     Window, Container, Menu, Action, DualSlider, CheckBox, Label,
-    IPythonConsole
+    IPythonConsole, ProgressBar
 )
 
 from .widgets.api import OccViewer, OccViewerClippedPlane
@@ -436,6 +436,10 @@ enamldef ViewerWindow(Window): window:
 
     initial_size = (1, 1) if frameless else (960, 480)
 
+    # When the filename changes, clear the source so it's loaded from the file
+    filename ::
+        self.source = ""
+
     activated ::
         if frameless:
             self.proxy.widget.setWindowFlags(Qt.FramelessWindowHint)
@@ -459,6 +463,7 @@ enamldef ViewerWindow(Window): window:
                         protocol.send_message({'id': 'render_success'})
                     # Clear clipped planes
                     viewer.clipped_planes = {}
+                    viewer.dimensions = []
                     return result
                 except EmptyFileError as e:
                     # When opening an empty / unsaved file, clear the display
@@ -494,6 +499,11 @@ enamldef ViewerWindow(Window): window:
                     })
             # Load the 3d models and include them in the viewer
             shapes << load_source() if filename and version else []
+        Conditional:
+            condition << viewer.loading
+            ProgressBar:
+                value << int(viewer.progress)
+                text_visible = True
 
         Conditional:
             condition << bool(viewer.clipped_planes)
@@ -546,21 +556,46 @@ enamldef RemoteViewer(Conditional): viewer:
 
 enamldef ViewerDockItem(DockItem): view:
     name = "3d-viewer-{}".format(id(self))
-    title = "Viewer"
+
     alias renderer: viewer.renderer
     attr editor_plugin << plugin.workbench.get_plugin('declaracad.editor')
+
+    title << "Viewer {}".format(
+        format_title(
+            editor_plugin.documents, document,
+            document.name, document.unsaved
+        ) if document else 'active document'
+    )
+
+    #: Manually assigned document
+    attr document = None
+    document :: handle_document_changed(change)
     activated ::
         renderer.observe('errors', handle_errors)
         renderer.observe('output', handle_output)
+        renderer.document = editor_plugin.active_document
+        editor_plugin.observe('active_document', handle_document_changed)
+
+    func get_document():
+        return self.document or editor_plugin.active_document
+
+    func handle_document_changed(change):
+        """ When the editor active document changes or this view's document
+        changes, update the renderer.
+
+        """
+        viewer.renderer.document = get_document()
 
     func handle_errors(change):
-        editor_plugin.active_document.errors = change['value'].split("\n")
+        doc = get_document()
+        doc.errors = change['value'].split("\n")
 
     func handle_output(change):
+        doc = get_document()
         if change['type'] in ('create', 'update'):
-            editor_plugin.active_document.output = change['value']
+            doc.output = change['value']
         elif change['type'] == 'container':
-            editor_plugin.active_document.output.append(change['item'])
+            doc.output.append(change['item'])
 
     icon = load_icon("bricks")
     stretch = 1
@@ -570,7 +605,11 @@ enamldef ViewerDockItem(DockItem): view:
         RemoteViewer: viewer:
             model << plugin
 
-    title_bar_right_clicked :: menu.popup()
+    title_bar_right_clicked ::
+        # Populate the documents
+        looper.iterable = editor_plugin.documents[:]
+        menu.popup()
+
     Menu: menu:
         Action:
             text = "Split vertically"
@@ -590,7 +629,7 @@ enamldef ViewerDockItem(DockItem): view:
             separator = True
         Action:
             text = "Restart viewer"
-            triggered :: viewer.renderer.transport.signalProcess("KILL")
+            triggered :: renderer.transport.signalProcess("KILL")
         Action:
             separator = True
         Action:
@@ -600,10 +639,28 @@ enamldef ViewerDockItem(DockItem): view:
                 core.invoke_command('declaracad.viewer.screenshot',
                                     {'target': view.name})
         Action:
+            separator = True
+        Action:
             text = "Reload file"
             triggered ::
-                viewer.renderer.filename = ''
-                viewer.renderer.filename = editor_plugin.active_document.name
+                renderer.document = None
+                renderer.document = get_document()
+        Menu:
+            title = "Document"
+            Action:
+                text = "Active document"
+                checkable = True
+                checked << view.document is None
+                triggered :: view.document = None
+            Looper: looper:
+                iterable = editor_plugin.documents[:]
+                Action:
+                    attr doc = loop_item
+                    text = format_title(editor_plugin.documents, doc, doc.name, doc.unsaved)
+                    checkable = True
+                    checked << view.document == loop_item
+                    triggered :: view.document = loop_item
+
 
 
 

@@ -873,6 +873,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
         qtapp = Application.instance()._qapp
         start_time = datetime.now()
+
+        self.declaration.loading = True
         try:
             view = self.v3d_view
 
@@ -919,8 +921,9 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                 # Save the mapping of topods_shape to declaracad shape
                 displayed_shapes[topods_shape] = occ_shape
 
+                progress = self.declaration.progress = min(100, max(0, i * 100 / n))
                 log.debug("Displaying {} ({}%)".format(
-                    topods_shape, round(i*100 / n, 2)))
+                    topods_shape, round(progress, 2)))
                 ais_shape = self.display_shape(
                     topods_shape,
                     d.color,
@@ -951,7 +954,9 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             bbox = self.get_bounding_box(displayed_shapes.keys())
             self.declaration.bbox = BBox(*bbox)
             log.debug("Took: {}".format(datetime.now() - start_time))
-
+            self.declaration.progress = 100
         except:
             log.error("Failed to display shapes: {}".format(
                 traceback.format_exc()))
+        finally:
+            self.declaration.loading = False

@@ -54,6 +54,9 @@ class Document(Model):
     #: Any unsaved changes
     unsaved = Bool(False)
 
+    #: Version number
+    version = Int(1)
+
     #: Any linting errors
     errors = List()
 
@@ -75,6 +78,13 @@ class Document(Model):
         except Exception as e:
             self.errors = [str(e)]
         return ""
+
+    def _observe_unsaved(self, change):
+        """ Increment the version number when unsaved is changed to false
+
+        """
+        if change['type'] == 'update' and not change['value']:
+            self.version += 1
 
     def _observe_source(self, change):
         ext = os.path.splitext(self.name.lower())[-1]
@@ -317,12 +327,18 @@ class EditorPlugin(Plugin):
         doc = opened[0]
         self.documents.remove(doc)
 
-        # If we removed al of them
+        # If any viewer was bound to this document, unbind it
+        for viewer in self.get_viewers():
+            if viewer.document == doc:
+                viewer.document = None
+
+        # If we removed all of them create a new empty one
         if not self.documents:
             self.documents = self._default_documents()
+            self.active_document = self.documents[0]
 
         # If we closed the active document
-        if self.active_document == doc:
+        elif self.active_document == doc:
             self.active_document = self.documents[0]
 
     def open_file(self, event):
@@ -383,26 +399,26 @@ class EditorPlugin(Plugin):
         with open(path, 'w') as f:
             f.write(doc.source)
 
-    @observe('active_document',  #'active_document.source',
-             'active_document.unsaved')
-    def refresh_view(self, change):
-        """ Refresh the compiled view object.
+    #@observe('active_document',  #'active_document.source',
+             #'active_document.unsaved')
+    #def refresh_view(self, change):
+        #""" Refresh the renderer when the document is saved
 
-        This method will (re)compile the view for the given view text
-        and update the 'compiled_view' attribute. If a compiled model
-        is available and the view has a member named 'model', the model
-        will be applied to the view.
-
-        """
-        plugin = self.workbench.get_plugin('declaracad.viewer')
-        doc = self.active_document
-        path, ext = os.path.splitext(doc.name)
-        if ext not in ('.py', '.enaml'):
-            return
-        for viewer in plugin.get_viewers():
-            viewer.renderer.filename = doc.name
-            viewer.renderer.set_source("")  # Clear source so it loads from disk
-            viewer.renderer.version += 1
+        #"""
+        #plugin = self.workbench.get_plugin('declaracad.viewer')
+        #doc = self.active_document
+        #path, ext = os.path.splitext(doc.name)
+        #if ext not in ('.py', '.enaml'):
+            #return
+        #for viewer in plugin.get_viewers():
+            #If the viewer is watching another document ignore changes
+            #unless it's the active document
+            #if viewer.document is None or viewer.document == doc:
+                #viewer.renderer.filename = doc.name
+                #Clear source so it loads from disk and force a version
+                #change to ensure it updates if the filename was not changed
+                #viewer.renderer.set_source("")
+                #viewer.renderer.version += 1
 
     # -------------------------------------------------------------------------
     # Code inspection API
@@ -461,4 +477,3 @@ class EditorPlugin(Plugin):
             #: Autocompletion may fail for random reasons so catch all errors
             #: as we don't want the editor to exit because of this
             return []
-

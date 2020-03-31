@@ -83,6 +83,44 @@ def menu_icon(name):
         return load_icon(name)
     return None
 
+def format_title(docs, doc, path, unsaved):
+    """ Attempt to format the title using the shortest unique name that
+    does not conflict with any other opened documents.
+
+    Based on Intellij's naming styles
+    """
+    if not path:
+        unamed = [d for d in docs if not d.name]
+        if doc in unamed:
+            return "Untitled-%s*" % (unamed.index(doc) + 1)
+        return "Untitled*"
+    path, name = os.path.split(path)
+
+    #: Find any others with the same name
+    duplicates = [d.name for d in docs
+                    if d != doc and os.path.split(d.name)[-1] == name]
+
+    #: Add folders until it becomes unique we run out of folders
+    if duplicates:
+        sep = os.path.sep
+        parts = path.split(sep)
+        for i in reversed(range(len(parts))):
+            tmp_name = sep.join(parts[i:])
+
+            #: See if there's still duplicates
+            duplicates = [d for d in duplicates if d.endswith(tmp_name)]
+            if not duplicates:
+                name = os.path.join(tmp_name, name)
+                break
+
+        #: Give up
+        if duplicates:
+            name += "({})".format(len(duplicates))
+
+    if unsaved:
+        name += "*"
+    return name
+
 @contextmanager
 def capture_output():
     _stdout = sys.stdout

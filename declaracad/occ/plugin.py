@@ -20,7 +20,7 @@ import jsonpickle
 from types import ModuleType
 from atom.api import (
     Atom, ContainerList, Unicode, Float, Dict, Bool, Int, Instance, Enum,
-    Constant, observe
+    ForwardInstance, Constant, observe
 )
 from declaracad.core.api import Plugin, Model, log
 from declaracad.core.utils import ProcessLineReceiver, Deferred
@@ -38,6 +38,10 @@ def viewer_factory():
     with enaml.imports():
         from .view import ViewerDockItem
     return ViewerDockItem
+
+def document_type():
+    from declaracad.editor.plugin import Document
+    return Document
 
 
 class EmptyFileError(Exception):
@@ -135,11 +139,8 @@ class ViewerProcess(ProcessLineReceiver):
     #: Process handle
     process = Instance(object)
 
-    #: Filename
-    filename = Unicode()
-
-    #: View version
-    version = Int()
+    #: Document
+    document = ForwardInstance(document_type)
 
     #: Rendering error
     errors = Unicode()
@@ -159,9 +160,14 @@ class ViewerProcess(ProcessLineReceiver):
     #: Seconds to ping
     _ping_rate = Int(40)
 
-    @observe('filename', 'version')
-    def _update_viewer(self, change):
-        self.send_message(change['name'], change['value'], _id=None)
+    @observe('document', 'document.version')
+    def _update_document(self, change):
+        doc = self.document
+        if doc is None:
+            self.set_filename('-')
+        else:
+            self.set_filename(doc.name)
+            self.set_version(doc.version)
 
     def send_message(self, method, *args, **kwargs):
         # Defer until it's ready
@@ -324,8 +330,9 @@ class ViewerPlugin(Plugin):
     def run(self, event=None):
         viewer = self.get_viewer()
         editor = self.workbench.get_plugin('declaracad.editor').get_editor()
+        doc = editor.doc
         viewer.renderer.set_source(editor.get_text())
-        viewer.renderer.version += 1
+        doc.version += 1
 
     def get_viewer(self, name=None):
         for viewer in self.get_viewers():
@@ -347,10 +354,9 @@ class ViewerPlugin(Plugin):
         if not options:
             raise ValueError("An export `options` parameter is required")
 
-
         # Pickle the configured exporter and send it over
         cmd = [sys.executable]
-        if not sys.executable.endswith('declarcad'):
+        if not sys.executable.endswith('declaracad'):
             cmd.append('main.py')
 
         data = jsonpickle.dumps(options)
