@@ -1,0 +1,64 @@
+# Created in DeclaraCAD
+from declaracad.occ.api import *
+from math import pi, sin, cos, atan2
+
+
+enamldef BallscrewSection(Transform):
+    """ This creates one section of a ballscrew, the pipe algorithm doesn't
+    seem to work well for long lengths (length > 50) .
+
+    """
+    attr ball_diameter = 2
+    attr diameter = 10
+    attr pitch = 5
+    attr multiplier = 10
+    attr length = multiplier * pitch
+
+    func make_cylinder_surface(**kwargs):
+        c = Cylinder(**kwargs)
+        c.render()
+        return c.topology.faces[0]
+
+    operations = [Translate(self.x, self.y, self.z-ball_diameter/2)]
+
+    Cut:
+        Cylinder: cylinder:
+            transparency = 0.5
+            position = (0, 0, ball_diameter/2)
+            radius = diameter/2
+            height = length
+        # Ball threads
+        Pipe:
+            position = (0, 0, ball_diameter/2)
+            Wire: spline:
+                TrimmedCurve: curve:
+                    surface = make_cylinder_surface(radius=cylinder.radius, height=length)
+                    v = 2*pi  * 2# * multiplier
+                    Line: l1:
+                        points = [(0,0), (2*pi, pitch)]
+            Face:
+                Circle: a1:
+                    direction = (0, 1, 0)
+                    position = (cylinder.radius, 0, 0)
+                    radius = ball_diameter/2
+
+
+enamldef Assembly(Part):
+    # Be prepared, this takes several minutes to render if set to
+    # a larger number
+    attr length = 700
+    attr ball_diameter = 2
+    attr screw_diameter = 10
+    attr screw_pitch = 5
+
+    BallscrewSection: s1:
+        material = 'steel'
+        multiplier = 1
+    Looper:
+        iterable = range(int(length/screw_pitch)-1)
+        Transform:
+           material = 'steel'
+           operations = [Translate(z=(loop_index+1) * screw_pitch)]
+           shape = s1
+
+
