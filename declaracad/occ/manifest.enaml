@@ -50,9 +50,9 @@ def new_viewer(event):
     target = event.parameters.get('target', '')
     with enaml.imports():
         from declaracad.occ.view import ViewerDockItem
-    item = ViewerDockItem(dock, plugin=viewer_plugin)
-    doc = editor_plugin.active_document
-    item.renderer.filename = doc.name
+    doc = event.parameters.get('document') or editor_plugin.active_document
+    item = ViewerDockItem(dock, plugin=viewer_plugin, document=doc)
+    item.renderer.document = doc
     dock.update_layout(InsertItem(item=item.name, position=position,
                                   target=target))
 

@@ -548,6 +548,10 @@ enamldef EditorDockItem(DockItem): view:
             separator = True
         Action:
             text = "New viewer"
+            triggered ::
+                core = plugin.workbench.get_plugin("enaml.workbench.core")
+                core.invoke_command('declaracad.viewer.new_viewer',
+                                    {'document': doc, 'position': 'right'})
         Action:
             separator = True
         Action:
