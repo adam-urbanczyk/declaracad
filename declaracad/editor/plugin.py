@@ -226,14 +226,17 @@ class EditorPlugin(Plugin):
             item = create_editor_item(area, plugin=self, doc=doc)
             if targets:
                 op = InsertTab(item=item.name, target=list(targets)[-1])
+                try:
+                    area.update_layout(op)
+                except Exception as e:
+                    # If it fails to add as a tab just insert it
+                    log.exception(e)
+                    op = InsertItem(item=item.name)
+                    area.update_layout(op)
             else:
                 op = InsertItem(item=item.name)
-            targets.add(item.name)
-            log.debug(op)
-            try:
                 area.update_layout(op)
-            except Exception as e:
-                log.exception(e)
+            targets.add(item.name)
 
         # Now save it
         self.save_dock_area(change)
@@ -328,7 +331,8 @@ class EditorPlugin(Plugin):
         self.documents.remove(doc)
 
         # If any viewer was bound to this document, unbind it
-        for viewer in self.get_viewers():
+        viewer_plugin = self.workbench.get_plugin('declaracad.viewer')
+        for viewer in viewer_plugin.get_viewers():
             if viewer.document == doc:
                 viewer.document = None
 
@@ -398,27 +402,6 @@ class EditorPlugin(Plugin):
 
         with open(path, 'w') as f:
             f.write(doc.source)
-
-    #@observe('active_document',  #'active_document.source',
-             #'active_document.unsaved')
-    #def refresh_view(self, change):
-        #""" Refresh the renderer when the document is saved
-
-        #"""
-        #plugin = self.workbench.get_plugin('declaracad.viewer')
-        #doc = self.active_document
-        #path, ext = os.path.splitext(doc.name)
-        #if ext not in ('.py', '.enaml'):
-            #return
-        #for viewer in plugin.get_viewers():
-            #If the viewer is watching another document ignore changes
-            #unless it's the active document
-            #if viewer.document is None or viewer.document == doc:
-                #viewer.renderer.filename = doc.name
-                #Clear source so it loads from disk and force a version
-                #change to ensure it updates if the filename was not changed
-                #viewer.renderer.set_source("")
-                #viewer.renderer.version += 1
 
     # -------------------------------------------------------------------------
     # Code inspection API
