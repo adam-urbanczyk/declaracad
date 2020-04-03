@@ -302,6 +302,10 @@ class ViewerProcess(ProcessLineReceiver):
 
         """
         for line in data.split(b"\n"):
+            if not line:
+                continue
+            if line.startswith(b"QWidget::") or line.startswith(b"QPainter::"):
+                continue
             try:
                 line = line.decode()
                 log.debug(f"render | err | {line}")
