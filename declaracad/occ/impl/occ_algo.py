@@ -316,7 +316,6 @@ class OccOffset(OccOperation, ProxyOffset):
         offset_shape = BRepOffsetAPI_MakeOffset(
             shape, self.join_types[d.join_type], not d.closed)
         offset_shape.Perform(d.offset)
-        self.check_done(offset_shape)
         self.shape = offset_shape.Shape()
 
     def set_shape(self, shape):
@@ -380,18 +379,20 @@ class OccThickSolid(OccOffset, ProxyThickSolid):
             faces.Append(f)
         assert not faces.IsEmpty()
 
+        offset_mode = self.offset_modes[d.offset_mode]
+        join_type = self.join_types[d.join_type]
+
         thick_solid = BRepOffsetAPI_MakeThickSolid()
         thick_solid.MakeThickSolidByJoin(
             shape,
             faces,
             d.offset,
             d.tolerance,
-            self.offset_modes[d.offset_mode],
+            offset_mode,
             d.intersection,
             False,
-            self.join_types[d.join_type],
+            join_type,
         )
-        self.check_done(thick_solid)
         self.shape = thick_solid.Shape()
 
     def set_faces(self, faces):
@@ -451,7 +452,6 @@ class OccPipe(OccOperation, ProxyPipe):
         if d.fill_mode:
             args.append(self.fill_modes[d.fill_mode])
         pipe = BRepOffsetAPI_MakePipe(*args)
-        self.check_done(pipe)
         self.shape = pipe.Shape()
 
     def set_spline(self, spline):
@@ -502,7 +502,6 @@ class OccThruSections(OccOperation, ProxyThruSections):
             #: TODO: Handle transform???
 
         #: Set the shape
-        self.check_done(thru_sect)
         self.shape = thru_sect.Shape()
 
     def set_solid(self, solid):
