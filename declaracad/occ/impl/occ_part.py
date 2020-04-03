@@ -31,7 +31,7 @@ class OccPart(OccDependentShape, ProxyPart):
     builder = Typed(BRep_Builder)
 
     #: Transform
-    transform = Typed(gp_Trsf)
+    transform = Typed(gp_Trsf, ())
 
     def update_shape(self, change=None):
         """ Create the toolkit shape for the proxy object.
