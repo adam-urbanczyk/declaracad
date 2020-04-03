@@ -900,7 +900,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
                 d = occ_shape.declaration
                 topods_shape = occ_shape.shape
-                if not topods_shape:
+                if not topods_shape or topods_shape.IsNull():
                     log.error("{} has no shape!".format(occ_shape))
                     continue
 
@@ -910,8 +910,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                         and not topods_shape.Locked():
 
                     # TODO: Build transform for nested parts
-                    l = topods_shape.Location().Multiplied(
-                        TopLoc_Location(parent.transform))
+                    location = TopLoc_Location(parent.transform)
+                    l = topods_shape.Location().Multiplied(location)
                     topods_shape.Location(l)
 
                     # HACK: Prevent doing this multiple times when the view is

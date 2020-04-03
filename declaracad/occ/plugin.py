@@ -25,7 +25,7 @@ from atom.api import (
 from declaracad.core.api import Plugin, Model, log
 from declaracad.core.utils import ProcessLineReceiver, Deferred
 
-from enaml.application import timed_call
+from enaml.application import timed_call, deferred_call
 from enaml.core.parser import parse
 from enaml.core.import_hooks import EnamlCompiler
 from enaml.compat import exec_
@@ -218,25 +218,39 @@ class ViewerProcess(ProcessLineReceiver):
         try:
             line = line.decode()
             response = jsonpickle.loads(line)
+            #log.debug(f"viewer | resp | {response}")
         except Exception as e:
-            log.debug(f"render | out | {line}")
+            log.debug(f"viewer | out | {line}")
             response = {}
 
+        doc = self.document
 
         #: Special case for startup
         response_id = response.get('id')
         if response_id == 'window_id':
             self.window_id = response['result']
             self.restarts = 0  # Clear the restart count
+            return
+        elif response_id == 'keep_alive':
+            return
         elif response_id == 'render_error':
-            self.errors = response['error']['message']
-        elif response_id == 'render_ok':
-            self.errors = ""
+            if doc:
+                doc.errors.extend(response['error']['message'].split("\n"))
+            return
+        elif response_id == 'render_success':
+            if doc:
+                doc.errors = []
+            return
         elif response_id == 'capture_output':
             # Script output capture it
-            self.output = response['result'].split("\n")
+            if doc:
+                doc.output = response['result'].split("\n")
+            return
         elif response_id == 'shape_selection':
-            self.output.append(str(response['result']))
+            #: TODO: Do something with this?
+            if doc:
+                doc.output.append(str(response['result']))
+            return
         elif response_id is not None:
             # Lookup the deferred object that should be stored for this id
             # when it is called and invoke the callback or errback based on the
@@ -244,17 +258,30 @@ class ViewerProcess(ProcessLineReceiver):
             d = self._responses.get(response_id)
             if d is not None:
                 del self._responses[response_id]
-                error = response.get('error')
-                if error is not None:
-                    d.errback(error)
-                else:
-                    d.callback(response.get('result'))
-        elif 'error' in response:
-            self.errors = response['error'].get('message', '')
-            self.output.append(line)
-        else:
+                try:
+                    error = response.get('error')
+                    if error is not None:
+                        if doc:
+                            doc.errors.extend(error.get('message', '').split("\n"))
+                        d.errback(error)
+                    else:
+                        d.callback(response.get('result'))
+                    return
+                except Exception as e:
+                    log.warning("RPC response not properly handled!")
+                    log.exception(e)
+
+            else:
+                log.warning("Got unexpected reply")
+            # else we got a response from something else, possibly an error?
+        if 'error' in response and doc:
+            doc.errors.extend(response['error'].get('message', '').split("\n"))
+            doc.output.append(line)
+        elif 'message' in response and doc:
+            doc.output.extend(response['message'].split("\n"))
+        elif doc:
             # Append to output
-            self.output.append(line)
+            doc.output.extend(line.split("\n"))
 
     def errReceived(self, data):
         for line in data.split(b"\n"):

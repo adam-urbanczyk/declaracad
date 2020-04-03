@@ -485,7 +485,7 @@ enamldef ViewerWindow(Window): window:
                         protocol.send_message({'id': 'capture_output',
                                                'result': stdout.getvalue()})
                     else:
-                        print(stdout.getvalue())
+                        log.info(stdout.getvalue())
         return []
     Container:
         padding = 0
@@ -571,8 +571,6 @@ enamldef ViewerDockItem(DockItem): view:
     attr document = None
     document :: handle_document_changed(change)
     activated ::
-        renderer.observe('errors', handle_errors)
-        renderer.observe('output', handle_output)
         renderer.document = editor_plugin.active_document
         editor_plugin.observe('active_document', handle_document_changed)
 
@@ -584,22 +582,7 @@ enamldef ViewerDockItem(DockItem): view:
         changes, update the renderer.
 
         """
-        try:
-            renderer.document = get_document()
-        except Exception as e:
-            # This sometimes is still called after being closed
-            log.exception(e)
-
-    func handle_errors(change):
-        doc = get_document()
-        doc.errors = change['value'].split("\n")
-
-    func handle_output(change):
-        doc = get_document()
-        if change['type'] in ('create', 'update'):
-            doc.output = change['value']
-        elif change['type'] == 'container':
-            doc.output.append(change['item'])
+        renderer.document = get_document()
 
     icon = load_icon("bricks")
     stretch = 1
