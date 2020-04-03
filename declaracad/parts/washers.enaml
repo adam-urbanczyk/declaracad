@@ -1,0 +1,19 @@
+# Created in DeclaraCAD
+from declaracad.occ.api import *
+
+
+enamldef Washer(Cut):
+    attr diameter = 1.0
+    attr thickness = diameter / 10
+    attr hole_diameter = diameter/2
+    Cylinder:
+        radius << diameter/2
+        height << thickness
+    Cylinder:
+        radius << hole_diameter / 2
+        height << thickness
+
+
+enamldef Assembly(Part):
+    Washer:
+        pass

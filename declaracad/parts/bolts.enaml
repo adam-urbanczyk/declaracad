@@ -1,0 +1,74 @@
+# Created in DeclaraCAD
+from math import sin, cos, pi
+from declaracad.occ.api import *
+
+enamldef Hexagon(Polygon):
+    closed = True
+    attr radius = 2
+    points = [(cos(i*pi/3)*radius, sin(i*pi/3)*radius) for i in range(6)]
+
+enamldef HexSocketHead(Transform): head:
+    attr diameter = 3
+    attr height = diameter / 2
+    attr depth = height * 2/3
+    attr fillet = diameter / 15
+    transparency = 0.5
+    Fillet:
+        radius = fillet
+        operations = [
+            base.topology.edges[0],
+            base.topology.edges[2]
+        ]
+        Cut:
+            Cylinder: base:
+                height = head.height
+                radius = diameter / 2
+            Common:
+                Prism: prism:
+                    vector = (0, 0, depth)
+                    Face:
+                        Hexagon: hexagon:
+                            position = (0, 0, height-depth)
+                            radius = base.radius * 2/3
+                Cone: # I'm not sure if this is needed
+                    radius = hexagon.radius * 2
+                    direction = (0, 0, -1)
+                    position = (0, 0, head.height)
+                    height = head.height
+            Cone:
+                    radius = hexagon.radius
+                    direction = (0, 0, -1)
+                    position = (0, 0, head.height)
+                    height = depth
+
+
+enamldef HexSocketBolt(Transform): bolt:
+    """ An allen socket hex head bolt centered about the bottom of the head.
+    
+    """
+    attr length = 8
+    attr diameter = 3
+    alias head
+    alias body
+    Chamfer:
+        distance = body.radius * 1/3
+        operations = [all.topology.faces[0]]
+        Fuse: all:
+            HexSocketHead: head:
+                diameter = bolt.diameter
+            Cylinder: body:
+                position = (0, 0, -bolt.length)
+                radius = head.diameter/2 * 1/2
+                height = bolt.length
+        
+
+enamldef Assembly(Part):
+    HexSocketBolt:
+        diameter = 8
+        length = 10
+        
+    HexSocketBolt:
+        diameter = 12
+        length = 24
+        position = (10, 0, 0)
+        direction = (0, 1, 0)
