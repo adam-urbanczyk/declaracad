@@ -540,6 +540,9 @@ enamldef RemoteViewer(Conditional): viewer:
 
     func update_shape_color(change):
         renderer.set_shape_color(plugin.shape_color)
+        if change.get('type') == 'update' and renderer.document:
+            # Trigger a reload
+            renderer.document.version += 1
 
     func update_trihedron(change):
         renderer.set_trihedron_mode(plugin.trihedron_mode)
