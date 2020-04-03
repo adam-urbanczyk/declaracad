@@ -23,12 +23,12 @@ from enaml.qt.qt_application import QtApplication
 
 def main(**kwargs):
     """ Runs ModelExporter.export() using the passed options.
-    
+
     Parameters
     ----------
     options: Dict
         A jsonpickle dumped exporter
-    
+
     """
     options = kwargs.pop('options')
     exporter = jsonpickle.loads(options)

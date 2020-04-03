@@ -72,6 +72,7 @@ class ViewerProtocol(JSONRRCProtocol):
             self.send_message({'error': traceback.format_exc(),
                                'id': 'render_error'})
 
+
     def handle_ping(self):
         self._exit_in_sec = 60
         return True
