@@ -1,51 +1,210 @@
 import math
-from enaml.core.api import Looper
 from declaracad.occ.api import *
 
-enamldef StepperMotorCap(Transform): part:
-    attr motor = parent
-    attr fillet = 0.09
-    attr height = 0.5
-    attr shaft_radius = 0.25
-    attr screw_radius = 0.3
-    attr thickness = 0.1
-    attr w << motor.width/2
+enamldef MotorEndCap(Transform): part:
+    
+    attr fillet = 2.25
+    attr height = 10
+    attr width = 57.2
+    attr shaft_radius = 5
+    
+    # Corner cutouts
+    attr cutout_radius = 10
+    attr bearing_radius = 15
+    attr thickness = 2
     operations << [Translate(*self.position)]
-    ThickSolid:   
-        offset << thickness     
-        closing_faces = [cap.shape_faces[0]]
+    
+    Cut:
+        Fillet:  
+            radius = fillet - thickness # The thick solid  shrinks the inner radius
+            operations = [f1.topology.edges[308], f1.topology.edges[311]]#, f1.topology.edges[310]]
+            Fuse: f1:
+                # It seems thick solid cannot be applied to a face wit holes
+                # (or at least I can't figure out how to do it)
+                # so the bearing holder has to be fused on later
+                ThickSolid:   
+                    offset = -thickness     
+                    faces = [cap.topology.faces[1]]
+                    Fillet:  cap:
+                        radius << fillet
+                        # All except bottom eges
+                        attr bottom_face = cut.topology.faces[3]
+                        attr bottom_edges = cut.topology.edges_from_face(bottom_face)
+                        operations = [e for e in cut.topology.edges if not cut.topology.is_shape_in_list(e, bottom_edges)]
+                        Cut: cut:
+                            Box:
+                                position = (-dx/2,-dy/2, 0)
+                                dx = width
+                                dy = width
+                                dz = height
+                            Looper:
+                                # Each corner
+                                attr w = width/2
+                                iterable << [(-w, -w, 0), (-w, w, 0), (w, w, 0), (w, -w, 0)]
+                                Cylinder: # Screw cutouts
+                                    position << loop_item
+                                    radius << cutout_radius
+                                    height << part.height
+                Cut: # Add a bearing holder
+                    Cylinder:
+                        radius << bearing_radius + 2*thickness
+                        height << part.height-part.thickness
+                    Cylinder:
+                        radius << bearing_radius
+                        height << part.height-part.thickness
+        Cylinder:
+            position = (0, 0, 2*part.thickness)#-self.height)
+            radius << shaft_radius
+            height << part.height
+        
+enamldef MotorBody(Transform): part:
+    attr fillet = 2.25
+    attr height = 30
+    attr width = 57.2
+    
+    # Corner cutouts
+    attr cutout_radius = 10
+    attr rotor_radius = (width - 7) / 2
+    attr thickness = 2
+    operations << [Translate(*self.position)]
+    Cut:
         Fillet: cap:
             radius << fillet
             # All except bottom eges
-            # TODO: THIS SUCKS
-            edges << [e for (i,e) in enumerate(cut.shape_edges) if i not in 
-                (2, 13, 14, 15,  16,  17, 18,  19, 20,)]
+            attr top_face = cut.topology.faces[1]
+            attr bottom_face = cut.topology.faces[3]
+            attr excluded_edges = cut.topology.edges_from_face(top_face) + cut.topology.edges_from_face(bottom_face)
+            operations = [e for e in cut.topology.edges if not cut.topology.is_shape_in_list(e, excluded_edges)]
             Cut: cut:
                 Box:
                     position = (-dx/2,-dy/2, 0)
-                    dx << motor.width
-                    dy << motor.width
-                    dz << part.height
+                    dx = width
+                    dy = width
+                    dz = height
                 Looper:
                     # Each corner
+                    attr w = width/2
                     iterable << [(-w, -w, 0), (-w, w, 0), (w, w, 0), (w, -w, 0)]
                     Cylinder: # Screw cutouts
                         position << loop_item
-                        radius << screw_radius
+                        radius << cutout_radius
                         height << part.height
-        #Cylinder:
-        #    position = (0, 0, 2*part.thickness)#-self.height)
-        #    radius << shaft_radius
-        #    height << part.height
+        Cylinder:
+            position = (0, 0, 0)
+            radius << rotor_radius 
+            height << part.height
 
-enamldef StepperMotor(Part): part:
-    attr width = 2
-    attr height = 4
-    attr shaft = 0.5
-    StepperMotorCap:
-        pass
-                    
-                    
+enamldef MotorMountCap(Part): part:
+    attr fillet = 2.25
+    attr height = 12
+    attr width = 57.2
+    attr shaft_radius = 5
+    
+    attr shaft_mount_thickness = 1.6
+    attr shaft_mount_diameter = 38
+    
+    attr mount_thickness = 4.75
+    attr mount_bolt_diameter = 6
+    attr mount_bolt_offset = 4
+    
+    # Corner cutouts
+    attr cutout_radius = 10
+    attr bearing_radius = 15
+    attr thickness = 2
+    
+    #operations << [Translate(*self.position)]
+    Cut:
+        material = 'steel'
+        Fillet: cap:
+            radius << fillet
+           # To find these render the shape then select each edge
+           # and look at the index
+            attr edge_indexes = (0, 2, 4, 6, 8, 10, 12,31, 38, 40, 51, 57)
+            operations = [e for i, e in enumerate(cut.topology.edges) if i in edge_indexes]
+            Cut: cut:
+                # Each corner
+                attr w = width/2
+                attr d = mount_thickness
+                Box:
+                    position = (-dx/2,-dy/2, 0)
+                    dx = width
+                    dy = width
+                    dz = height
+                Looper:
+                    iterable << [(-w, -w, d), (-w, w, d), (w, w, d), (w, -w, d)]
+                    Cylinder: # Screw cutouts
+                        position << loop_item
+                        radius << cutout_radius
+                        height << part.height - d
+        
+        Prism: # Cut out the inside 
+            attr d = part.height - mount_thickness
+            vector = (0, 0, -d)
+            Face:
+                Offset:
+                        # Create an offset of  the top face of the cap
+                        shape = cap.topology.faces[6]
+                        offset = -thickness
+
+        Cut: # Cut the machined surface of the mount 
+            Box:
+                position = (-dx/2,-dy/2, 0)
+                dx = width
+                dy = width
+                dz = shaft_mount_thickness
+            Cylinder:
+                radius = shaft_mount_diameter / 2
+                height = shaft_mount_thickness
+        
+        Cylinder: # Motor shaft hole
+            position = (0, 0, 0)
+            radius << shaft_radius 
+            height << part.height
+            
+        Looper: # Mounting bolt holes
+            attr w = width / 2 - mount_bolt_offset            
+            iterable << [(-w, -w), (-w, w), (w, w), (w, -w)]
+            Cylinder: # Screw cutouts
+                position << loop_item
+                radius << mount_bolt_diameter / 2
+                height << part.height
+        
+        
+
+enamldef StepperMotor(Part): motor:
+    attr width = 57.2
+    attr height = 70
+    attr shaft_diameter = 6
+    attr shaft_offset_front = 10
+    attr shaft_offset_rear = 0
+    
+    # Set this to 10 or whatever to explode the part out
+    attr explode = 0
+    
+    Cylinder: shaft:
+        material = 'chrome'
+        position = (0, 0, -shaft_offset_front)
+        radius = shaft_diameter / 2
+        height = motor.height - cap.thickness + shaft_offset_front + shaft_offset_rear
+    
+    MotorMountCap: mount:
+        material = 'steel'
+        width = motor.width
+        shaft_radius = shaft.radius
+    
+    MotorBody: body:
+        width = motor.width
+        height = motor.height - mount.height - cap.height
+        position = (0, 0, mount.height + explode)
+        color = '#222'
+    
+    MotorEndCap: cap:
+        material = 'steel'
+        width = motor.width
+        position = (0, 0, body.z + body.height+ explode)
+        shaft_radius = shaft.radius
+    
+    
 enamldef Assembly(Part):
     StepperMotor:
         pass
