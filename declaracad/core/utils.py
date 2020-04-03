@@ -188,7 +188,7 @@ class JSONRRCProtocol(Atom, LineReceiver):
                 self.send_message({'id': request_id, 'result': result})
         except Exception as e:
             self.send_message({"id": request_id,
-                               'error': {'code': -32601,
+                               'error': {'code': -32500,
                                          'message': traceback.format_exc()}})
 
 
