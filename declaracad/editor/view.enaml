@@ -35,10 +35,6 @@ from declaracad.core.utils import load_icon, load_image, log, format_title
 from .plugin import Document
 
 
-
-# TODO: Make configurable
-
-
 def detect_syntax(plugin, path):
     """ Attempt to detect the file syntax """
     p, ext = os.path.splitext(path)
