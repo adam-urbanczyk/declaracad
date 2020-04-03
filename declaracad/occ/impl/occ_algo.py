@@ -46,7 +46,7 @@ from OCCT.GeomFill import (
     GeomFill_IsDiscreteTrihedron
 )
 from OCCT.gp import (
-    gp_Trsf, gp_Vec, gp_Pnt, gp_Ax1, gp_Dir, gp_Pnt2d
+    gp_Trsf, gp_Vec, gp_Pnt, gp_Ax1, gp_Ax3, gp_Dir, gp_Pnt2d
 )
 from OCCT.TColgp import TColgp_Array1OfPnt2d
 from OCCT.TopTools import TopTools_ListOfShape
@@ -63,7 +63,7 @@ from declaracad.occ.algo import (
     ProxyTransform, Translate, Rotate, Scale, Mirror, Shape
 )
 
-from .occ_shape import OccShape, OccDependentShape, Topology
+from .occ_shape import OccShape, OccDependentShape, Topology, coerce_axis
 
 def coerce_shape(shape):
     if isinstance(shape, Shape):
@@ -524,19 +524,22 @@ class OccTransform(OccOperation, ProxyTransform):
         d = self.declaration
         result = gp_Trsf()
         #: TODO: Order matters... how to configure it???
-        for op in d.operations:
-            t = gp_Trsf()
-            if isinstance(op, Translate):
-                t.SetTranslation(gp_Vec(op.x, op.y, op.z))
-            elif isinstance(op, Rotate):
-                t.SetRotation(gp_Ax1(gp_Pnt(*op.point),
-                                     gp_Dir(*op.direction)), op.angle)
-            elif isinstance(op, Mirror):
-                t.SetMirror(gp_Ax1(gp_Pnt(*op.point),
-                                   gp_Dir(op.x, op.y, op.z)))
-            elif isinstance(op, Scale):
-                t.SetScale(gp_Pnt(*op.point), op.s)
-            result.Multiply(t)
+        if d.operations:
+            for op in d.operations:
+                t = gp_Trsf()
+                if isinstance(op, Translate):
+                    t.SetTranslation(gp_Vec(op.x, op.y, op.z))
+                elif isinstance(op, Rotate):
+                    t.SetRotation(gp_Ax1(gp_Pnt(*op.point),
+                                        gp_Dir(*op.direction)), op.angle)
+                elif isinstance(op, Mirror):
+                    t.SetMirror(gp_Ax1(gp_Pnt(*op.point),
+                                    gp_Dir(op.x, op.y, op.z)))
+                elif isinstance(op, Scale):
+                    t.SetScale(gp_Pnt(*op.point), op.s)
+                result.Multiply(t)
+        else:
+            result.SetTransformation(gp_Ax3(coerce_axis(d.axis)))
         return result
 
     def update_shape(self, change=None):
@@ -557,14 +560,7 @@ class OccTransform(OccOperation, ProxyTransform):
         shape = transform.Shape()
 
         # Convert it back to the original type
-        if isinstance(original, TopoDS_Wire):
-            shape = TopoDS.Wire_(shape)
-        elif isinstance(original, TopoDS_Face):
-            shape = TopoDS.Face_(shape)
-        elif isinstance(original, TopoDS_Edge):
-            shape = TopoDS.Edge_(shape)
-
-        self.shape = shape
+        self.shape = Topology.cast_shape(shape)
 
     def set_shape(self, shape):
         if self._old_shape:

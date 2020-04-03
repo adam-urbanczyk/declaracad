@@ -352,13 +352,8 @@ class Intersection(BooleanOperation):
     proxy = Typed(ProxyIntersection)
 
 
-class LocalOperation(Operation):
-    """ A base class for operations on the edges of shapes.
 
-    """
-
-
-class Fillet(LocalOperation):
+class Fillet(Operation):
     """ Applies fillet operation to the first child shape.
 
     Attributes
@@ -402,7 +397,7 @@ class Fillet(LocalOperation):
         super(Fillet, self)._update_proxy(change)
 
 
-class Chamfer(LocalOperation):
+class Chamfer(Operation):
     """ Applies Chamfer operation to the first child shape.
 
     Attributes
@@ -731,7 +726,9 @@ class Mirror(TransformOperation):
 
 
 class Transform(Operation):
-    """ An operation that Transform's an existing shape (or a copy).
+    """ An operation that Transform's an existing shape (or a copy). If no
+    operations are given it will align along the axis defined by the position
+    direction and rotation.
 
     Attributes
     ----------
