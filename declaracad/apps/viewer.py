@@ -44,7 +44,6 @@ class ViewerProtocol(JSONRRCProtocol):
         self.watch = watch
         self._watched_files = {}
         if watch:
-            print("Watching '%s' for changes..." % self.view.filename)
             timed_call(1000, self.check_for_changes)
         self._exit_in_sec = 60
         super(ViewerProtocol).__init__()
@@ -62,16 +61,19 @@ class ViewerProtocol(JSONRRCProtocol):
         try:
             self.view.filename = filename
         except Exception as e:
-            self.send_message({'error': traceback.format_exc(),
+            self.send_message({'error': {'message': traceback.format_exc()},
                                'id': 'render_error'})
+            if not self.view.frameless:
+                raise
 
     def handle_version(self, version):
         try:
             self.view.version = version
         except Exception as e:
-            self.send_message({'error': traceback.format_exc(),
+            self.send_message({'error': {'message': traceback.format_exc()},
                                'id': 'render_error'})
-
+            if not self.view.frameless:
+                raise
 
     def handle_ping(self):
         self._exit_in_sec = 60
@@ -99,7 +101,15 @@ class ViewerProtocol(JSONRRCProtocol):
             for target in (self.view, self.view.viewer):
                 handler = getattr(target, attr, None)
                 if handler is not None and not callable(handler):
-                    return lambda v: setattr(target, attr, v)
+                    def setter(v):
+                        try:
+                            setattr(target, attr, v)
+                        except Exception as e:
+                            self.send_message({'error': {'message': traceback.format_exc()},
+                               'id': 'render_error'})
+                            if not self.view.frameless:
+                                raise
+                    return setter
         raise AttributeError(name)
 
     def schedule_close(self):
