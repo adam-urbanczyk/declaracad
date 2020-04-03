@@ -20,7 +20,7 @@ import jsonpickle
 from types import ModuleType
 from atom.api import (
     Atom, ContainerList, Unicode, Float, Dict, Bool, Int, Instance, Enum,
-    ForwardInstance, Constant, observe
+    ForwardInstance, Constant, observe, set_default
 )
 from declaracad.core.api import Plugin, Model, log
 from declaracad.core.utils import ProcessLineReceiver, Deferred
@@ -139,6 +139,9 @@ class ViewerProcess(ProcessLineReceiver):
     #: Process handle
     process = Instance(object)
 
+    #: Reference to the plugin
+    plugin = ForwardInstance(lambda: ViewerPlugin)
+
     #: Document
     document = ForwardInstance(document_type)
 
@@ -151,6 +154,9 @@ class ViewerProcess(ProcessLineReceiver):
     #: Count restarts so we can detect issues with startup s
     restarts = Int()
 
+    #: Max number it will attempt to restart
+    max_retries = Int(20)
+
     #: ID count
     _id = Int()
 
@@ -159,6 +165,9 @@ class ViewerProcess(ProcessLineReceiver):
 
     #: Seconds to ping
     _ping_rate = Int(40)
+
+    #: Capture stderr separately
+    err_to_out = set_default(False)
 
     @observe('document', 'document.version')
     def _update_document(self, change):
@@ -171,9 +180,9 @@ class ViewerProcess(ProcessLineReceiver):
 
     def send_message(self, method, *args, **kwargs):
         # Defer until it's ready
-        if not self.transport:
-            log.debug('renderer | message not ready deferring')
-            timed_call(0, self.send_message, method, *args, **kwargs)
+        if not self.transport or not self.window_id:
+            #log.debug('renderer | message not ready deferring')
+            timed_call(1000, self.send_message, method, *args, **kwargs)
             return
         _id = kwargs.pop('_id')
         _silent = kwargs.pop('_silent', False)
@@ -203,7 +212,12 @@ class ViewerProcess(ProcessLineReceiver):
         self.restarts += 1
 
         # TODO: 100 is probably excessive
-        if self.restarts > 100:
+        if self.restarts > self.max_retries:
+            plugin = self.plugin
+            plugin.workbench.message_critical(
+                "Viewer failed to start",
+                "Could not get the viewer to start after several attempts.")
+
             raise RuntimeError(
                 "renderer | Failed to successfully start renderer aborting!")
 
@@ -284,11 +298,17 @@ class ViewerProcess(ProcessLineReceiver):
             doc.output.extend(line.split("\n"))
 
     def errReceived(self, data):
+        """ Catch and log error output attempting to decode it
+
+        """
         for line in data.split(b"\n"):
             try:
-                log.debug(f"render | err | {line.encode()}")
-            except:
-                pass
+                line = line.decode()
+                log.debug(f"render | err | {line}")
+                if self.document:
+                    self.document.errors.append(line)
+            except Exception as e:
+                log.debug(f"render | err | {line}")
 
     def inConnectionLost(self):
         log.warning("renderer | stdio closed (we probably did it)")
@@ -296,7 +316,7 @@ class ViewerProcess(ProcessLineReceiver):
     def outConnectionLost(self):
         if not self.terminated:
             # Clear the filename on crash so it works when reset
-            self.filename = ''
+            #self.document = None
             self.restart()
         log.warning("renderer | stdout closed")
 

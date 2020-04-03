@@ -32,7 +32,7 @@ from .widgets.api import OccViewer, OccViewerClippedPlane
 from .dimension import (
     AngleDimension, LengthDimension, RadiusDimension, DiameterDimension
 )
-from .plugin import ViewerProcess, load_model, EmptyFileError
+from .plugin import ViewerPlugin, ViewerProcess, load_model, EmptyFileError
 
 
 def expand_dict(p):
@@ -518,33 +518,35 @@ enamldef ViewerWindow(Window): window:
 
 
 enamldef RemoteViewer(Conditional): viewer:
+    attr plugin: ViewerPlugin
+
     #: Process handle for communication with the child viewer
-    attr renderer: ViewerProcess = ViewerProcess()
+    attr renderer: ViewerProcess = ViewerProcess(plugin=plugin)
     condition << bool(renderer.window_id)
-    attr model
+
     func update_backgound(change):
         """ Updates the background color on the viewer """
-        model = viewer.model
-        c1 = model.background_top
+        plugin = viewer.plugin
+        c1 = plugin.background_top
         if not c1:
             return
-        if model.background_mode == 'solid':
+        if plugin.background_mode == 'solid':
             c2 = c1
         else:
-            c2 = model.background_bottom
+            c2 = plugin.background_bottom
             if not c2:
                 return
         renderer.set_background_gradient((c1, c2))
 
     func update_trihedron(change):
-        renderer.set_trihedron_mode(model.trihedron_mode)
+        renderer.set_trihedron_mode(plugin.trihedron_mode)
 
     func setup():
-        model = viewer.model
-        model.observe('background_mode', update_backgound)
-        model.observe('background_top', update_backgound)
-        model.observe('background_bottom', update_backgound)
-        model.observe('trihedron_mode', update_trihedron)
+        plugin = viewer.plugin
+        plugin.observe('background_mode', update_backgound)
+        plugin.observe('background_top', update_backgound)
+        plugin.observe('background_bottom', update_backgound)
+        plugin.observe('trihedron_mode', update_trihedron)
         update_backgound({})
         update_trihedron({})
 
@@ -592,7 +594,7 @@ enamldef ViewerDockItem(DockItem): view:
     Container: container:
         padding = 0
         RemoteViewer: viewer:
-            model << plugin
+            plugin << view.plugin
 
     title_bar_right_clicked ::
         # Populate the documents
@@ -618,7 +620,7 @@ enamldef ViewerDockItem(DockItem): view:
             separator = True
         Action:
             text = "Restart viewer"
-            triggered :: renderer.transport.signalProcess("KILL")
+            triggered :: renderer.terminate()
         Action:
             separator = True
         Action:
