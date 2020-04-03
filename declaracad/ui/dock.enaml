@@ -12,8 +12,9 @@ Created on Dec 13, 2017
 from enaml.core.include import Include
 from enaml.layout.api import AreaLayout, TabLayout, DockBarLayout, HSplitLayout
 from enaml.stdlib.dock_area_styles import (
-    register_styles, available_styles, CommonStyles, AreaStyle, ItemStyle, 
-    TitleBarStyle
+    register_styles, available_styles, CommonStyles, AreaStyle, ItemStyle,
+    TitleBarStyle, DockBarButtonStyle, ContainerStyle,
+    TabBarTabStyle, TitleBarLabelStyle
 )
 from enaml.widgets.dock_events import DockItemEvent
 from declaracad.core.api import DockArea, DockItem
@@ -39,6 +40,44 @@ template SystemStyle():
         border = '1px solid '+get_system_color('base')
     TitleBarStyle:
         background = get_system_color('base')
+
+    # Add alert styles for an "important" alert.
+    TitleBarStyle:
+        pseudo_class = 'alert(important)'
+        background = 'orange'
+
+    TitleBarLabelStyle:
+        pseudo_class = 'alert(important)'
+        color = 'black'
+
+    DockBarButtonStyle:
+        pseudo_class = 'alert(important)'
+        background = 'orange'
+
+    TabBarTabStyle:
+        pseudo_class = 'alert(important)'
+        background = 'orange'
+
+    # Add alert styles for a "meltdown" alert.
+    TitleBarStyle:
+        pseudo_class = 'alert(meltdown)'
+        background = 'red'
+
+    DockBarButtonStyle:
+        pseudo_class = 'alert(meltdown)'
+        background = 'red'
+
+    TabBarTabStyle:
+        pseudo_class = 'alert(meltdown)'
+        background = 'red'
+
+    ContainerStyle:
+        pseudo_class = 'alert(meltdown)'
+        background = 'yellow'
+
+    ItemStyle:
+        pseudo_class = 'alert(meltdown)'
+        background = 'red'
 
 
 if 'system' not in available_styles():
