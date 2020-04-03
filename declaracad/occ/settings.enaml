@@ -32,12 +32,12 @@ from .widgets.api import OccViewer
 
 enamldef ViewerSettingsPage(Container):
     attr model
-    
+
     func format_color(color):
         if not color:
             return "Not set"
         return str(hex(color.argb)).replace('0x','#').upper()
-    
+
     Form:
         Label:
             text = "Viewer Background"
@@ -49,7 +49,7 @@ enamldef ViewerSettingsPage(Container):
             text = "Color"
         PushButton:
             text << format_color(model.background_top)
-            clicked :: 
+            clicked ::
                 dlg = ColorDialog(parent=self, current_color=model.background_top)
                 if dlg.exec_():
                     model.background_top = dlg.selected_color
@@ -63,7 +63,7 @@ enamldef ViewerSettingsPage(Container):
                     dlg = ColorDialog(parent=self, current_color=model.background_top)
                     if dlg.exec_():
                         model.background_bottom = dlg.selected_color
-        
+
         Label:
             text = "Trihedron display"
         ObjectCombo:
@@ -71,5 +71,13 @@ enamldef ViewerSettingsPage(Container):
             to_string = lambda it: it.replace("-", " ").title()
             selected := model.trihedron_mode
 
+        Label:
+            text = "Default shape color"
+        PushButton:
+            text << format_color(model.shape_color)
+            clicked ::
+                dlg = ColorDialog(parent=self, current_color=model.shape_color)
+                if dlg.exec_():
+                    model.shape_color = dlg.selected_color
 
 

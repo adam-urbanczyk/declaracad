@@ -538,6 +538,9 @@ enamldef RemoteViewer(Conditional): viewer:
                 return
         renderer.set_background_gradient((c1, c2))
 
+    func update_shape_color(change):
+        renderer.set_shape_color(plugin.shape_color)
+
     func update_trihedron(change):
         renderer.set_trihedron_mode(plugin.trihedron_mode)
 
@@ -547,7 +550,9 @@ enamldef RemoteViewer(Conditional): viewer:
         plugin.observe('background_top', update_backgound)
         plugin.observe('background_bottom', update_backgound)
         plugin.observe('trihedron_mode', update_trihedron)
+        plugin.observe('shape_color', update_shape_color)
         update_backgound({})
+        update_shape_color({})
         update_trihedron({})
 
     #: Embedded viewer

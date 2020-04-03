@@ -328,6 +328,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     _ais_shapes = List()
     _selected_shapes = List()
 
+    #: Tuple of (Quantity_Color, transparency)
+    shape_color = Typed(tuple)
 
     #: Shapes
     shapes = Property(lambda self: self.get_shapes(), cached=True)
@@ -382,6 +384,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         self.set_view_mode(d.view_mode)
         self.set_lock_rotation(d.lock_rotation)
         self.set_lock_zoom(d.lock_zoom)
+        self.set_shape_color(d.shape_color)
         self._update_rendering_params()
 
         self.init_signals()
@@ -534,6 +537,9 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         c2, _ = color_to_quantity_color(gradient[1])
         self.v3d_view.SetBgGradientColors(c1, c2, Aspect_GFM_VER, True)
 
+    def set_shape_color(self, color):
+        self.shape_color = color_to_quantity_color(color)
+
     def set_trihedron_mode(self, mode):
         attr = 'Aspect_TOTP_{}'.format(mode.upper().replace("-", "_"))
         position = getattr(Aspect, attr)
@@ -681,6 +687,11 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
         if color:
             color, alpha = color_to_quantity_color(color)
+            ais_shape.SetColor(color)
+            if alpha is not None:
+                ais_shape.SetTransparency(alpha)
+        else:
+            color, alpha = self.shape_color
             ais_shape.SetColor(color)
             if alpha is not None:
                 ais_shape.SetTransparency(alpha)

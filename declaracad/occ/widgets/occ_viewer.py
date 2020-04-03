@@ -35,7 +35,6 @@ def gradient_coercer(arg):
     return (c1, c2)
 
 
-
 class ViewerSelection(Atom):
     #: Selected shape or shapes
     selection = Dict()
@@ -60,6 +59,9 @@ class ProxyOccViewer(ProxyControl):
         raise NotImplementedError
 
     def set_background_gradient(self, gradient):
+        raise NotImplementedError
+
+    def set_shape_color(self, color):
         raise NotImplementedError
 
     def set_rotation(self, rotation):
@@ -170,6 +172,9 @@ class OccViewer(Control):
     def _default_background_gradient(self):
         return (parse_color('white'), parse_color('silver'))
 
+    #: Default shape rendering color if none is defined
+    shape_color = d_(ColorMember('steelblue'))
+
     #: Display shadows
     shadows = d_(Bool(False))
 
@@ -219,7 +224,7 @@ class OccViewer(Control):
     @observe('position', 'display_mode', 'view_mode', 'trihedron_mode',
              'selection_mode', 'background_gradient', 'double_buffer',
              'shadows', 'reflections', 'antialiasing', 'lock_rotation',
-             'lock_zoom', 'draw_boundaries', 'hlr')
+             'lock_zoom', 'draw_boundaries', 'hlr', 'shape_color')
     def _update_proxy(self, change):
         """ An observer which sends state change to the proxy.
         """

@@ -363,6 +363,9 @@ class ViewerPlugin(Plugin):
     background_bottom = ColorMember('grey').tag(config=True)
     trihedron_mode = Unicode('right-lower').tag(config=True)
 
+    #: Defaults
+    shape_color = ColorMember('steelblue').tag(config=True)
+
     #: Exporters
     exporters = ContainerList()
 
