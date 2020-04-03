@@ -58,10 +58,10 @@ class Document(Model):
     version = Int(1)
 
     #: Any linting errors
-    errors = List()
+    errors = ContainerList(str)
 
     #: Any script output
-    output = ContainerList()
+    output = ContainerList(str)
 
     #: Any autocomplete suggestions
     suggestions = List()
