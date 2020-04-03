@@ -58,22 +58,10 @@ class ViewerProtocol(JSONRRCProtocol):
         return int(self.view.proxy.widget.winId())
 
     def handle_filename(self, filename):
-        try:
-            self.view.filename = filename
-        except Exception as e:
-            self.send_message({'error': {'message': traceback.format_exc()},
-                               'id': 'render_error'})
-            if not self.view.frameless:
-                raise
+        self.view.filename = filename
 
     def handle_version(self, version):
-        try:
-            self.view.version = version
-        except Exception as e:
-            self.send_message({'error': {'message': traceback.format_exc()},
-                               'id': 'render_error'})
-            if not self.view.frameless:
-                raise
+        self.view.version = version
 
     def handle_ping(self):
         self._exit_in_sec = 60
@@ -101,15 +89,7 @@ class ViewerProtocol(JSONRRCProtocol):
             for target in (self.view, self.view.viewer):
                 handler = getattr(target, attr, None)
                 if handler is not None and not callable(handler):
-                    def setter(v):
-                        try:
-                            setattr(target, attr, v)
-                        except Exception as e:
-                            self.send_message({'error': {'message': traceback.format_exc()},
-                               'id': 'render_error'})
-                            if not self.view.frameless:
-                                raise
-                    return setter
+                    return lambda v: setattr(target, attr, v)
         raise AttributeError(name)
 
     def schedule_close(self):
