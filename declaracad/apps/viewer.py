@@ -59,10 +59,18 @@ class ViewerProtocol(JSONRRCProtocol):
         return int(self.view.proxy.widget.winId())
 
     def handle_filename(self, filename):
-        self.view.filename = filename
+        try:
+            self.view.filename = filename
+        except Exception as e:
+            self.send_message({'error': traceback.format_exc(),
+                               'id': 'render_error'})
 
     def handle_version(self, version):
-        self.view.version = version
+        try:
+            self.view.version = version
+        except Exception as e:
+            self.send_message({'error': traceback.format_exc(),
+                               'id': 'render_error'})
 
     def handle_ping(self):
         self._exit_in_sec = 60
@@ -143,10 +151,11 @@ def main(**kwargs):
     if not frameless and not os.path.exists(filename):
         raise ValueError("File %s does not exist!" % filename)
 
-    view = ViewerWindow(filename=filename, frameless=frameless)
+    view = ViewerWindow(filename='-', frameless=frameless)
     view.protocol = ViewerProtocol(view, watch)
     view.show()
     app.deferred_call(lambda: StandardIO(view.protocol))
+    app.deferred_call(view.protocol.handle_filename, filename)
     app.start()
 
 
