@@ -17,7 +17,7 @@ from atom.api import (
 from OCCT import GeomAbs
 from OCCT.Bnd import Bnd_Box
 from OCCT.BRep import BRep_Builder, BRep_Tool
-from OCCT.BRepAdaptor import BRepAdaptor_Curve
+from OCCT.BRepAdaptor import BRepAdaptor_Curve, BRepAdaptor_Surface
 from OCCT.BRepBndLib import BRepBndLib
 from OCCT.BRepBuilderAPI import (
     BRepBuilderAPI_MakeShape, BRepBuilderAPI_MakeFace,
@@ -232,6 +232,10 @@ class Topology(Atom):
                 filter_orientation_seq.append(i)
         return filter_orientation_seq
 
+
+    # -------------------------------------------------------------------------
+    # Shape Topology
+    # -------------------------------------------------------------------------
     faces = Property(lambda self: self._loop_topo(TopAbs_FACE),
                      cached=True)
 
@@ -400,10 +404,7 @@ class Topology(Atom):
         return self._loop_topo(TopAbs_EDGE, face)
 
     def number_of_edges_from_face(self, face):
-        cnt = 0
-        for i in self._loop_topo(TopAbs_EDGE, face):
-            cnt += 1
-        return cnt
+        return len(self._loop_topo(TopAbs_EDGE, face))
 
     # ======================================================================
     # VERTEX <-> EDGE
@@ -412,10 +413,7 @@ class Topology(Atom):
         return self._loop_topo(TopAbs_VERTEX, edg)
 
     def number_of_vertices_from_edge(self, edg):
-        cnt = 0
-        for i in self._loop_topo(TopAbs_VERTEX, edg):
-            cnt += 1
-        return cnt
+        return len(self._loop_topo(TopAbs_VERTEX, edg))
 
     def edges_from_vertex(self, vertex):
         return self._map_shapes_and_ancestors(TopAbs_VERTEX, TopAbs_EDGE, vertex)
@@ -430,10 +428,7 @@ class Topology(Atom):
         return self._loop_topo(TopAbs_EDGE, wire)
 
     def number_of_edges_from_wire(self, wire):
-        cnt = 0
-        for i in self._loop_topo(TopAbs_EDGE, wire):
-            cnt += 1
-        return cnt
+        return len(self._loop_topo(TopAbs_EDGE, wire))
 
     def wires_from_edge(self, edg):
         return self._map_shapes_and_ancestors(TopAbs_EDGE, TopAbs_WIRE, edg)
@@ -451,10 +446,7 @@ class Topology(Atom):
         return self._loop_topo(TopAbs_WIRE, face)
 
     def number_of_wires_from_face(self, face):
-        cnt = 0
-        for i in self._loop_topo(TopAbs_WIRE, face):
-            cnt += 1
-        return cnt
+        return len(self._loop_topo(TopAbs_WIRE, face))
 
     def faces_from_wire(self, wire):
         return self._map_shapes_and_ancestors(TopAbs_WIRE, TopAbs_FACE, wire)
@@ -475,10 +467,7 @@ class Topology(Atom):
         return self._loop_topo(TopAbs_VERTEX, face)
 
     def number_of_vertices_from_face(self, face):
-        cnt = 0
-        for i in self._loop_topo(TopAbs_VERTEX, face):
-            cnt += 1
-        return cnt
+        return len(self._loop_topo(TopAbs_VERTEX, face))
 
     # ======================================================================
     # FACE <-> SOLID
@@ -493,33 +482,167 @@ class Topology(Atom):
         return self._loop_topo(TopAbs_FACE, solid)
 
     def number_of_faces_from_solids(self, solid):
-        cnt = 0
-        for i in self._loop_topo(TopAbs_FACE, solid):
-            cnt += 1
-        return cnt
+        return len(self._loop_topo(TopAbs_FACE, solid))
+
+
+    # -------------------------------------------------------------------------
+    # Surface Types
+    # -------------------------------------------------------------------------
+    def extract_surfaces(self, surface_type):
+        """ Returns a list of dicts containing the face and surface
+
+        """
+        surfaces = []
+        attr = str(surface_type).split("_")[-1]
+        for f in self.faces:
+            surface = self.cast_surface(f, surface_type)
+            if surface is not None:
+                surfaces.append({
+                    'face': f, 'surface': getattr(surface, attr)()})
+        return surfaces
+
+    plane_surfaces = Property(
+        lambda self: self.extract_surfaces(GeomAbs.GeomAbs_Plane), cached=True)
+
+    cone_surfaces = Property(
+        lambda self: self.extract_surfaces(GeomAbs.GeomAbs_Cone), cached=True)
+
+    sphere_surfaces = Property(
+        lambda self: self.extract_surfaces(GeomAbs.GeomAbs_Sphere), cached=True)
+
+    torus_surfaces = Property(
+        lambda self: self.extract_surfaces(GeomAbs.GeomAbs_Torus), cached=True)
+
+    cone_surfaces = Property(
+        lambda self: self.extract_surfaces(GeomAbs.GeomAbs_Cone), cached=True)
+
+    cylinder_surfaces = Property(
+        lambda self: self.extract_surfaces(GeomAbs.GeomAbs_Cylinder), cached=True)
+
+    bezier_surfaces = Property(
+        lambda self: self.extract_surfaces(GeomAbs.GeomAbs_BezierSurface), cached=True)
+
+    bspline_surfaces = Property(
+        lambda self: self.extract_surfaces(GeomAbs.GeomAbs_BplineSurface), cached=True)
+
+    offset_surfaces = Property(
+        lambda self: self.extract_surfaces(GeomAbs.GeomAbs_OffsetSurface), cached=True)
+
+    # -------------------------------------------------------------------------
+    # Curve Types
+    # -------------------------------------------------------------------------
+    def extract_curves(self, curve_type):
+        """ Returns a list of tuples containing the edge and curve
+
+        """
+        curves = []
+        attr = str(curve_type).split("_")[-1]
+        for e in self.edges:
+            curve = self.cast_curve(e, curve_type)
+            if curve is not None:
+                curves.append({'edge': e, 'curve': getattr(curve, attr)()})
+        return curves
+
+    line_curves = Property(
+        lambda self: self.extract_curves(GeomAbs.GeomAbs_Line), cached=True)
+
+    circle_curves = Property(
+        lambda self: self.extract_curves(GeomAbs.GeomAbs_Circle), cached=True)
+
+    ellipse_curves = Property(
+        lambda self: self.extract_curves(GeomAbs.GeomAbs_Ellipse), cached=True)
+
+    hyperbola_curves = Property(
+        lambda self: self.extract_curves(GeomAbs.GeomAbs_Hyperbola), cached=True)
+
+    parabola_cuves = Property(
+        lambda self: self.extract_curves(GeomAbs.GeomAbs_Parabola), cached=True)
+
+    bezier_curves = Property(
+        lambda self: self.extract_curves(GeomAbs.GeomAbs_BezierCurve), cached=True)
+
+    bspline_curves = Property(
+        lambda self: self.extract_curves(GeomAbs.GeomAbs_BSplineCurve), cached=True)
+
+    offset_curves = Property(
+        lambda self: self.extract_curves(GeomAbs.GeomAbs_OffsetCurve), cached=True)
+
 
     # -------------------------------------------------------------------------
     # Utilities
     # -------------------------------------------------------------------------
     @classmethod
     def cast_shape(cls, topods_shape):
+        """ Convert a TopoDS_Shape into it's actual type, ex an TopoDS_Edge
+
+        Parameters
+        -----------
+        topods_shape: TopoDS_Shape
+            The shape to cas
+
+        Returns
+        -------
+        shape: TopoDS_Shape
+            The actual shape.
+
+        """
         return cls.topo_factory[topods_shape.ShapeType()](topods_shape)
 
     @classmethod
-    def cast_curve(cls, shape):
+    def cast_curve(cls, shape, expected_type=None):
         """ Attempt to cast the shape (an edge or wire) to a curve
+
+        Parameters
+        ----------
+        shape: TopoDS_Edge
+            The shape to cast
+        expected_type: GeomAbs_CurveType
+            The type to restrict
 
         Returns
         -------
         curve: BRepAdaptor_Curve or None
-            The curve or None if it could not be created
+            The curve or None if it could not be created or if it was not
+            of the expected type (if given).
         """
         try:
             if isinstance(shape, TopoDS_Edge):
                 edge = shape
             else:
                 edge = TopoDS.Edge_(shape)
-            return BRepAdaptor_Curve(edge)
+            curve = BRepAdaptor_Curve(edge)
+            if expected_type is not None and curve.GetType() != expected_type:
+                return None
+            return curve
+        except:
+            return None
+
+    @classmethod
+    def cast_surface(cls, shape, expected_type=None):
+        """ Attempt to cast the shape (a face) to a surface
+
+        Parameters
+        ----------
+        shape: TopoDS_Face
+            The shape to cast
+        expected_type: GeomAbs_SurfaceType
+            The type to restrict
+
+        Returns
+        -------
+        surface: BRepAdaptor_Surface or None
+            The surface or None if it could not be created or did not
+            match the expected type (if given).
+        """
+        try:
+            if isinstance(shape, TopoDS_Face):
+                face = shape
+            else:
+                face = TopoDS.Face_(shape)
+            surface = BRepAdaptor_Surface(face, True)
+            if expected_type is not None and surface.GetType() != expected_type:
+                return None
+            return surface
         except:
             return None
 
@@ -567,6 +690,54 @@ class Topology(Atom):
         if curve is None:
             return False
         return curve.GetType() == GeomAbs.GeomAbs_Line
+
+    @classmethod
+    def is_plane(cls, shape):
+        """ Check if a surface is a plane.
+
+        Returns
+        -------
+        bool: Bool
+            Whether the shape is a part of a line
+        """
+        surface = cls.cast_surface(shape)
+        if surface is None:
+            return False
+        return surface.GetType() == GeomAbs.GeomAbs_Plane
+
+    @classmethod
+    def is_cylinder(cls, shape):
+        """ Check if a surface is a cylinder.
+
+        Returns
+        -------
+        bool: Bool
+            Whether the shape is a part of a line
+        """
+        surface = cls.cast_surface(shape)
+        if surface is None:
+            return False
+        return surface.GetType() == GeomAbs.GeomAbs_Cylinder
+
+    @classmethod
+    def is_shape_in_list(cls, shape, shapes):
+        """ Check if an shape is in a list of shapes using the IsSame method.
+
+        Parameters
+        ----------
+        shape: TopoDS_Shape
+            The shape to check
+        shapes: Iterable[TopoDS_Shape]
+            An interable of shapes to check against
+
+        Returns
+        -------
+        bool: Bool
+            Whether the shape is in the list
+        """
+        if not isinstance(shape, TopoDS_Shape):
+            raise TypeError("Expected a TopoDS_Shape instance")
+        return any(shape.IsSame(s) for s in shapes)
 
     @classmethod
     def get_value_at(cls, curve, t, derivative=0):
