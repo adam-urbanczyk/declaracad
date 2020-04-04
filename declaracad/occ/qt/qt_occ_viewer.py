@@ -690,7 +690,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             ais_shape.SetColor(color)
             if alpha is not None:
                 ais_shape.SetTransparency(alpha)
-        else:
+        elif material is None and texture is None:
             color, alpha = self.shape_color
             ais_shape.SetColor(color)
             if alpha is not None:
