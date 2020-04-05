@@ -539,7 +539,10 @@ class OccTransform(OccOperation, ProxyTransform):
                     t.SetScale(gp_Pnt(*op.point), op.s)
                 result.Multiply(t)
         else:
-            result.SetTransformation(gp_Ax3(coerce_axis(d.axis)))
+            axis = gp_Ax3()
+            axis.SetDirection(d.direction.proxy)
+            result.SetTransformation(axis)
+            result.SetTranslationPart(gp_Vec(*d.position))
         return result
 
     def update_shape(self, change=None):
