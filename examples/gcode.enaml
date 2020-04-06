@@ -1,7 +1,7 @@
 import os
 import re
 from declaracad.occ.api import (
-    Part, Wire, Circle, Ellipse, Segment, Point, Polygon, Pipe, Face,
+    Part, Wire, Circle, Ellipse, Segment, Point, Polyline, Pipe, Face,
     Box, Cut, Cone
 )
 from enaml.core.api import Looper, Include
@@ -56,7 +56,7 @@ enamldef Assembly(Part): part:
     Looper:
         iterable << paths
         Wire:
-            Polygon:
+            Polyline:
                 color = 'green'
                 points << [cmd.get('P') for cmd in loop_item]
 

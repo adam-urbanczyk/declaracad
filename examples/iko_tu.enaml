@@ -1,10 +1,13 @@
 # Created in DeclaraCAD
 from declaracad.occ.api import *
+from declaracad.parts.bearing import BallBearing
+from declaracad.parts.bolts import HexSocketBolt
+
 
 enamldef Profile(Wire):
     # Profile of the  IKO Precision Position Table TU50
     # based on the IKO rail guide 1580 TU
-    
+
     # Track width
     attr width = 50
     attr height = 25
@@ -13,8 +16,8 @@ enamldef Profile(Wire):
     attr fillet_depth = 1.9
     attr guide_offset = 0.25
     attr guide_radius = 3
-    
-    Polygon: p1:
+
+    Polyline: p1:
         attr w = width / 2
         attr o1 = guide_offset
         attr h = height
@@ -38,7 +41,7 @@ enamldef Profile(Wire):
         attr p = p1.points[-1]
         position = (p.x, p.y -radius)
         radius = 2.5
-        points = [(p.x, p.y-radius*2), p] 
+        points = [(p.x, p.y-radius*2), p]
     Segment: s1:
         attr p = a1.points[0]
         points = [p, (p.x, p.y-2)]
@@ -49,7 +52,7 @@ enamldef Profile(Wire):
         points = [(p.x - radius, p.y - radius), p]
     Segment: s2:
         attr p = a2.points[0]
-        points = [p,  (0, p.y) ] 
+        points = [p,  (0, p.y) ]
 
 
 enamldef TrackProfile(Wire):
@@ -59,21 +62,21 @@ enamldef TrackProfile(Wire):
             #: TODO coerce
             operations = [Mirror(y=1)]
             shape = profile
-        
+
 
 enamldef BoltHole(Fuse): bolt:
     attr d = 1.9
     attr r1 = 4
     attr r2 = r1/2
     attr h = 8
-    
+
     # Bolt threads
     Cylinder: b1:
         position << bolt.position
         direction = (0, 1, 0)
         radius = r2
         height = h
-    
+
     # Head cutout
     Cylinder: b2:
         position << (b1.x, b1.y +d, b1.z)
@@ -85,15 +88,23 @@ enamldef TU50(Cut):
     #material = 'steel'
     attr length = 150
     attr n = 9
+
+    # Positions of each bolt hoe
+    func get_bolt_holes():
+        p = h1.position + (0, 2, 0) # Shift y up by 2
+        return [p] + [p + it for it in looper.iterable]
+
+    attr bolt_holes = get_bolt_holes()
+
     Prism:
-        vector = (0, 0, length)        
+        vector = (0, 0, length)
         Face:
                 TrackProfile: profile:
                     pass
     BoltHole: h1:
         position = (12.5, 0, 30)
-    
-    Looper:
+
+    Looper: looper:
         attr x = 12.5
         attr offset = 30
         func gen_points(l):
@@ -108,18 +119,18 @@ enamldef TU50(Cut):
                     (0, 0, z),
                     (-2*x, 0, z),
                 ])
-                
+
             return pts[1:] # First one is already placed
-        
+
         iterable = gen_points(length)
         Transform:
             operations = [Translate(*loop_item)]
             shape = h1
-            
+
 
 enamldef Profile2(Wire):
     # Profile of the TU50F carriage
-    Polygon: p1:
+    Polyline: p1:
         points = [
             (0, 20),
             (10, 20 ),
@@ -129,7 +140,7 @@ enamldef Profile2(Wire):
     Bezier: b1:
         attr p = p1.points[-1]
         points = [
-            p, 
+            p,
             (p.x, p.y + 5),
             (p.x + 5, p.y + 5),
             (p.x + 5, p.y + 7),
@@ -141,7 +152,7 @@ enamldef Profile2(Wire):
         attr p = s1.points[-1]
         attr radius = 5
         points = [
-            p, 
+            p,
             (p.x, p.y + radius),
             (p.x + radius, p.y + radius),
         ]
@@ -152,16 +163,16 @@ enamldef Profile2(Wire):
         attr p = s2.points[-1]
         attr radius = b2.radius
         points = [
-            p, 
+            p,
             (p.x + radius, p.y),
             (p.x + radius, p.y + radius),
         ]
-    Polygon: p2:
+    Polyline: p2:
         attr p = b3.points[-1]
         attr offset = 0.25
         attr w = (74-55)/2
         points = [
-            p, 
+            p,
             (p.x, p.y + 5),
             (p.x+offset, p.y + 5),
             (p.x+offset, p.y + 10),
@@ -172,15 +183,15 @@ enamldef Profile2(Wire):
         attr p = p2.points[-1]
         attr radius = 3
         points = [
-            p, 
+            p,
             (p.x, p.y - radius),
             (p.x - radius, p.y - radius),
         ]
     Segment: s3:
         attr p = b4.points[-1]
         points = [p, (0, p.y)]
-    
-    
+
+
 enamldef Profile3(Wire):
     attr slot_len = 5
     Arc: a1:
@@ -197,8 +208,8 @@ enamldef Profile3(Wire):
         position = (0, p.y)
         radius = a1.radius
         points = [(0, y - radius), (radius, y)]
-        
-enamldef CarriageProfile(Cut):    
+
+enamldef CarriageProfile(Cut):
     Face:
         Wire:
             Profile2: profile:
@@ -238,7 +249,7 @@ enamldef CarriageMount(Transform): part:
             Transform:
                 operations = [Translate(*loop_item)]
                 shape = h1
-    
+
 enamldef Carriage(Part): part:
     position = (0, 0, 50)
     attr length = 70
@@ -247,7 +258,7 @@ enamldef Carriage(Part): part:
         dz = length
         dy = 13.75
         dx = 30
-    
+
     CarriageMount:
         position = (0, 0, (part.length-self.length)/2)
         color = '#222'
@@ -269,13 +280,21 @@ enamldef BumpStop(Transform):
             Face:
                 Circle:
                     radius = 6
-                
+
 enamldef RailEndMount(Part): part:
     attr length = 58
     color = "#bbb"
 
+    func get_mount_bolt_holes():
+        p = h2.position + part.position + (0,  h2.height-h1.dy, 0)
+        return [p] + [p + it for it in looper.iterable]
+
+    # Mate positions for the bolt holes to the guide rail
+    attr bolt_holes = get_mount_bolt_holes()
+
     Cut:
         color = part.color
+        transparency = part.transparency
         Box: base:
             position = (-dx/2, -dy/2, -dz/2)
             dx = 50
@@ -298,18 +317,18 @@ enamldef RailEndMount(Part): part:
             position = (-base.dx / 2, -base.dy/2, -base.dz/2)
             dx = 8
             dy = 10
-            dz = base.dz -6  
+            dz = base.dz -6
         Transform:
             operations = [Translate(x=base.dx - b1.dx)]
             shape = b1
-            
+
         # Font bottom cutout
         Box:
             position = (-base.dx/2 + 8, -base.dy/2, -base.dz/2)
             dx = base.dx - 2 * 8
             dy = 8
             dz = 12
-        
+
         # Screw cutouts
         Cylinder: # Inner
             position = (0,  0, base.z)
@@ -319,23 +338,23 @@ enamldef RailEndMount(Part): part:
             position = (0,  0, base.z + length-height)
             height = 12
             radius = 25/2
-        
+
         # Bolt Cutouts
         Box: h1:
             position = (-base.dx / 2, base.dy/2-dy/2-5, base.dz/2-6 - dz + 0.5)
             dx = 8
             dy = 10
-            dz = 9            
+            dz = 9
         # Mount hole
         Cylinder: h2:
             attr offset = h1.dx/2
             direction = (0, 1, 0)
-            position  = (h1.x + offset, 
-                                base.y, 
+            position  = (h1.x + offset,
+                                base.y,
                                 h1.z + h1.dy/2)
             height = base.dy
             radius = 2
-        Looper:
+        Looper: looper:
             attr offset_x = base.dx - h1.dx
             attr offset_z = -30
             iterable = [
@@ -355,6 +374,13 @@ enamldef RailMount(Part): part:
     attr length = 15
     attr shift = 2.5
     attr hole_diameter = 18
+
+    func get_bolt_holes():
+        p = h1.position + part.position + (0, h1.height-p1.depth, 0)
+        return [p, p+t1.position]
+
+    attr bolt_holes = get_bolt_holes()
+
     Cut:
         color = part.color
         Box: base:
@@ -385,10 +411,10 @@ enamldef RailMount(Part): part:
             position  = (base.x+offset, base.y, offset)
             height = base.dy
             radius = 2
-        Transform:
-                operations = [Translate(x=base.dx - 2*h1.offset)]
+        Transform: t1:
+                position = (base.dx - 2*h1.offset, 0)
                 shape = h1
-                
+
 enamldef BumpStopEnd(Transform):
     attr thickness = 5
     attr hole_diameter = 12
@@ -403,7 +429,7 @@ enamldef BumpStopEnd(Transform):
         Cylinder:
             height = thickness
             radius = hole_diameter/2
-            
+
 enamldef Profile4(Wire):
     attr channel_width = 2
     attr channel_radius = 1
@@ -412,7 +438,7 @@ enamldef Profile4(Wire):
     Bezier: b1:
         attr p = s1.points[-1]
         attr r = 1
-        points = [p, (p.x + r, p.y), (p.x+r, 0)] 
+        points = [p, (p.x + r, p.y), (p.x+r, 0)]
     Segment: s2: # Outside corner
         attr p = b1.points[-1]
         points = [p, (p.x + 17, 0)]
@@ -433,21 +459,21 @@ enamldef Profile4(Wire):
     Bezier: b4:
         attr p = s4.points[-1]
         attr r = channel_radius
-        points = [p, (p.x, p.y-r), (p.x-r, p.y-r)] 
+        points = [p, (p.x, p.y-r), (p.x-r, p.y-r)]
     Segment: s5:
         attr p = b4.points[-1]
         points = [p, (p.x-channel_width, p.y)]
     Bezier: b5:
         attr p = s5.points[-1]
         attr r = channel_radius
-        points = [p, (p.x-r, p.y), (p.x-r, p.y+r)] 
+        points = [p, (p.x-r, p.y), (p.x-r, p.y+r)]
     Segment: s6:
         attr p = b5.points[-1]
         points = [p, (p.x-channel_width, p.y)]
     Bezier: b6:
         attr p = s6.points[-1]
         attr r = channel_radius
-        points = [p, (p.x, p.y-r), (p.x-r, p.y-r)] 
+        points = [p, (p.x, p.y-r), (p.x-r, p.y-r)]
     Segment: s7:
         attr p = b6.points[-1]
         points = [p, (p.x-channel_width/2, p.y)]
@@ -467,33 +493,82 @@ enamldef RailCap(Transform):
         Face:
             CapProfile:
                 pass
-            
+
+enamldef BallScrew(Part): part:
+    attr length = 700
+    attr radius = 5
+    Cut:
+        material = 'chrome'
+        Cylinder:
+            radius = part.radius
+            height = length
+        Torus:
+            radius = part.radius
+            radius2 = part.radius / 3
+
+
 enamldef Assembly(Part):
     TU50: guide:
         color = '#8e8e8e'
+        #transparency = 0.5
         length = 700
 
     Carriage:
         pass
-    
+
+    Looper:
+        iterable << guide.bolt_holes
+        HexSocketBolt:
+            color = "#323"
+            position = loop_item
+            direction = (0,  -1, 0)
+            diameter = 8
+            length = 10
+
+    BallBearing:
+        position = (0, 35, width/2)
+        width = 5
+        num_balls = 0 # Don't render
+        outer_diameter = 12
+        bore_diameter = 6
+        ball_diameter = 4
+
     RailEndMount: end_mount:
+        #transparency = 0.5
         position = (0, 35, guide.length-58/2+6)
     BumpStop:
-        position = (0, 35, guide.length-end_mount.length-2)    
-    
+        position = (0, 35, guide.length-end_mount.length-2)
+    Looper:
+        iterable << end_mount.bolt_holes
+        HexSocketBolt:
+            color = "#323"
+            position = loop_item
+            direction = (0,  -1, 0)
+            diameter = 6
+            length = 24
+
     RailMount: start_mount:
         attr start = 3
         position = (0, 35, self.length/2 + start)
     BumpStopEnd:
         position = (0, 35, start_mount.length + start_mount.start)
-        
-    Cylinder:
-        material = 'chrome'
-        position = (0, 35, 0)
+    Looper:
+        iterable << start_mount.bolt_holes
+        HexSocketBolt:
+            color = "#323"
+            position = loop_item
+            direction = (0,  -1, 0)
+            diameter = 6
+            length = 24
+
+
+    BallScrew:
+        length = 700
         radius = 5
-        height = 700
-        
+        position = (0, 35, 0)
+
     RailCap:
+        #display = False
         color = "#bbb"
         length = guide.length  - start_mount.start # + end_mount.length/2
         position = (0, 50, start_mount.start)

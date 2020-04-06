@@ -27,7 +27,7 @@ from .dimension import (
 from .draw import (
     Plane, Vertex, Edge, Line, Rectangle,
     Segment, Arc, Circle, Ellipse, Hyperbola,
-    Parabola, Polygon,
+    Parabola, Polyline, Polygon,
     BSpline, Bezier,
     Text, TrimmedCurve, Svg,
     Wire

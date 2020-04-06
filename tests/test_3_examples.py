@@ -5,6 +5,7 @@ from declaracad.occ.plugin import load_model
 
 @pytest.mark.skipif('TRAVIS' in os.environ, reason='Disabled for now')
 @pytest.mark.parametrize('name', (
+    'bearing',
     'bolt',
     'bottle',
     'chamfers',
@@ -29,6 +30,7 @@ from declaracad.occ.plugin import load_model
     'threads',
     'thru_sections',
     'turners_cube',
+    'vacuum_nozzle',
 ))
 def test_example(qt_app, name):
     path = 'examples/%s.enaml' % name

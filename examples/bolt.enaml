@@ -3,9 +3,7 @@ from math import sin, cos, radians, sqrt, pi, tan
 from declaracad.occ.api import *
 
 enamldef Hexagon(Polygon):
-    attr radius: float = 1.0
-    points = [(radius*cos(radians(a)), radius*sin(radians(a)), 0)
-               for a in range(0, 420, 60)]
+    count = 6
 
 enamldef HexNut(Transform):
     attr thickness = 2
@@ -92,7 +90,7 @@ enamldef HexBolt(Part): bolt:
             direction = (0, 0, 1)
             Face:
                 Wire:
-                    Polygon:
+                    Polyline:
                         points = [
                             (0, 0, 0),
                             (B/2, 0, 0),
@@ -106,7 +104,7 @@ enamldef HexBolt(Part): bolt:
                         radius = r
                         # start, end
                         points = [(d1/2+r, 0, H), (d1/2, 0, H+r)]
-                    Polygon:
+                    Polyline:
                         points = [
                             (d1/2, 0, H+r),
                             (d1/2, 0, H+length-k),
@@ -115,27 +113,28 @@ enamldef HexBolt(Part): bolt:
                             (0, 0, 0)
                         ]
     ThruSections:
-        color := fuse.color
-        Wire:
-            # Note: When a surface is given on a curve  the shape is converted to 2d
-            # the wire automatically converts it back to 3d
-            TrimmedCurve: c1:
-                surface = make_cylinder_surface(d1/2)
-                v = 2*pi
-                Ellipse: e1:
-                    position = (2*pi, bolt.length*3/4, 0)
-                    direction = (pi/8, bolt.length/4, 0)
-                    major_radius = 16*pi
-                    minor_radius = bolt.length/30
-        Wire:
-            TrimmedCurve: c2:
-                surface = make_cylinder_surface(d1/2+0.4)
-                v = c1.v
-                Ellipse: e2:
-                    position = e1.position
-                    direction = e1.direction
-                    major_radius = e1.major_radius-pi/4
-                    minor_radius = 0
+            color := fuse.color
+            solid = True
+            Wire:
+                # Note: When a surface is given on a curve  the shape is converted to 2d
+                # the wire automatically converts it back to 3d
+                TrimmedCurve: c1:
+                    surface = make_cylinder_surface(d1/2)
+                    v = 2*pi
+                    Ellipse: e1:
+                        position = (2*pi, bolt.length*3/4, 0)
+                        direction = (pi/8, bolt.length/4, 0)
+                        major_radius = 16*pi
+                        minor_radius = bolt.length/30
+            Wire:
+                TrimmedCurve: c2:
+                    surface = make_cylinder_surface(d1/2+0.4)
+                    v = c1.v
+                    Ellipse: e2:
+                        position = e1.position
+                        direction = e1.direction
+                        major_radius = e1.major_radius-pi/4
+                        minor_radius = 0
 
 enamldef Assembly(Part):
     HexBolt:  bolt:

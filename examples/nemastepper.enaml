@@ -94,7 +94,7 @@ enamldef MotorBody(Transform): part:
             radius << rotor_radius 
             height << part.height
 
-enamldef MotorMountCap(Part): part:
+enamldef MotorMountCap(Transform): part:
     attr fillet = 2.25
     attr height = 12
     attr width = 57.2
@@ -207,4 +207,4 @@ enamldef StepperMotor(Part): motor:
     
 enamldef Assembly(Part):
     StepperMotor:
-        pass
+        explode = 0

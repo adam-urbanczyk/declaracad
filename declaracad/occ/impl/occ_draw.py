@@ -45,7 +45,7 @@ from ..shape import coerce_point, coerce_direction
 from ..draw import (
     ProxyPlane, ProxyVertex, ProxyLine, ProxyCircle, ProxyEllipse,
     ProxyHyperbola, ProxyParabola, ProxyEdge, ProxyWire, ProxySegment, ProxyArc,
-    ProxyPolygon, ProxyBSpline, ProxyBezier, ProxyTrimmedCurve, ProxyText,
+    ProxyPolyline, ProxyBSpline, ProxyBezier, ProxyTrimmedCurve, ProxyText,
     ProxyRectangle
 )
 from .occ_shape import OccShape, OccDependentShape, Topology, coerce_axis
@@ -328,7 +328,7 @@ class OccParabola(OccEdge, ProxyParabola):
         self.create_shape()
 
 
-class OccPolygon(OccLine, ProxyPolygon):
+class OccPolyline(OccLine, ProxyPolyline):
     #: Update the class reference
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_builder_a_p_i___make_polygon.html')

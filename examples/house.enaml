@@ -17,25 +17,25 @@ def angle(p0, p1):
     # Returns angle vector of two x,y points
     dx,dy = p1[0]-p0[0],p1[1]-p0[1]
     a = math.atan2(dy, dx)
-    return a 
+    return a
     #d = gce_MakeDir(gp_Pnt(p0[0],p0[1],0),gp_Pnt(p1[0],p1[1],0)).Value()
     #d2 = gce_MakeDir(gp_Pnt(p1[0],p1[1],0),gp_Pnt(p0[0],p0[1],0)).Value()
     #
     ax = gp_Ax1(gp_Pnt(0,0,0),gp_Dir(0,0,1))
     d = gp_Dir(0,0,1)
     d.Rotate(ax,a)
-    
+
     p = (d.X(),d.Y(),d.Z())
     print(dx,dy,a,p)
     #print dx,dy
     #dmax = max(dx,dy)
     #d = d.Crossed(gp_Dir(abs(dy),abs(dx),0))
-    
+
     return  (d.X(),d.Y(),d.Z())
 
 enamldef Floor(Box):
     pass
-    
+
 
 
 enamldef Wall(Fuse):
@@ -47,7 +47,7 @@ enamldef Wall(Fuse):
     attr ax = 1.0
     attr ay = 0.0
     attr az = 0.0
-    
+
 #     #: First child is the spline
 #     Wire:
 #         Segment:
@@ -55,7 +55,7 @@ enamldef Wall(Fuse):
 #                 iterable << points
 #                 Point:
 #                     position << (loop_item[0],loop_item[1],0)
-#                     
+#
 #     #: Second is the profile
 #     Wire:
 #         Segment:
@@ -69,7 +69,7 @@ enamldef Wall(Fuse):
 #                 position << (0,0,height)
 #             Point:
 #                 position << (0,0,0)
-#    
+#
 #     #ThickSolid:
 #     #    offset << thickness
 #     Prism:
@@ -86,17 +86,17 @@ enamldef Wall(Fuse):
 #                     Wire:
 #                         Transform:
 #                             shape = wire
-#                         
+#
     Looper:
-        iterable << points   
+        iterable << points
         Conditional:
             condition = loop_index > 0
             Transform:
                 attr pos << (points[loop_index-1][0],points[loop_index-1][1],floor)
                 operations = [
                     Rotate(
-                        point=pos, 
-                        direction=(0,0,1), 
+                        point=pos,
+                        direction=(0,0,1),
                         angle=angle(points[loop_index-1],points[loop_index])
                     )
                 ]
@@ -108,13 +108,13 @@ enamldef Wall(Fuse):
 
 enamldef Room(Part):
     attr outline: list = []
-    
+
     Prism:
         vector = (0, 0, 8)
         color = 'antiquewhite'
         Cut:
             Face:
-                Polygon: poly:
+                Polyline: poly:
                     points << outline
             Face:
                 Offset:
@@ -127,10 +127,10 @@ enamldef Room(Part):
     #Offset:
     #    offset = inch(1/2)
     #    shape = poly
-                                                               
+
 enamldef Assembly(Part):
     name = "House"
-    
+
     Wall:
         # Ext
         points = [
@@ -146,7 +146,7 @@ enamldef Assembly(Part):
     #    dy = 25
     #    dz = inch(1)
     #    position = (0, 0, -dz)
-        
+
     Wall:
         # Master BR
         color = 'tan'
@@ -169,7 +169,7 @@ enamldef Assembly(Part):
             (11,18),
             (11,25),
         ]
-    
+
     Room:
         #: BR 3
         outline = [
@@ -184,8 +184,8 @@ enamldef Assembly(Part):
         points = [
             (22, 12-thickness),
             (45, 12-thickness)
-        
+
         ]
-    
-    
+
+
 

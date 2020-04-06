@@ -142,9 +142,9 @@ def occ_plane_factory():
     return OccPlane
 
 
-def occ_polygon_factory():
-    from .occ_draw import OccPolygon
-    return OccPolygon
+def occ_polyline_factory():
+    from .occ_draw import OccPolyline
+    return OccPolyline
 
 
 def occ_prism_factory():
@@ -311,7 +311,7 @@ OCC_FACTORIES = {
     'Offset': occ_offset_factory,
     'Parabola': occ_parabola_factory,
     'Plane': occ_plane_factory,
-    'Polygon': occ_polygon_factory,
+    'Polyline': occ_polyline_factory,
     'Rectangle': occ_rectangle_factory,
     'Segment': occ_segment_factory,
     'Svg': occ_svg_factory,

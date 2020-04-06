@@ -1,6 +1,6 @@
 from math import sin, cos, pi
 from declaracad.occ.api import (
-    Part, Wire, Circle, Ellipse, Line, Polygon, BSpline, Bezier, Arc,
+    Part, Wire, Circle, Ellipse, Line, Polyline, Polygon, BSpline, Bezier, Arc,
     Rectangle, Text
 )
 
@@ -21,10 +21,31 @@ enamldef Assembly(Part):
             points = [(4,0,0), (10,10,0)]
     Wire:
         color = 'orange'
-        Polygon:
+        Polyline:
             points = [
                 (0,5,0),  (2,6,0),  (5,4,0), (1,2,0), (0,5,0)
             ]
+
+    Wire:
+        color = 'green'
+        Circle: c2:
+            position = (10, -10, 0)
+            radius = 3
+    Wire:
+        color = 'blue'
+        Polygon:
+            position = c2.position
+            radius = c2.radius
+            count = 6
+
+    Wire:
+        color = 'red'
+        Polygon:
+            position = c2.position
+            inscribed = True
+            radius = c2.radius
+            count = 6
+
     Wire:
         color = 'blue'
         Bezier: b1:

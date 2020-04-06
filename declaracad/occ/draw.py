@@ -9,9 +9,10 @@ Created on Sept 27, 2016
 
 @author: jrm
 """
+from math import sin, cos, tan, pi
 from atom.api import (
     Bool, List, Float, Typed, ForwardTyped, Str, Enum, Property,
-    Coerced, Instance, observe
+    Coerced, Instance, Range, set_default, observe
 )
 from enaml.core.declarative import d_
 
@@ -126,9 +127,9 @@ class ProxyParabola(ProxyEdge):
         raise NotImplementedError
 
 
-class ProxyPolygon(ProxyLine):
+class ProxyPolyline(ProxyLine):
     #: A reference to the shape declaration.
-    declaration = ForwardTyped(lambda: Polygon)
+    declaration = ForwardTyped(lambda: Polyline)
 
     def set_closed(self, closed):
         raise NotImplementedError
@@ -513,8 +514,8 @@ class Parabola(Edge):
         super(Parabola, self)._update_proxy(change)
 
 
-class Polygon(Line):
-    """ A Polygon that can be built from any number of points or vertices,
+class Polyline(Line):
+    """ A Polyline that can be built from any number of points or vertices,
     and consists of a sequence of connected rectilinear edges. If a position
     and direction are given the points are transformed to align with the
     plane defined by the given position and direction.
@@ -530,14 +531,14 @@ class Polygon(Line):
     ---------
 
     Wire:
-        Polygon:
+        Polyline:
             closed = True
             points = [(0, 0, 0), (10, 0, 0), (10, 10, 0), (0, 10, 0)]
 
     """
-    proxy = Typed(ProxyPolygon)
+    proxy = Typed(ProxyPolyline)
 
-    #: Polygon is closed
+    #: Polyline is closed
     closed = d_(Bool(False)).tag(view=True)
 
     @property
@@ -552,7 +553,59 @@ class Polygon(Line):
 
     @observe('closed')
     def _update_proxy(self, change):
-        super(Polygon, self)._update_proxy(change)
+        super(Polyline, self)._update_proxy(change)
+
+
+class Polygon(Polyline):
+    """ A polyline that follows points on a circle of a given inscribed or
+    circumscribed radius.
+
+    Attributes
+    ----------
+    radius: Float
+        Radius of the polygon
+    count: Int
+        Number of points in the polygon, must be 3 or more.
+    inscribed: Bool
+        Whether the radius should be interpreted as an "inscribed" or
+        "circumscribed" radius. The default is "circumscribed" meaning the
+        points will be on the given radius (inside the circle). If
+        `inscribed=True` then the midpoint of each segment will be on the
+        circle of the given radius (outside the circle).
+
+    Examples
+    ---------
+
+    Wire:
+        Polygon: # A hexagon of radius 6
+            radius = 4
+            count = 6
+
+    """
+    #: This is fixed
+    closed = True
+
+    #: Radius is inscribed
+    inscribed = d_(Bool())
+
+    #: Radius of the polygon
+    radius = d_(Float(1, strict=False)).tag(view=True)
+
+    #: Number of points
+    count = d_(Range(low=3)).tag(view=True)
+
+    @observe('radius', 'inscribed', 'count')
+    def _update_points(self, change):
+        self.points = self._default_points()
+
+    def _default_points(self):
+        n = self.count
+        r = self.radius
+        a = 2 * pi / n
+        if self.inscribed:
+            r /= cos(pi / n)
+        return [Pt(x=cos(i*a)*r, y=sin(i*a)*r) for i in range(n)]
+
 
 
 class Rectangle(Edge):
@@ -652,7 +705,7 @@ class Wire(Shape):
     ---------
 
     Wire:
-        Polygon:
+        Polyline:
             closed = True
             points = [(0, 0, 0), (10, 0, 0), (10, 10, 0), (0, 10, 0)]
 

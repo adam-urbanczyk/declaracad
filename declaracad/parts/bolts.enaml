@@ -2,10 +2,6 @@
 from math import sin, cos, pi
 from declaracad.occ.api import *
 
-enamldef Hexagon(Polygon):
-    closed = True
-    attr radius = 2
-    points = [(cos(i*pi/3)*radius, sin(i*pi/3)*radius) for i in range(6)]
 
 enamldef HexSocketHead(Transform): head:
     attr diameter = 3
@@ -27,8 +23,9 @@ enamldef HexSocketHead(Transform): head:
                 Prism: prism:
                     vector = (0, 0, depth)
                     Face:
-                        Hexagon: hexagon:
+                        Polygon: hexagon:
                             position = (0, 0, height-depth)
+                            count = 6
                             radius = base.radius * 2/3
                 Cone: # I'm not sure if this is needed
                     radius = hexagon.radius * 2
@@ -44,7 +41,7 @@ enamldef HexSocketHead(Transform): head:
 
 enamldef HexSocketBolt(Transform): bolt:
     """ An allen socket hex head bolt centered about the bottom of the head.
-    
+
     """
     attr length = 8
     attr diameter = 3
@@ -60,13 +57,13 @@ enamldef HexSocketBolt(Transform): bolt:
                 position = (0, 0, -bolt.length)
                 radius = head.diameter/2 * 1/2
                 height = bolt.length
-        
+
 
 enamldef Assembly(Part):
     HexSocketBolt:
         diameter = 8
         length = 10
-        
+
     HexSocketBolt:
         color = 'steelblue'
         diameter = 12

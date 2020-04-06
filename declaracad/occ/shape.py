@@ -774,7 +774,7 @@ class Prism(Shape):
 
     Prism:
         Wire:
-            Polygon:
+            Polyline:
                 points = [(0,5,0), (2,6,0),  (5,4,0), (0,5,0)]
 
     """
@@ -970,7 +970,7 @@ class Revol(Shape):
 
     Revol:
         Wire:
-            Polygon:
+            Polyline:
                 points = [(0,0,0), (0,2,5),  (0,5,0), (0,0,0)]
 
     """
