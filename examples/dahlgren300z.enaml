@@ -1,5 +1,4 @@
 import math
-from enaml.core.api import Looper
 from declaracad.occ.api import *
 
 
@@ -17,6 +16,7 @@ def angle2d(p1, p2, i=0, j=1):
 
 enamldef BasePlate(Box):
     material = 'charcoal'
+    position = (0, 0, -dz)
     dx = 34
     dy = 26
     dz = 5/8
@@ -80,11 +80,11 @@ enamldef LinearRail(Transform): rail:
     alias height: profile.height
     alias width: profile.width
     attr screw_spacing = 3
-    attr rotation = []
+    attr rotate = []
     operations << [
         Translate(*position),
         Rotate(direction=(1, 0, 0), angle=math.pi/2)
-    ] + ([rotation] if rotation else [])
+    ] + ([rotate] if rotate else [])
     Cut:
         Prism:
             vector << (0, 0, -rail.length)
@@ -131,22 +131,20 @@ enamldef  EngraverColumn(Part): part:
     material = 'charcoal'
     Box: front_plate:
         material << part.material
-        position << part.position
         dx << width
         dy<< plate_thickness
         dz << carriage_height
     Box: back_plate:
-        material << part.material
-        position << (part.x, part.y+9, part.z)
+        material = part.material
+        position = (0, 9, 0)
         dx << width
         dy << plate_thickness
         dz << height
     Box: outside_plate:
-        material << part.material
-        position << (
-            part.x+width-plate_thickness if side == 'right' else part.x,
-            part.y+arch_depth,
-            part.z
+        material = part.material
+        position = (
+            width-plate_thickness if side == 'right' else 0,
+            arch_depth,
         )
         dx << plate_thickness
         dy << depth
@@ -155,9 +153,8 @@ enamldef  EngraverColumn(Part): part:
         material << part.material
         Box: inside_plate:
             position << (
-                part.x+width-plate_thickness if side == 'left' else part.x,
-                part.y+arch_depth,
-                part.z
+                width-plate_thickness if side == 'left' else 0,
+                arch_depth,
             )
             dx << plate_thickness
             dy << depth # top size
@@ -176,9 +173,9 @@ enamldef  EngraverColumn(Part): part:
                 closed = True
                 points << [
                     front_plate.position,
-                    (front_plate.x, front_plate.y+arch_depth, part.z),
-                    (front_plate.x, front_plate.y+arch_depth, part.z+height),
-                    (front_plate.x, front_plate.y+plate_thickness, front_plate.dz+part.z),
+                    (front_plate.x, front_plate.y+arch_depth, 0),
+                    (front_plate.x, front_plate.y+arch_depth, height),
+                    (front_plate.x, front_plate.y+plate_thickness, front_plate.dz),
                 ]
         # bottom is 8.875
     Transform: inside_arch:
@@ -187,7 +184,7 @@ enamldef  EngraverColumn(Part): part:
         operations = [Translate(x=width-plate_thickness)]
     Box: top_plate:
         material << part.material
-        position << (part.x, part.y+arch_depth, part.z+height)
+        position << (0, arch_depth, height)
         dx << width
         dy << depth # top size
         dz << plate_thickness
@@ -196,14 +193,13 @@ enamldef  EngraverColumn(Part): part:
         operations << [Rotate(
                                         point=front_cover.position,
                                         direction=(1,0,0),
-                                        angle=math.pi-angle2d(arch_poly.points[-2],
-                                                                    arch_poly.points[-1], i=1, j=2)
+                                        angle=math.pi-angle2d(arch_poly.points[-2], arch_poly.points[-1], i=1, j=2)
                                 )]
         Box: front_cover:
-            position << (front_plate.x, front_plate.y, front_plate.dz+part.z)
-            dy << plate_thickness
-            dx << width
-            dz << distance2d(arch_poly.points[-2],  arch_poly.points[-1],i=1, j=2)
+            position =(0, arch_depth/4, 11+2*plate_thickness)
+            dy = plate_thickness
+            dx = width
+            dz = distance2d(arch_poly.points[-2],  arch_poly.points[-1],i=1, j=2)
 
 enamldef CarriageTrack(Transform): track:
     attr width: float = 30.0
@@ -212,7 +208,6 @@ enamldef CarriageTrack(Transform): track:
     attr plate_thickness: float = 0.125
     Cut:
         Box: b1:
-            position << track.position
             dx << width
             dy << depth
             dz  << height
@@ -228,7 +223,6 @@ enamldef CarriageSlide(Transform):
     attr width = 5.5
     attr height = 4.75
     attr thickness = 3/8
-    operations = [Translate(*self.position)]
     Prism:
         vector << (thickness, 0, 0)
         Face:
@@ -274,7 +268,6 @@ enamldef CarriageFrontPlate(Transform):
     attr thickness = 0.5
     attr width = 3.5
     attr height = 7.5
-    operations = [Translate(*self.position)]
     Cut:
         Fuse:
             # Main plate
@@ -321,12 +314,12 @@ enamldef CarriageMountChannel(Transform): channel:
     attr height = 7.5
     Fuse:
         Box: slot:
-            position << (channel.x-dx/2, channel.y, channel.z)
+            position = (-dx/2, 0, 0)
             dx << width/ 2
             dy << thickness/8
             dz << height
         Box:
-            position << (channel.x-dx/2, slot.y+slot.dy, channel.z)
+            position << (-dx/2, slot.y+slot.dy, 0)
             dx << width
             dy << thickness/2
             dz << height
@@ -335,7 +328,6 @@ enamldef CarriageMountPlate(Transform):
     attr thickness = 0.5
     attr width = 3.5
     attr height = 7.5
-    operations = [Translate(*self.position)]
     Fuse:
         # Main plate
         Box: plate:
@@ -358,14 +350,14 @@ enamldef Carriage(Part): carriage:
     material = 'charcoal'
     CarriageSlide: side:
         material << carriage.material
-        position = (carriage.x, carriage.y, carriage.z+mount.dz)
+        position = (0, 0, mount.dz)
     Transform:
         material << carriage.material
         shape = side
         operations = [Translate(x=parent.width)]
     Box: mount:
         material << carriage.material
-        position << (parent.x, parent.y-dy/2, parent.z)
+        position << (0, -dy/2, 0)
         dx = width + side.thickness
         dy = 5.5
         dz = 3/8
@@ -437,7 +429,6 @@ enamldef Flatbed(Transform): part:
     attr tslot_width = 1
     attr tslot_height = 0.5
     material = 'steel'
-    #operations = [Translate(*self.position)]
     Prism:
         vector << (width, 0, 0)
         Face:
@@ -447,8 +438,8 @@ enamldef Flatbed(Transform): part:
 
                     func build_flatbed(*args):
                         points =  [
-                            part.position,
-                            (part.x, part.y, part.z+height),
+                            (0, 0, 0),
+                            (0, 0, height),
                         ]
 
                         for i in range(int(depth/tslot_depth)-3):
@@ -468,10 +459,9 @@ enamldef Flatbed(Transform): part:
 
                         # End points
                         points.extend([
-                            (part.x, part.y+depth, part.z+height),
-                            (part.x, part.y+depth, part.z)
+                            (0, depth, height),
+                            (0, depth, 0)
                         ])
-
                         return points
 
                     points << build_flatbed(part.position, depth, width)
@@ -642,10 +632,10 @@ enamldef SpindleCutter(Transform): cutter:
 
 enamldef SpindleAssembly(Part): part:
     SpindleHolder: holder:
-        position << part.position
+        pass
     SpindleMotor: motor:
         color = '#103'
-        position << (holder.x, holder.y, holder.z+holder.height-3/4)
+        position = (0, 0, holder.height-1)
     SpindleShaft: shaft:
         material = 'steel'
         radius << motor.radius
@@ -660,25 +650,24 @@ enamldef SpindleAssembly(Part): part:
 
 enamldef Assembly(Part):  engraver:
     name = "Bent pipe"
-    position = (18, 2, 1.2)
     BasePlate: base:
         pass
     EngraverColumn: left_column:
-        position = (0, 12.5, base.dz)
+        position = (0, 12.5)
     EngraverColumn: right_column:
         side = 'right'
         width = 4
-        position = (base.dx-width, 12.5, base.dz)
+        position = (base.dx-width, 12.5)
     LinearRail: rail1:
         length = 24
-        position = (7, 1, base.dz)
+        position = (7, 1, 0)
     LinearRail: rail2:
-        length = 24
-        position = (25, 1, base.dz)
+        length =rail1.length
+        position = (rail1.x + 18, rail1.y, rail1.z)
     LinearRail: rail3:
         width = 2.0
         length = 30
-        rotation = Rotate(direction=(0, 1, 0), angle=-math.pi/2)
+        rotate = Rotate(direction=(0, 1, 0), angle=-math.pi/2)
         position = (
             left_column.width,
             left_column.y+left_column.depth,
@@ -686,7 +675,7 @@ enamldef Assembly(Part):  engraver:
         )
     LinearRailMount: xmount:
         position << (
-            rail3.x+width/2+1+engraver.x,
+            rail3.x+width/2+1,
             rail3.y,
             rail3.z+rail3.height+1/4
         )
@@ -698,11 +687,7 @@ enamldef Assembly(Part):  engraver:
             rail3.z-1/2
         )
     Flatbed: flatbed:
-        position << (
-            4,
-            engraver.y+1,
-            base.dz+rail1.height*1.5
-        )
+        position = (4, 1, base.dz+rail1.height*1.5)
     Carriage: carriage:
         position << (
             xmount.x-self.width/2,
@@ -712,9 +697,9 @@ enamldef Assembly(Part):  engraver:
     SpindleAssembly:
         position << (
             carriage.x+carriage.width/2,
-            carriage.y-5,
-            carriage.z+0.5-engraver.z
+            carriage.y-4.5,
+            carriage.z+0.5
         )
 
-    StepperMotor:
-        pass
+    #StepperMotor:
+    #    pass
