@@ -89,7 +89,7 @@ enamldef ExportDialog(Dialog): dialog:
                         text = "Browse"
                         clicked ::
                             path = FileDialogEx.get_save_file_name(self,
-                                        current_path=options.path, 
+                                        current_path=options.path,
                                         name_filters=[f'*.{options.extension}'])
                             if path:
                                 ext = f'.{options.extension}'
@@ -102,7 +102,7 @@ enamldef ExportDialog(Dialog): dialog:
                 condition << dialog.show_advanced
                 MappedView:
                     model << dialog.options
-                    typemap << {e: e.get_options_view() 
+                    typemap << {e: e.get_options_view()
                                 for e in plugin.exporters}
             Conditional:
                 condition << dialog.protocol is not None
@@ -118,7 +118,7 @@ enamldef ExportDialog(Dialog): dialog:
                 checked := dialog.show_advanced
             PushButton: btn_no:
                 text << "Close" if dialog.protocol else "Cancel"
-                clicked :: 
+                clicked ::
                     dialog.close()
                     if dialog.protocol:
                         dialog.protocol.terminate()
@@ -128,7 +128,7 @@ enamldef ExportDialog(Dialog): dialog:
                 clicked ::
                     event.parameters['options'] = options
                     dialog.protocol = plugin.export(event)
-                    
+
 
 enamldef ScreenCaptureDialog(Dialog): dialog:
     title = 'Screen Capture'
@@ -142,7 +142,7 @@ enamldef ScreenCaptureDialog(Dialog): dialog:
     func create_default_options():
         editor = plugin.workbench.get_plugin('declaracad.editor')
         doc = editor.active_document
-        return ScreenshotOptions(filename=doc.name, 
+        return ScreenshotOptions(filename=doc.name,
                                  target=event.parameters.get('target', ''))
 
     TaskDialogStyleSheet:
@@ -170,17 +170,17 @@ enamldef ScreenCaptureDialog(Dialog): dialog:
                         text ::
                             path = change['value']
                             if path:
-                                p, ext in os.path.splitext(path.lower())
+                                p, ext = os.path.splitext(path.lower())
                                 if ext in ('.png', '.jpeg', '.tiff', '.bmp'):
                                     options.path = path
                     PushButton: browse:
                         text = "Browse"
                         clicked ::
                             path = FileDialogEx.get_save_file_name(self,
-                                        current_path=options.path, 
-                                        name_filters=['*.png', 
-                                                      '*.jpeg', 
-                                                      '*.tiff', 
+                                        current_path=options.path,
+                                        name_filters=['*.png',
+                                                      '*.jpeg',
+                                                      '*.tiff',
                                                       '*.bmp'])
                             if path:
                                 options.path = path
@@ -198,7 +198,7 @@ enamldef ScreenCaptureDialog(Dialog): dialog:
                         return os.path.exists(result)
                     except:
                         return False
-                
+
                 Looper:
                     iterable << results
                     Conditional: cond:
@@ -215,7 +215,7 @@ enamldef ScreenCaptureDialog(Dialog): dialog:
                         condition << not cond.condition
                         MultilineField:
                             text << str(loop_item.result) if loop_item.result else "Loading..."
-            
+
         TaskDialogCommandArea:
             constraints = [
                 hbox(show_options, spacer, btn_yes, btn_no),
