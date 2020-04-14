@@ -479,6 +479,10 @@ class OccRectangle(OccEdge, ProxyRectangle):
             elif not rx:
                 rx = ry
 
+            # Clamp to the valid range
+            rx = min(w/2, rx)
+            ry = min(h/2, ry)
+
             # Bottom
             p1 = gp_Pnt(0+rx, 0, 0)
             p2 = gp_Pnt(0+w-rx, 0, 0)
@@ -496,8 +500,11 @@ class OccRectangle(OccEdge, ProxyRectangle):
             p8 = gp_Pnt(0, ry, 0)
             shape = BRepBuilderAPI_MakeWire()
 
+            e = d.tolerance
+
             # Bottom
-            shape.Add(BRepBuilderAPI_MakeEdge(p1, p2).Edge())
+            if not p1.IsEqual(p2, e):
+                shape.Add(BRepBuilderAPI_MakeEdge(p1, p2).Edge())
 
             # Arc bottom right
             c = make_ellipse((w-rx, ry, 0), rx, ry)
@@ -505,7 +512,8 @@ class OccRectangle(OccEdge, ProxyRectangle):
                 GC_MakeArcOfEllipse(c, p2, p3, False).Value()).Edge())
 
             # Right
-            shape.Add(BRepBuilderAPI_MakeEdge(p3, p4).Edge())
+            if not p3.IsEqual(p4, e):
+                shape.Add(BRepBuilderAPI_MakeEdge(p3, p4).Edge())
 
             # Arc top right
             c.SetLocation(gp_Pnt(w-rx, h-ry, 0))
@@ -513,7 +521,8 @@ class OccRectangle(OccEdge, ProxyRectangle):
                 GC_MakeArcOfEllipse(c, p4, p5, False).Value()).Edge())
 
             # Top
-            shape.Add(BRepBuilderAPI_MakeEdge(p5, p6).Edge())
+            if not p5.IsEqual(p6, e):
+                shape.Add(BRepBuilderAPI_MakeEdge(p5, p6).Edge())
 
             # Arc top left
             c.SetLocation(gp_Pnt(rx, h-ry, 0))
@@ -521,7 +530,8 @@ class OccRectangle(OccEdge, ProxyRectangle):
                 GC_MakeArcOfEllipse(c, p6, p7, False).Value()).Edge())
 
             # Left
-            shape.Add(BRepBuilderAPI_MakeEdge(p7, p8).Edge())
+            if not p7.IsEqual(p8, e):
+                shape.Add(BRepBuilderAPI_MakeEdge(p7, p8).Edge())
 
             # Arc bottom left
             c.SetLocation(gp_Pnt(rx, ry, 0))
