@@ -5,6 +5,32 @@ from OCCT.TopoDS import TopoDS_Shape
 
 from declaracad.occ.plugin import load_model
 
+
+def test_sanity():
+    import enaml
+    from types import ModuleType
+    from enaml.core.parser import parse
+    from enaml.core.import_hooks import EnamlCompiler
+
+    ast = parse(dedent("""
+    from declaracad.occ.api import *
+    enamldef Assembly(Part):
+        pass
+    """))
+    print("Parsed OK")
+    code = EnamlCompiler.compile(ast, "test")
+    print("Compiled OK")
+    module = ModuleType('test'.rsplit('.', 1)[0])
+    module.__file__ = 'test'
+    namespace = module.__dict__
+    with enaml.imports():
+        print("Before exc")
+        exec(code, namespace)
+        print("Passed!")
+    print(namespace)
+
+
+
 TEMPLATE = """
 import math
 from declaracad.occ.api import *
@@ -134,10 +160,6 @@ TESTS = {
     """
 }
 
-@pytest.mark.parametrize('name', TESTS.keys())
-def test_shapes_compile(qt_app, name):
-    assembly = load_model("test", TEMPLATE % TESTS[name])
-    assert assembly
 
 @pytest.mark.parametrize('name', TESTS.keys())
 def test_shapes_render(qt_app, name):
