@@ -44,7 +44,6 @@ before_script:
 
 script:
   - xvfb-run -s "-screen 0 1920x1080x24 +extension GLX +extension RENDER" timeout 10 declaracad view examples/shapes.enaml
-
   - xvfb-run -s "-screen 0 1920x1080x24 +extension GLX +extension RENDER" py.test tests --cov declaracad --cov-report xml -v
 
 after_script:
