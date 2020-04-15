@@ -15,7 +15,8 @@ def test_sanity():
     ast = parse(dedent("""
     from declaracad.occ.api import *
     enamldef Assembly(Part):
-        pass
+        Box:
+            pass
     """))
     print("Parsed OK")
     code = EnamlCompiler.compile(ast, "test")
@@ -28,6 +29,7 @@ def test_sanity():
         exec(code, namespace)
         print("Passed!")
     print(namespace)
+    assert 'Assembly' in namespace
 
 
 
