@@ -29,7 +29,6 @@ requirements = [
 if sys.platform == 'win32':
     requirements.extend([
         'pywin32',
-        'git',
     ])
 
 
