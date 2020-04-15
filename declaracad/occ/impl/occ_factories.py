@@ -275,7 +275,7 @@ OCC_FACTORIES = {
     'Cylinder': occ_cylinder_factory,
     'Prism': occ_prism_factory,
     'Sphere': occ_sphere_factory,
-    'Sweep': occ_sweep_factory,
+    #'Sweep': occ_sweep_factory,
     'Torus': occ_torus_factory,
     'Wedge': occ_wedge_factory,
 
@@ -283,7 +283,7 @@ OCC_FACTORIES = {
     'HalfSpace': occ_half_space_factory,
     #'OneAxis': occ_one_axis_factory,
     'Revol': occ_revol_factory,
-    'Revolution': occ_revolution_factory,
+    #'Revolution': occ_revolution_factory,
 
     #: Operations
     'Chamfer': occ_chamfer_factory,
