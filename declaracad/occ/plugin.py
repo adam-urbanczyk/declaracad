@@ -28,7 +28,6 @@ from declaracad.core.utils import ProcessLineReceiver, Deferred
 from enaml.application import timed_call, deferred_call
 from enaml.core.parser import parse
 from enaml.core.import_hooks import EnamlCompiler
-from enaml.compat import exec_
 from enaml.colors import ColorMember
 
 from .part import Part
@@ -83,7 +82,7 @@ def load_model(filename, source=None):
     module.__file__ = filename
     namespace = module.__dict__
     with enaml.imports():
-        exec_(code, namespace)
+        exec(code, namespace)
     Assembly = namespace['Assembly']
     return [Assembly()]
 

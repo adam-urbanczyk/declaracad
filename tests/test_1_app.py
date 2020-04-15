@@ -1,6 +1,7 @@
 import os
 import time
 import signal
+import pytest
 import subprocess
 
 @pytest.mark.skipif('TRAVIS' in os.environ, reason='Disabled for now')
