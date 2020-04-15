@@ -23,11 +23,8 @@ before_script:
   - conda update -q conda
   - conda info -a
 
-  # Install conda build and anaconda-client
-  - conda install anaconda-client conda-build -q
-
-  # Install python
-  - conda install python=$PYTHON -q
+  # Install python, conda build, and anaconda-client
+  - conda install python=$PYTHON anaconda-client conda-build -q
 
   # Install depencencies
   - conda install -c trelau -c conda-forge pyocct -q
