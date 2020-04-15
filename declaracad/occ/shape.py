@@ -801,11 +801,11 @@ class Sphere(Shape):
     radius: Float
         Radius of the sphere
     angle: Float
-        The angle to revolve (in radians) along the base profile.
+        The u-angle to revolve (in radians) along the base profile from 0 to 2pi.
     angle2: Float
-        See notes
+        The v-min angle to start from (in radians) from -pi/2 to pi/2
     angle3: Float
-        See notes
+        The v-max angle to start from (in radians) from -pi/2 to pi/2
 
 
     Notes
