@@ -748,7 +748,7 @@ class Topology(Atom):
 
     @classmethod
     def get_value_at(cls, curve, t, derivative=0):
-         """ Get the value of the curve at parameter t with it's derivatives.
+        """ Get the value of the curve at parameter t with it's derivatives.
 
         Parameters
         ----------
