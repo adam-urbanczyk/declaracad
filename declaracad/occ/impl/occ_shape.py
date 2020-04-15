@@ -12,7 +12,7 @@ Created on Sep 30, 2016
 import os
 from math import pi
 from atom.api import (
-    Atom, Bool, Instance, Typed, Unicode, Property, observe, set_default
+    Atom, Bool, Instance, Typed, Str, Property, observe, set_default
 )
 
 from OCCT import GeomAbs
@@ -794,7 +794,7 @@ class OccShape(ProxyShape):
     topology = Typed(Topology)
 
     #: Class reference url
-    reference = Unicode()
+    reference = Str()
 
     # -------------------------------------------------------------------------
     # Initialization API

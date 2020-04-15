@@ -17,7 +17,7 @@ import enaml
 import traceback
 from textwrap import dedent
 from atom.api import (
-    Enum, ContainerList, Unicode, Tuple, Bool, List, Int, Instance, Dict,
+    Enum, ContainerList, Str, Tuple, Bool, List, Int, Instance, Dict,
     observe
 )
 
@@ -45,10 +45,10 @@ def create_editor_item(*args, **kwargs):
 
 class Document(Model):
     #: Name of the current document
-    name = Unicode().tag(config=True)
+    name = Str().tag(config=True)
 
     #: Source code
-    source = Unicode()
+    source = Str()
     cursor = Tuple(default=(0, 0))
 
     #: Any unsaved changes
@@ -112,8 +112,8 @@ class EditorPlugin(Plugin):
     #: Opened files
     documents = ContainerList(Document).tag(config=True)
     active_document = Instance(Document, ()).tag(config=True)
-    last_path = Unicode(os.path.expanduser('~/')).tag(config=True)
-    project_path = Unicode(os.path.expanduser('~/')).tag(config=True)
+    last_path = Str(os.path.expanduser('~/')).tag(config=True)
+    project_path = Str(os.path.expanduser('~/')).tag(config=True)
 
     #: Editor settings
     theme = Enum('friendly', *THEMES.keys()).tag(config=True)
@@ -121,7 +121,7 @@ class EditorPlugin(Plugin):
     show_line_numbers = Bool(True).tag(config=True)
     code_folding = Bool(True).tag(config=True)
     font_size = Int(12).tag(config=True)  #: Default is 12 pt
-    font_family = Unicode(MONO_FONT.split()[-1]).tag(config=True)
+    font_family = Str(MONO_FONT.split()[-1]).tag(config=True)
     show_scrollbars = Bool(True).tag(config=True)
     file_associations = Dict(default={
         'py': 'python',

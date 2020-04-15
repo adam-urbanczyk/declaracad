@@ -19,7 +19,7 @@ import atexit
 import jsonpickle
 from types import ModuleType
 from atom.api import (
-    Atom, ContainerList, Unicode, Float, Dict, Bool, Int, Instance, Enum,
+    Atom, ContainerList, Str, Float, Dict, Bool, Int, Instance, Enum,
     ForwardInstance, Constant, observe, set_default
 )
 from declaracad.core.api import Plugin, Model, log
@@ -89,8 +89,8 @@ def load_model(filename, source=None):
 
 class ModelExporter(Atom):
     extension = ''
-    path = Unicode()
-    filename = Unicode()
+    path = Str()
+    filename = Str()
 
     def _default_path(self):
         ext = self.extension.lower()
@@ -115,13 +115,13 @@ class ModelExporter(Atom):
 
 class ScreenshotOptions(Atom):
     #: Path to save
-    path = Unicode()
+    path = Str()
 
     #: Document file name
-    filename = Unicode()
+    filename = Str()
 
     #: Only screenshot this view
-    target = Unicode()
+    target = Str()
 
     def _default_path(self):
         return "{}.png".format(os.path.splitext(self.filename)[0])
@@ -145,7 +145,7 @@ class ViewerProcess(ProcessLineReceiver):
     document = ForwardInstance(document_type)
 
     #: Rendering error
-    errors = Unicode()
+    errors = Str()
 
     #: Process terminated intentionally
     terminated = Bool(False)
@@ -360,7 +360,7 @@ class ViewerPlugin(Plugin):
     background_mode = Enum('gradient', 'solid').tag(config=True)
     background_top = ColorMember('lightgrey').tag(config=True)
     background_bottom = ColorMember('grey').tag(config=True)
-    trihedron_mode = Unicode('right-lower').tag(config=True)
+    trihedron_mode = Str('right-lower').tag(config=True)
 
     #: Defaults
     shape_color = ColorMember('steelblue').tag(config=True)

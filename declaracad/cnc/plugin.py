@@ -12,7 +12,7 @@ Created on Aug 8, 2018
 """
 import logging
 from atom.api import (
-    Atom, Instance, Subclass, Unicode, Int, Bool, ContainerList, Bytes, observe
+    Atom, Instance, Subclass, Str, Int, Bool, ContainerList, Bytes, observe
 )
 from declaracad.core.api import Plugin, log
 from enaml.application import deferred_call
@@ -67,7 +67,7 @@ class SerialConnectionFactory(ConnectionFactory):
 
 class Connection(Atom, LineReceiver):
     #: Name
-    name = Unicode()
+    name = Str()
     
     #: Connection state
     connected = Int()
@@ -79,7 +79,7 @@ class Connection(Atom, LineReceiver):
     delimiter = Bytes(b'\n')
     
     #: Connection errors
-    errors = Unicode()
+    errors = Str()
     
     #: The factory that created this connection
     factory = Instance(ConnectionFactory)

@@ -12,7 +12,7 @@ Created on Oct 10, 2018
 import os
 import time
 import enaml
-from atom.api import Constant, Enum, Float, Unicode, Bool
+from atom.api import Constant, Enum, Float, Str, Bool
 from declaracad.occ.plugin import ModelExporter, load_model
 
 from OCCT.BRep import BRep_Builder

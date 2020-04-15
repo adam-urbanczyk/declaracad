@@ -10,7 +10,7 @@ Created on Sept 28, 2016
 @author: jrm
 """
 from atom.api import (
-    Typed, ForwardTyped, Unicode
+    Typed, ForwardTyped, Str
 )
 from enaml.core.declarative import d_
 
@@ -51,10 +51,10 @@ class Part(Shape):
     proxy = Typed(ProxyPart)
 
     #: Optional name of the part
-    name = d_(Unicode())
+    name = d_(Str())
 
     #: Optional description of the part
-    description = d_(Unicode())
+    description = d_(Str())
 
     @property
     def shapes(self):

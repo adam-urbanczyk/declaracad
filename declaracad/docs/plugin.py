@@ -10,17 +10,17 @@ Created on Dec 10, 2015
 
 @author: jrm
 """
-from atom.api import Unicode
+from atom.api import Str
 from declaracad.core.api import Plugin
 
 
 class DocsPlugin(Plugin):
 
     #: List of tools or
-    url = Unicode()
+    url = Str()
 
     #: Raw source to display
-    source = Unicode()
+    source = Str()
 
     # -------------------------------------------------------------------------
     # Docs API

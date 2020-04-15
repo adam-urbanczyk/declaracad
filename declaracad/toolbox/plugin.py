@@ -12,15 +12,15 @@ Created on Dec 10, 2015
 """
 import inspect
 import logging
-from atom.api import Atom, Subclass, List, Unicode
+from atom.api import Atom, Subclass, List, Str
 from declaracad.core.api import Plugin, Model
 
 
 class Tool(Model):
-    name = Unicode()
+    name = Str()
     declaration = Subclass(Atom)
     proxy = Subclass(Atom)
-    doc = Unicode()
+    doc = Str()
 
     def _observe_name(self, change):
         from enaml.qt.qt_application import QtApplication

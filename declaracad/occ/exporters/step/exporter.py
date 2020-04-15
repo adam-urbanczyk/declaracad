@@ -11,7 +11,7 @@ Created on Oct 10, 2018
 """
 import os
 import enaml
-from atom.api import Constant, Enum, Float, Unicode
+from atom.api import Constant, Enum, Float, Str
 from declaracad.occ.plugin import ModelExporter, load_model
 
 from OCCT.STEPControl import STEPControl_Writer, STEPControl_AsIs
@@ -44,7 +44,7 @@ class StepExporter(ModelExporter):
         help="This parameter gives the uncertainty for STEP entities "
              "constructed from OCCT shapes when the write.precision.mode "
              "parameter value is 'greatest'.")
-    product_name = Unicode().tag(
+    product_name = Str().tag(
         help="Defines the text string that will be used for field `name' of "
              "PRODUCT entities written to the STEP file.")
     assembly_mode = Enum('off', 'on', 'auto')

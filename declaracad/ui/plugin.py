@@ -10,7 +10,7 @@ Created on Jul 12, 2015
 @author: jrm
 """
 import enaml
-from atom.api import Atom, List, Unicode, Instance, Dict, Enum
+from atom.api import Atom, List, Str, Instance, Dict, Enum
 from declaracad.core.api import Plugin, DockItem, log
 
 from enaml.layout.api import AreaLayout, DockBarLayout, HSplitLayout, TabLayout
@@ -25,7 +25,7 @@ ALL_STYLES = ['system'] + available_styles()
 
 class DeclaracadPlugin(Plugin):
     #: Project site
-    wiki_page = Unicode("https;//www.codelv.com/projects/declaracad")
+    wiki_page = Str("https;//www.codelv.com/projects/declaracad")
 
     #: Dock items to add
     dock_items = List(DockItem)

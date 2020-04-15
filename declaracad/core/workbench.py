@@ -10,7 +10,7 @@ Created on Jul 12, 2015
 @author: jrm
 """
 import enaml
-from atom.api import Unicode
+from atom.api import Str
 from enaml.qt.QtWidgets import QMessageBox
 from enaml.workbench.ui.api import UIWorkbench
 
@@ -20,7 +20,7 @@ class DeclaracadWorkbench(UIWorkbench):
     _instance = None
 
     #: For error messages
-    app_name = Unicode('DeclaraCAD')
+    app_name = Str('DeclaraCAD')
 
     def __init__(self, *args, **kwargs):
         if DeclaracadWorkbench.instance() is not None:
