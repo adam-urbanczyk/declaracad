@@ -12,6 +12,7 @@ def test_declaracad():
     import declaracad
     from declaracad.occ.qt import qt_occ_viewer
     from declaracad.occ.plugin import load_model
+    from declaracad.occ import api
 
 from declaracad.occ.impl.occ_factories import OCC_FACTORIES
 

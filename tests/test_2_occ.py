@@ -134,9 +134,13 @@ TESTS = {
     """
 }
 
+@pytest.mark.parametrize('name', TESTS.keys())
+def test_shapes_compile(qt_app, name):
+    assembly = load_model("test", TEMPLATE % TESTS[name])
+    assert assembly
 
 @pytest.mark.parametrize('name', TESTS.keys())
-def test_shapes(qt_app, name):
+def test_shapes_render(qt_app, name):
     assembly = load_model("test", TEMPLATE % TESTS[name])[0]
     assert isinstance(assembly.render(), TopoDS_Shape)
 
