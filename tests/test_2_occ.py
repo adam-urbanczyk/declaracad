@@ -105,7 +105,7 @@ TESTS = {
     """,
 'polygon': """
     Wire:
-        Polygon:
+        Polyline:
             points = [(0,0,0), (0,2,5),  (0,5,0), (0,0,0)]
     """,
 'bezier': """
