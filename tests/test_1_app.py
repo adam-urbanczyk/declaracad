@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import signal
 import pytest
@@ -11,7 +12,11 @@ def test_app():
     for i in range(20):
         time.sleep(1)
         if i == 10:
-            p.send_signal(signal.SIGINT)
+            if sys.platform == 'win32':
+                sig = signal.CTRL_C_EVENT
+            else:
+                sig = signal.SIGINT
+            p.send_signal(sig)
         p.poll()
         if p.returncode is not None:
             break
