@@ -24,7 +24,7 @@ before_script:
   - conda info -a
 
   # Install python, conda build, and anaconda-client
-  - conda install python=$PYTHON anaconda-client conda-build -q
+  - conda install python=$PYTHON anaconda-client conda-build conda-verify -q
 
   # Install depencencies
   - conda install -c trelau -c conda-forge pyocct -q

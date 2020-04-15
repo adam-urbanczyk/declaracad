@@ -57,5 +57,8 @@ setup(
         'declaracad = declaracad:main',
     ]},
     packages=find_packages(),
+    package_data={
+        'declaracad': ['*/*.enaml'],
+    },
     install_requires=requirements,
 )
