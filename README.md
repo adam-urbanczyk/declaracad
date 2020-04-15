@@ -1,10 +1,14 @@
 # declaracad
 
 [![Build Status](https://travis-ci.org/codelv/declaracad.svg?branch=master)](https://travis-ci.org/codelv/declaracad)
+[![Build status](https://ci.appveyor.com/api/projects/status/ke9hminkgevkyquc?svg=true)](https://ci.appveyor.com/project/frmdstryr/declaracad)
+[![codecov](https://codecov.io/gh/codelv/declaracad/branch/master/graph/badge.svg)](https://codecov.io/gh/codelv/declaracad)
 
-A declarative parametric 3D modeling program built using [OpenCascade](https://github.com/tpaviot/pythonocc-core)
+A declarative parametric 3D modeling program built using [OpenCASCADE](https://github.com/LaughlinResearch/pyOCCT)
 and [enaml](https://github.com/nucleic/enaml/).
 
+
+See the new website at [declaracad.com](https://declaracad.com)
 
 > Warning: This is a very early in development and unstable application!
 

@@ -53,7 +53,6 @@ install:
   #   about it being out of date.
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
-  - conda install -q -n root _license
   - conda info -a
 
   # Install python, conda build, and anaconda-client
@@ -94,4 +93,4 @@ after_test:
   - constructor recipe
 
 artifacts:
-    - path: Inkcut-*.exe
+    - path: DeclaraCAD-*.exe
