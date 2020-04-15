@@ -34,7 +34,7 @@ build:
   number: 0
   noarch: python
   script:
-    - python setup.py install --single-version-externally-managed --record=record.txt --no-compile
+    - pip install .
   entry_points:
     - declaracad = declaracad:main
 
