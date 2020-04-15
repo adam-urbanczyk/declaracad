@@ -11,9 +11,10 @@ Created on Sep 30, 2016
 @author: jrm
 """
 import math
+from math import pi
 from atom.api import (
-    Atom, Tuple, Instance, Bool, Str, Float, Property, Coerced, Typed,
-    ForwardTyped, List, Enum, Event, observe
+    Atom, Tuple, Instance, Bool, Str, Float, FloatRange, Property, Coerced,
+    Typed, ForwardTyped, List, Enum, Event, observe
 )
 
 from contextlib import contextmanager
@@ -838,14 +839,14 @@ class Sphere(Shape):
     #: Radius of sphere
     radius = d_(Float(1, strict=False)).tag(view=True)
 
-    #: angle 1
-    angle = d_(Float(0, strict=False)).tag(view=True)
+    #: Angle of U (fraction of circle)
+    angle = d_(FloatRange(low=0.0, high=2*pi, value=2*pi)).tag(view=True)
 
-    #: angle 2
-    angle2 = d_(Float(0, strict=False)).tag(view=True)
+    #: Min Angle of V (fraction of circle in normal direction)
+    angle2 = d_(FloatRange(low=-pi/2, high=pi/2, value=-pi/2)).tag(view=True)
 
-    #: angle 3
-    angle3 = d_(Float(0, strict=False)).tag(view=True)
+    #: Max Angle of V (fraction of circle in normal direction)
+    angle3 = d_(FloatRange(low=-pi/2, high=pi/2, value=pi/2)).tag(view=True)
 
     @observe('radius', 'angle', 'angle2', 'angle3')
     def _update_proxy(self, change):

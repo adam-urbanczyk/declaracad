@@ -10,6 +10,7 @@ Created on Sep 30, 2016
 @author: jrm
 """
 import os
+from math import pi
 from atom.api import (
     Atom, Bool, Instance, Typed, Unicode, Property, observe, set_default
 )
@@ -1140,15 +1141,11 @@ class OccSphere(OccShape, ProxySphere):
 
     def create_shape(self):
         d = self.declaration
-        args = [coerce_axis(d.axis), d.radius]
-        #: Ugly...
-        if d.angle:
-            args.append(d.angle)
-            if d.angle2:
-                args.append(d.angle2)
-                if d.angle3:
-                    args.append(d.angle3)
-        sphere = BRepPrimAPI_MakeSphere(*args)
+        u = min(2*pi, max(0, d.angle))
+        vmin = max(-pi/2, min(d.angle2, d.angle3))
+        vmax = min(pi/2, max(d.angle2, d.angle3))
+        sphere = BRepPrimAPI_MakeSphere(
+            coerce_axis(d.axis), d.radius, vmin, vmax, u)
         self.shape = sphere.Shape()
 
     def set_radius(self, r):
