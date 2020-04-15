@@ -320,6 +320,15 @@ class Point(Atom):
         p = self.__coerce__(other)
         return self.proxy.Dot(p.proxy)
 
+    def midpoint(self, other):
+        p = self.__coerce__(other)
+        return self.__class__(
+            (self.x + p.x) / 2, (self.y + p.y) / 2, (self.z + p.z) / 2)
+
+    def distance(self, other):
+        p = self.__coerce__(other)
+        return self.proxy.Distance(p.proxy)
+
     @classmethod
     def __coerce__(self, other):
         return coerce_point(other)

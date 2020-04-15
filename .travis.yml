@@ -46,13 +46,10 @@ script:
   - xvfb-run -s "-screen 0 1920x1080x24 +extension GLX +extension RENDER" timeout 10 declaracad view examples/shapes.enaml || true
   - xvfb-run -s "-screen 0 1920x1080x24 +extension GLX +extension RENDER" py.test tests --cov declaracad --cov-report xml -v
 
-after_script:
-  - cat ~/.config/declaracad/logs/*.txt
-
 after_success:
   - codecov
 
   # Build install package
-  - conda-build recipe
+  - conda-build recipe -c conda-forge -c trelau -c codelv
 
 

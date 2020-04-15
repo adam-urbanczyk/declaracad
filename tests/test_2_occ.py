@@ -6,31 +6,18 @@ from OCCT.TopoDS import TopoDS_Shape
 from declaracad.occ.plugin import load_model
 
 
-def test_sanity():
-    import enaml
-    from types import ModuleType
-    from enaml.core.parser import parse
-    from enaml.core.import_hooks import EnamlCompiler
+def test_point():
+    from declaracad.occ.shape import Point
+    assert (Point(0, 0) + (1,1)) == Point(1,1)
+    assert (Point(1, 1) - (2, 1)) == Point(-1, 0)
+    assert Point().distance(Point(3, 4)) == 5
+    assert Point().midpoint(Point(4, 2)) == Point(2, 1)
+    print(Point())
 
-    ast = parse(dedent("""
-    from declaracad.occ.api import *
-    enamldef Assembly(Part):
-        Box:
-            pass
-    """))
-    print("Parsed OK")
-    code = EnamlCompiler.compile(ast, "test")
-    print("Compiled OK")
-    module = ModuleType('test'.rsplit('.', 1)[0])
-    module.__file__ = 'test'
-    namespace = module.__dict__
-    with enaml.imports():
-        print("Before exc")
-        exec(code, namespace)
-        print("Passed!")
-    print(namespace)
-    assert 'Assembly' in namespace
-
+    assert Point(1, 2, 3)[:] == (1, 2, 3)
+    p = Point(1, 2, 3)
+    p[1] = 4
+    assert p.y == 4
 
 
 TEMPLATE = """
