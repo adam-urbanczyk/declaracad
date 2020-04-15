@@ -182,7 +182,7 @@ enamldef StepperMotor(Part): motor:
     attr explode = 0
     
     Cylinder: shaft:
-        material = 'chrome'
+        color = '#333'
         position = (0, 0, -shaft_offset_front)
         radius = shaft_diameter / 2
         height = motor.height - cap.thickness + shaft_offset_front + shaft_offset_rear

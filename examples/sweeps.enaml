@@ -1,7 +1,7 @@
 import math
 from enaml.core.api import Looper
 from declaracad.occ.api import (
-    Transform, Revol, Face, Segment, Wire, Part, Translate, Bezier
+    Transform, Revol, Face, Polyline, Wire, Part, Translate, Bezier
 )
 
 enamldef Bit(Transform): bit:
@@ -24,7 +24,7 @@ enamldef Bit(Transform): bit:
         Face:
             #: Face similar to https://www.opencascade.com/doc/occt-7.0.0/overview/html/occt_user_guides__modeling_algos.html
             Wire:
-                Segment:
+                Polyline:
                     points << bit.points
 
 

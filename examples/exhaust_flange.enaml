@@ -1,5 +1,5 @@
 from declaracad.occ.api import (
-    Part, Fillet, Cut, Cylinder, Box
+    Part, Fillet, Cut, Cylinder, Box, Looper
 )
 
 enamldef Assembly(Part):

@@ -18,7 +18,7 @@ from declaracad.occ.plugin import load_model
     'half_space',
     #'house',
     'load',
-    #'nemastepper',
+    'nemastepper',
     'operations',
     'pipes',
     'raw_shape',

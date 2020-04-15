@@ -12,6 +12,7 @@ Created on Dec 6, 2015
 import os
 import sys
 import logging
+import faulthandler
 from argparse import ArgumentParser
 from logging.handlers import RotatingFileHandler
 
@@ -76,6 +77,7 @@ def launch_workbench(args):
 
 
 def main():
+    faulthandler.enable()
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='DeclaraCAD subcommands')
     viewer = subparsers.add_parser("view", help="View the given file")
