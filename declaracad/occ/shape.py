@@ -295,7 +295,9 @@ class Point(Atom):
         return (self.x, self.y, self.z).__getitem__(key)
 
     def __setitem__(self, key, value):
-        return (self.x, self.y, self.z).__setitem__(key, value)
+        p = [self.x, self.y, self.z]
+        p[key] = value
+        self.x, self.y, self.z = p
 
     # ========================================================================
     # Operations support
@@ -311,6 +313,12 @@ class Point(Atom):
     def __eq__(self, other):
         p = self.__coerce__(other)
         return self.proxy.IsEqual(p.proxy, 10e-6)
+
+    def __mul__(self, other):
+        return self.__class__(self.x * other, self.y * other, self.z * other)
+
+    def __truediv__(self, other):
+        return self.__class__(self.x / other, self.y / other, self.z / other)
 
     def cross(self, other):
         p = self.__coerce__(other)

@@ -19,6 +19,15 @@ def test_point():
     p[1] = 4
     assert p.y == 4
 
+    assert Point(1, 2, 3) * 2 == Point(2, 4, 6)
+    assert Point(2, 4, 6) / 2 == Point(1, 2, 3)
+
+    with pytest.raises(TypeError):
+        Point(1, 2, 3) / Point(1, 2, 3)
+
+    with pytest.raises(TypeError):
+        Point(1, 2, 3) * Point(1, 2, 3)
+
 
 TEMPLATE = """
 import math
