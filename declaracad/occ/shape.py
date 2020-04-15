@@ -209,6 +209,9 @@ class ProxyTorus(ProxyShape):
     def set_angle2(self, a):
         raise NotImplementedError
 
+    def set_angle3(self, a):
+        raise NotImplementedError
+
 
 class ProxyWedge(ProxyShape):
     #: A reference to the shape declaration.
@@ -864,9 +867,9 @@ class Torus(Shape):
     radius2: Float
         Radius of the torus profile
     angle:  Float
-        The angle to revolve the torus (in radians).
+        The angle to revolve the torus (in radians) from 0 to 2 pi.
     angle2: Float
-        The angle to revolve the torus profile (in radians).
+        The angle to revolve the torus profile (in radians) from -pi/2 to pi/2.
 
     Examples
     --------
@@ -884,13 +887,16 @@ class Torus(Shape):
     #: Radius 2
     radius2 = d_(Float(0, strict=False)).tag(view=True)
 
-    #: angle 1
-    angle = d_(Float(0, strict=False)).tag(view=True)
+    #: Angle of U (fraction of circle)
+    angle = d_(FloatRange(low=0.0, high=2*pi, value=2*pi)).tag(view=True)
 
-    #: angle 2
+    #: Start Angle of V (fraction of circle in normal direction)
     angle2 = d_(Float(0, strict=False)).tag(view=True)
 
-    @observe('radius', 'radius2', 'angle1', 'angle2')
+    #: Stop Angle of V (fraction of circle in normal direction)
+    angle3 = d_(Float(0, strict=False)).tag(view=True)
+
+    @observe('radius', 'radius2', 'angle', 'angle2', 'angle3')
     def _update_proxy(self, change):
         super(Torus, self)._update_proxy(change)
 
