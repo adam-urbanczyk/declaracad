@@ -23,13 +23,13 @@ requirements = [
     'lxml',
     'PyQt5',
     'PyQtWebEngine',
+    'service_identity',
 ]
 
 if sys.platform == 'win32':
     requirements.extend([
         'pywin32',
         'git',
-        'service_identity',
     ])
 
 

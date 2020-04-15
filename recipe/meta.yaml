@@ -27,6 +27,7 @@ requirements:
     - qt-reactor
     - pyserial
     - lxml
+    - service_identity
     - pywin32 # os[win32]
 
 build:
