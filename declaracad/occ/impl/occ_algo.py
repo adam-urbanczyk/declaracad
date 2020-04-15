@@ -63,12 +63,9 @@ from declaracad.occ.algo import (
     ProxyTransform, Translate, Rotate, Scale, Mirror, Shape
 )
 
-from .occ_shape import OccShape, OccDependentShape, Topology, coerce_axis
-
-def coerce_shape(shape):
-    if isinstance(shape, Shape):
-        return shape.proxy.shape
-    return shape
+from .occ_shape import (
+    OccShape, OccDependentShape, Topology, coerce_axis, coerce_shape
+)
 
 
 class OccOperation(OccDependentShape, ProxyOperation):

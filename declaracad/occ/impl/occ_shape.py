@@ -61,7 +61,7 @@ from OCCT.StlAPI import StlAPI_Reader
 from ..shape import (
     ProxyShape, ProxyFace, ProxyBox, ProxyCone, ProxyCylinder,
     ProxyHalfSpace, ProxyPrism, ProxySphere, ProxyWedge,
-    ProxyTorus, ProxyRevol, ProxyRawShape, ProxyLoadShape, BBox,
+    ProxyTorus, ProxyRevol, ProxyRawShape, ProxyLoadShape, BBox, Shape,
     coerce_point, coerce_direction
 )
 
@@ -73,6 +73,12 @@ def coerce_axis(value):
     axis = gp_Ax2(pos.proxy, dir.proxy)
     axis.Rotate(axis.Axis(), rotation)
     return axis
+
+
+def coerce_shape(shape):
+    if isinstance(shape, Shape):
+        return shape.proxy.shape
+    return shape
 
 
 class WireExplorer(Atom):
@@ -1048,14 +1054,16 @@ class OccPrism(OccDependentShape, ProxyPrism):
         d = self.declaration
 
         if d.shape:
-            c = d.shape.proxy
+            shape = coerce_shape(d.shape)
+            copy = True
         else:
-            c = self.get_shape()
+            shape = coerce_shape(self.get_shape())
+            copy = False
 
         if d.infinite:
-            args = (c.shape, d.direction.proxy, True, d.copy, d.canonize)
+            args = (shape, d.direction.proxy, True, copy, d.canonize)
         else:
-            args = (c.shape, gp_Vec(*d.vector), d.copy, d.canonize)
+            args = (shape, gp_Vec(*d.vector), copy, d.canonize)
         prism = BRepPrimAPI_MakePrism(*args)
         self.shape = prism.Shape()
 
@@ -1080,6 +1088,49 @@ class OccPrism(OccDependentShape, ProxyPrism):
         self.update_shape()
 
     def set_vector(self, vector):
+        self.update_shape()
+
+
+class OccRevol(OccDependentShape, ProxyRevol):
+
+    #: Update the class reference
+    reference = set_default('https://dev.opencascade.org/doc/refman/html/'
+                            'class_b_rep_prim_a_p_i___make_wedge.html')
+
+    def update_shape(self, change=None):
+        d = self.declaration
+
+        if d.shape:
+            shape = coerce_shape(d.shape)
+            copy = True
+        else:
+            shape = coerce_shape(self.get_shape())
+            copy = False
+
+        #: Build arguments
+        args = [shape, gp_Ax1(d.position.proxy, d.direction.proxy)]
+        if d.angle:
+            args.append(d.angle)
+        args.append(copy)
+        revol = BRepPrimAPI_MakeRevol(*args)
+        self.shape = revol.Shape()
+
+    def get_shape(self):
+        """ Get the first child shape """
+        for child in self.children():
+            if isinstance(child, OccShape):
+                return child
+
+    def set_shape(self, shape):
+        self.update_shape()
+
+    def set_angle(self, angle):
+        self.update_shape()
+
+    def set_copy(self, copy):
+        self.update_shape()
+
+    def set_direction(self, direction):
         self.update_shape()
 
 
@@ -1164,44 +1215,6 @@ class OccWedge(OccShape, ProxyWedge):
 
     def set_itx(self, itx):
         self.create_shape()
-
-
-class OccRevol(OccDependentShape, ProxyRevol):
-
-    #: Update the class reference
-    reference = set_default('https://dev.opencascade.org/doc/refman/html/'
-                            'class_b_rep_prim_a_p_i___make_wedge.html')
-
-    def update_shape(self, change=None):
-        d = self.declaration
-
-        c = d.shape if d.shape else self.get_shape()
-
-        #: Build arguments
-        args = [c.shape, gp_Ax1(d.position.proxy, d.direction.proxy)]
-        if d.angle:
-            args.append(d.angle)
-        args.append(d.copy)
-        revol = BRepPrimAPI_MakeRevol(*args)
-        self.shape = revol.Shape()
-
-    def get_shape(self):
-        """ Get the first child shape """
-        for child in self.children():
-            if isinstance(child, OccShape):
-                return child
-
-    def set_shape(self, shape):
-        self.update_shape()
-
-    def set_angle(self, angle):
-        self.update_shape()
-
-    def set_copy(self, copy):
-        self.update_shape()
-
-    def set_direction(self, direction):
-        self.update_shape()
 
 
 class OccRawShape(OccShape, ProxyRawShape):

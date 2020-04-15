@@ -171,9 +171,6 @@ class ProxyPrism(ProxyShape):
     def set_infinite(self, infinite):
         raise NotImplementedError
 
-    def set_copy(self, copy):
-        raise NotImplementedError
-
     def set_canonize(self, canonize):
         raise NotImplementedError
 
@@ -237,9 +234,6 @@ class ProxyRevol(ProxyShape):
         raise NotImplementedError
 
     def set_angle(self, angle):
-        raise NotImplementedError
-
-    def set_copy(self, copy):
         raise NotImplementedError
 
 
@@ -758,8 +752,6 @@ class Prism(Shape):
         The extrusion vector.
     infinite: Bool
         Whether to extrude an infinte distance along the given vector.
-    copy: Bool
-        Copy the surface before extruding
     canonize: Bool
         Attempt to canonize in simple shapes
 
@@ -791,13 +783,10 @@ class Prism(Shape):
     #: Infinite
     infinite = d_(Bool(False)).tag(view=True)
 
-    #: Copy the surface
-    copy = d_(Bool(False)).tag(view=True)
-
     #: Attempt to canonize
     canonize = d_(Bool(True)).tag(view=True)
 
-    @observe('shape', 'vector', 'infinite', 'copy', 'canonize')
+    @observe('shape', 'vector', 'infinite', 'canonize')
     def _update_proxy(self, change):
         super(Prism, self)._update_proxy(change)
 
@@ -960,8 +949,6 @@ class Revol(Shape):
         Shape to revolve. If not given, the first child will be used.
     angle: Float
         Angle to revolve (in radians) the base profile.
-    copy:  Bool
-        Make a copy of the referenced shape.
 
     Examples
     --------
@@ -983,10 +970,7 @@ class Revol(Shape):
     #: Angle to revolve
     angle = d_(Float(0, strict=False)).tag(view=True)
 
-    #: Copy the surface
-    copy = d_(Bool(False)).tag(view=True)
-
-    @observe('shape', 'angle', 'copy')
+    @observe('shape', 'angle')
     def _update_proxy(self, change):
         super(Revol, self)._update_proxy(change)
 
