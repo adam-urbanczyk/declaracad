@@ -133,10 +133,9 @@ class OccEdge(OccShape, ProxyEdge):
         return BRepBuilderAPI_MakeEdge(*args).Edge()
 
     def get_value_at(self, t, derivative=0):
-        if self.curve is not None:
-            return Topology.get_value_at(self.curve, t, derivative)
-        raise NotImplementedError(
-                "Cannot get value for %s" % self.declaration)
+        if self.curve is None:
+            self.create_shape()
+        return Topology.get_value_at(self.curve, t, derivative)
 
     def set_surface(self, surface):
         self.create_shape()
@@ -172,27 +171,15 @@ class OccSegment(OccLine, ProxySegment):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_g_c___make_segment.html')
 
+    curve = Typed(Geom_TrimmedCurve)
+
     def create_shape(self):
         d = self.declaration
         points = self.get_transformed_points()
-        if len(points) < 2:
-            raise ValueError("A segment requires at least two points")
-        shape = BRepBuilderAPI_MakeWire()
-        if d.surface:
-            pln = gp_Pln(d.position.proxy, d.direction.proxy)
-            surface = BRep_Tool.Surface_(d.surface)
-        else:
-            surface = None
-        for i in range(1, len(points)):
-            segment = GC_MakeSegment(points[i-1], points[i]).Value()
-            if surface:
-                segment = GeomAPI.To2d_(segment, pln)
-                edge = BRepBuilderAPI_MakeEdge(segment, surface).Edge()
-                BRepLib.BuildCurves3d_(edge)
-            else:
-                edge = BRepBuilderAPI_MakeEdge(segment).Edge()
-            shape.Add(edge)
-        self.shape = shape.Shape()
+        if len(points) != 2:
+            raise ValueError("A segment requires exactly two points")
+        segment = self.curve = GC_MakeSegment(points[0], points[1]).Value()
+        self.shape = self.make_edge(segment)
 
 
 class OccArc(OccLine, ProxyArc):
@@ -498,6 +485,7 @@ class OccRectangle(OccEdge, ProxyRectangle):
             # Left
             p7 = gp_Pnt(0, h-ry, 0)
             p8 = gp_Pnt(0, ry, 0)
+
             shape = BRepBuilderAPI_MakeWire()
 
             e = d.tolerance

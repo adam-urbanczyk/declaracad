@@ -1058,7 +1058,8 @@ class OccPrism(OccDependentShape, ProxyPrism):
             shape = coerce_shape(d.shape)
             copy = True
         else:
-            shape = coerce_shape(self.get_shape())
+
+            shape = self.get_shape().shape
             copy = False
 
         if d.infinite:
@@ -1105,7 +1106,7 @@ class OccRevol(OccDependentShape, ProxyRevol):
             shape = coerce_shape(d.shape)
             copy = True
         else:
-            shape = coerce_shape(self.get_shape())
+            shape = self.get_shape().shape
             copy = False
 
         #: Build arguments
@@ -1169,11 +1170,13 @@ class OccTorus(OccShape, ProxyTorus):
     def create_shape(self):
         d = self.declaration
         args = [coerce_axis(d.axis), d.radius, d.radius2]
-        #: Ugly...
+        if d.angle2 or d.angle3:
+            amin = min(d.angle2, d.angle3)
+            amax = max(d.angle2, d.angle3)
+            args.append(amin)
+            args.append(amax)
         if d.angle:
             args.append(d.angle)
-            if d.angle2:
-                args.append(d.angle2)
         torus = BRepPrimAPI_MakeTorus(*args)
         self.shape = torus.Shape()
 
@@ -1187,6 +1190,9 @@ class OccTorus(OccShape, ProxyTorus):
         self.create_shape()
 
     def set_angle2(self, a):
+        self.create_shape()
+
+    def set_angle3(self, a):
         self.create_shape()
 
 
