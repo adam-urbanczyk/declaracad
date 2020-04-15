@@ -69,7 +69,7 @@ def load_model(filename, source=None):
 
     # Parse the enaml file or load from source code
     if not source and os.path.exists(filename):
-        with open(filename, 'rU') as f:
+        with open(filename, 'r') as f:
             source = f.read()
     if not source:
         raise EmptyFileError(
