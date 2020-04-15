@@ -748,6 +748,23 @@ class Topology(Atom):
 
     @classmethod
     def get_value_at(cls, curve, t, derivative=0):
+         """ Get the value of the curve at parameter t with it's derivatives.
+
+        Parameters
+        ----------
+        curve: BRepAdaptor_Curve
+            The curve to get the value from
+        t: Float
+            The parameter value from 0 to 1
+        derivative: Int
+            The derivative from 0 to 4
+
+        Returns
+        -------
+        results: Point or Tuple
+            If the derivative is 0 only the position at t is returned,
+            otherwise a tuple of the position and all deriviatives.
+        """
         p = gp_Pnt()
         if derivative == 0:
             curve.D0(t, p)
