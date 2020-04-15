@@ -11,7 +11,7 @@ before_script:
   # And OpenGL support
   - sudo apt update -qq -y
   - export DEBIAN_FRONTEND=noninteractive
-  - sudo apt -yq --force-yes install libgl1-mesa-dev libgl1-mesa-glx mesa-common-dev libglapi-mesa libgbm1 libgl1-mesa-dri mesa-utils
+  - sudo apt -yq --force-yes install libgl1-mesa-dev libgl1-mesa-glx mesa-common-dev libglapi-mesa libgbm1 libgl1-mesa-dri mesa-utils libxkbcommon-x11
 
 
   # Install miniconda
@@ -39,7 +39,7 @@ before_script:
   - xvfb-run -s "-screen 0 1920x1080x24 +extension GLX +extension RENDER" glxinfo
 
   # Make Qt Happy
-  - export QT_DEBUG_PLUGIN=1
+  - export QT_DEBUG_PLUGINS=1
   - export QT_QPA_PLATFORM=xcb
 
 script:
