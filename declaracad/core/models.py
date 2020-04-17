@@ -109,7 +109,8 @@ class Plugin(EnamlPlugin):
 
     def _bind_observers(self):
         """ Try to load the plugin state """
-        #: Restore
+        if not os.path.exists(self._state_file):
+            return
         try:
             with enaml.imports():
                 with open(self._state_file, 'r') as f:
@@ -118,8 +119,6 @@ class Plugin(EnamlPlugin):
             self.__setstate__(state)
             log.warning("Plugin {} state restored from: {}".format(
                 self.manifest.id, self._state_file))
-        except IOError as e:
-            pass  #: No state
         except Exception as e:
             log.warning("Plugin {} failed to load state: {}".format(
                 self.manifest.id, traceback.format_exc()))
@@ -130,36 +129,37 @@ class Plugin(EnamlPlugin):
 
     def _save_state(self, change):
         """ Try to save the plugin state """
-        if change['type'] in ['update', 'container', 'request']:
-            try:
-                log.info("Saving state due to change: {}".format(change))
+        if change['type'] not in ('update', 'container', 'request'):
+            return
+        try:
+            log.info("Saving state due to change: {}".format(change))
 
-                #: Dump first so any failure to encode doesn't wipe out the
-                #: previous state
-                state = self.__getstate__()
-                excluded = ['manifest', 'workbench'] + [
-                    m.name for m in self.members().values()
-                    if not m.metadata or not m.metadata.get('config', False)
-                ]
-                for k in excluded+self._state_excluded:
-                    if k in state:
-                        del state[k]
-                state = pickle.dumps(state)
+            #: Dump first so any failure to encode doesn't wipe out the
+            #: previous state
+            state = self.__getstate__()
+            excluded = ['manifest', 'workbench'] + [
+                m.name for m in self.members().values()
+                if not m.metadata or not m.metadata.get('config', False)
+            ]
+            for k in excluded+self._state_excluded:
+                if k in state:
+                    del state[k]
+            state = pickle.dumps(state)
 
-                #: Pretty format it
-                state = json.dumps(json.loads(state), indent=2)
+            #: Pretty format it
+            state = json.dumps(json.loads(state), indent=2)
 
-                dst = os.path.dirname(self._state_file)
-                if not os.path.exists(dst):
-                    os.makedirs(dst)
+            dst = os.path.dirname(self._state_file)
+            if not os.path.exists(dst):
+                os.makedirs(dst)
 
-                with open(self._state_file, 'w') as f:
-                    f.write(state)
+            with open(self._state_file, 'w') as f:
+                f.write(state)
 
-            except Exception as e:
-                log.warning("Failed to save state: {}".format(
-                    traceback.format_exc()
-                ))
+        except Exception as e:
+            log.warning("Failed to save state: {}".format(
+                traceback.format_exc()
+            ))
 
     def _unbind_observers(self):
         """ Setup state observers """
