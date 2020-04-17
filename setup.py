@@ -57,7 +57,7 @@ setup(
     ]},
     packages=find_packages(),
     package_data={
-        'declaracad': ['*/*.enaml'],
+        'declaracad': ['*/*.enaml', '*/*.png', '*/*.svg'],
     },
     install_requires=requirements,
 )
