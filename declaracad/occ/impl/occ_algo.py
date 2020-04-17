@@ -9,12 +9,12 @@ Created on Sep 27, 2016
 
 @author: jrm
 """
-from atom.api import Int, Dict, Instance, set_default
+from atom.api import Int, Dict, Instance, Subclass, set_default
 from enaml.application import timed_call
 
 from OCCT.BOPAlgo import BOPAlgo_Splitter, BOPAlgo_Section
 from OCCT.BRepAlgoAPI import (
-    BRepAlgoAPI_Fuse, BRepAlgoAPI_Common,
+    BRepAlgoAPI_BooleanOperation, BRepAlgoAPI_Fuse, BRepAlgoAPI_Common,
     BRepAlgoAPI_Cut
 )
 from OCCT.BRepBuilderAPI import (
@@ -84,42 +84,47 @@ class OccBooleanOperation(OccOperation, ProxyBooleanOperation):
     """ Base class for a boolean shape operation.
 
     """
-
-    def _do_operation(self, shape1, shape2):
-        raise NotImplementedError()
+    op = Subclass(BRepAlgoAPI_BooleanOperation)
 
     def update_shape(self, change=None):
+        op = self.op()
         d = self.declaration
-        if d.shape1 and d.shape2:
-            shape = self._do_operation(
-                coerce_shape(d.shape1), coerce_shape(d.shape2))
-        else:
-            shape = None
+        shapes = TopTools_ListOfShape()
+        tools = TopTools_ListOfShape()
+        added = False
+        if d.shape1:
+            shapes.Append(d.shape1)
+            added = True
+        if d.shape2:
+            tools.Append(d.shape2)
 
         for c in self.children():
-            if shape:
-                shape = self._do_operation(shape, c.shape)
+            if added:
+                tools.Append(c.shape)
             else:
-                shape = c.shape
-        self.shape = shape
+                shapes.Append(c.shape)
+                added = True
+
+        op.SetArguments(shapes)
+        op.SetTools(tools)
+        op.Build()
+        if op.HasErrors():
+            raise ValueError("Could not build shape %s" % d)
+        self.shape = op.Shape()
 
 
 class OccCommon(OccBooleanOperation, ProxyCommon):
     """ Common of all the child shapes together. """
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_algo_a_p_i___common.html')
-
-    def _do_operation(self, shape1, shape2):
-        return BRepAlgoAPI_Common(shape1, shape2).Shape()
+    op = set_default(BRepAlgoAPI_Common)
 
 
 class OccCut(OccBooleanOperation, ProxyCut):
     """ Cut all the child shapes from the first shape. """
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_algo_a_p_i___cut.html')
-
-    def _do_operation(self, shape1, shape2):
-        return BRepAlgoAPI_Cut(shape1, shape2).Shape()
+    op = set_default(BRepAlgoAPI_Cut)
 
 
 class OccFuse(OccBooleanOperation, ProxyFuse):
@@ -127,8 +132,7 @@ class OccFuse(OccBooleanOperation, ProxyFuse):
     reference = set_default(
         'https://dev.opencascade.org/doc/overview/html/'
         'occt_user_guides__boolean_operations.html#occt_algorithms_7')
-    def _do_operation(self, shape1, shape2):
-        return BRepAlgoAPI_Fuse(shape1, shape2).Shape()
+    op = set_default(BRepAlgoAPI_Fuse)
 
 
 class OccIntersection(OccBooleanOperation, ProxyIntersection):
