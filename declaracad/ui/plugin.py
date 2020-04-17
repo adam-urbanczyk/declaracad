@@ -25,7 +25,7 @@ ALL_STYLES = ['system'] + available_styles()
 
 class DeclaracadPlugin(Plugin):
     #: Project site
-    wiki_page = Str("https;//www.codelv.com/projects/declaracad")
+    wiki_page = Str("https;//declaracad.com/")
 
     #: Dock items to add
     dock_items = List(DockItem)
@@ -48,12 +48,6 @@ class DeclaracadPlugin(Plugin):
         super(DeclaracadPlugin, self).start()
         self._refresh_dock_items()
         self._refresh_settings_pages()
-
-        #self.workbench.application.deferred_call(self.start_default_workspace)
-
-    def start_default_workspace(self):
-        ui = self.workbench.get_plugin('enaml.workbench.ui')
-        ui.select_workspace('declaracad.workspace')
 
     def _bind_observers(self):
         """ Setup the observers for the plugin.
@@ -81,7 +75,7 @@ class DeclaracadPlugin(Plugin):
     # Dock API
     # -------------------------------------------------------------------------
     def create_new_area(self):
-        """ Create the dock area 
+        """ Create the dock area
         """
         with enaml.imports():
             from .dock import DockView
@@ -93,7 +87,7 @@ class DeclaracadPlugin(Plugin):
 
     def get_dock_area(self):
         """ Get the dock area
-        
+
         Returns
         -------
             area: DockArea
@@ -104,11 +98,11 @@ class DeclaracadPlugin(Plugin):
         return ui.workspace.content.find('dock_area')
 
     def _refresh_dock_items(self, change=None):
-        """ Reload all DockItems registered by any Plugins 
-        
-        Any plugin can add to this list by providing a DockItem 
+        """ Reload all DockItems registered by any Plugins
+
+        Any plugin can add to this list by providing a DockItem
         extension in their PluginManifest.
-        
+
         """
         workbench = self.workbench
         point = workbench.get_extension_point(extensions.DOCK_ITEM_POINT)
@@ -144,7 +138,7 @@ class DeclaracadPlugin(Plugin):
 
     def _refresh_layout(self, layout):
         """ Create the layout for all the plugins
-        
+
 
         """
         if not self.dock_items:
@@ -175,11 +169,11 @@ class DeclaracadPlugin(Plugin):
         log.debug("Settings page: {}".format(change))
 
     def _refresh_settings_pages(self, change=None):
-        """ Reload all SettingsPages registered by any Plugins 
-        
-        Any plugin can add to this list by providing a SettingsPage 
+        """ Reload all SettingsPages registered by any Plugins
+
+        Any plugin can add to this list by providing a SettingsPage
         extension in their PluginManifest.
-        
+
         """
         workbench = self.workbench
         point = workbench.get_extension_point(extensions.SETTINGS_PAGE_POINT)
