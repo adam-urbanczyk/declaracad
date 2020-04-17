@@ -32,10 +32,14 @@ def window_factory(workbench):
     with a reasonable initial size.
 
     """
+    from declaracad.core.utils import load_icon
+
     import enaml
     with enaml.imports():
         from enaml.workbench.ui.workbench_window import WorkbenchWindow
-    return WorkbenchWindow(initial_size=(1440, 960))
+
+    icon = load_icon('logo')
+    return WorkbenchWindow(initial_size=(1440, 960), icon=icon)
 
 
 def workspace_factory(workbench):
