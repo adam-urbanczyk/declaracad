@@ -58,6 +58,7 @@ class ProxyFuse(ProxyBooleanOperation):
 class ProxySplit(ProxyBooleanOperation):
     declaration = ForwardTyped(lambda: Split)
 
+
 class ProxyIntersection(ProxyBooleanOperation):
     declaration = ForwardTyped(lambda: Intersection)
 
