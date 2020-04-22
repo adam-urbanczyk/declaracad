@@ -18,8 +18,7 @@ from io import StringIO
 from contextlib import contextmanager
 from logging.handlers import RotatingFileHandler
 
-
-from atom.api import Atom, Value, Int, Bool, Bytes, ContainerList, Value
+from atom.api import Atom, Value, Int, Bool, Bytes, ContainerList
 
 from enaml.image import Image
 from enaml.icon import Icon, IconImage
@@ -82,6 +81,7 @@ def menu_icon(name):
     if sys.platform == 'win32':
         return load_icon(name)
     return None
+
 
 def format_title(docs, doc, path, unsaved):
     """ Attempt to format the title using the shortest unique name that
@@ -244,4 +244,3 @@ class ProcessLineReceiver(Atom, ProcessProtocol, LineReceiver):
             self.transport.signalProcess('KILL')
         except:
             pass
-

@@ -63,9 +63,9 @@ class BBox(Atom):
                 self.xmax, self.ymax, self.zmax)[key]
 
     def _get_center(self):
-        return Point(self.xmin + self.dx/2,
-                     self.ymin + self.dy/2,
-                     self.zmin + self.dz/2)
+        return Point((self.xmin + self.xmax)/2,
+                     (self.ymin + self.ymax)/2,
+                     (self.zmin + self.zmax)/2)
     center = Property(_get_center, cached=True)
 
 
@@ -441,6 +441,27 @@ class Texture(Atom):
                     coercer=coerce_texture)
 
 
+class Material(Atom):
+    #: Name
+    name = Str()
+
+    def __init__(self, name="", **kwargs):
+        """ Constructor which accepts a material name
+
+        """
+        super().__init__(name=name, **kwargs)
+
+    transparency = FloatRange(0.0, 1.0, 0.0)
+    shininess = FloatRange(0.0, 1.0, 0.5)
+    refraction_index = FloatRange(1.0, value=1.0)
+
+    #: Color
+    color = ColorMember()
+    ambient_color = ColorMember()
+    diffuse_color = ColorMember()
+    specular_color = ColorMember()
+    emissive_color = ColorMember()
+
 
 class Shape(ToolkitObject):
     """ Abstract shape component that can be displayed on the screen
@@ -464,35 +485,36 @@ class Shape(ToolkitObject):
     #: The tolerance to use for operations that may require it.
     tolerance = d_(Float(10**-6, strict=False))
 
-    #: A string representing the color of the shape.
-    color = d_(ColorMember()).tag(view=True, group='Display')
+    #: Material
+    material = d_(Coerced(Material))
 
-    #: A string represeting a pre-defined material which defines a color
-    #: and luminosity of the shape.
-    material = d_(Enum(None, 'aluminium', 'brass', 'bronze', 'charcoal',
-                       'chrome', 'copper', 'default', 'diamond', 'glass',
-                       'gold', 'jade', 'metalized', 'neon_gnc', 'neon_phc',
-                       'obsidian', 'pewter', 'plaster', 'plastic', 'satin',
-                       'shiny_plastic', 'silver', 'steel', 'stone', 'water')
-                  ).tag(view=True, group='Display')
+    #: A string representing the color of the shape.
+    color = d_(ColorMember())
 
     #: The opacity of the shape used for display.
-    transparency = d_(Float(strict=False)).tag(view=True, group='Display')
+    transparency = d_(FloatRange(0.0, 1.0, 0.0))
 
     #: Texture to apply to the shape
     texture = d_(Instance(Texture))
 
-    #: x position
-    x = d_(Property(lambda self: self.position[0],
-                    lambda self, v: self.position.__setitem__(0, v)))
+    #: Position alias
+    def _get_x(self):
+        return self.position.x
+    def _set_x(self, v):
+        self.position.x = v
+    x = d_(Property(_get_x, _set_x))
 
-    #: y position
-    y = d_(Property(lambda self: self.position[1],
-                    lambda self, v: self.position.__setitem__(1, v)))
+    def _get_y(self):
+        return self.position.y
+    def _set_y(self, v):
+        self.position.y = v
+    y = d_(Property(_get_y, _set_y))
 
-    #: z position
-    z = d_(Property(lambda self: self.position[2],
-                    lambda self, v: self.position.__setitem__(2, v)))
+    def _get_z(self):
+        return self.position.z
+    def _set_z(self, v):
+        self.position.z = v
+    z = d_(Property(_get_z, _set_z))
 
     #: A tuple or list of the (x, y, z) position of this shape. This is
     #: coerced into a Point.

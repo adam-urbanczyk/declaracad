@@ -121,9 +121,8 @@ class DeclaracadPlugin(Plugin):
             for declaration in extension.get_children(extensions.DockItem):
                 #: Create the item
                 DockItem = declaration.factory()
-                item = DockItem(
-                    plugin=workbench.get_plugin(declaration.plugin_id),
-                )
+                plugin = workbench.get_plugin(declaration.plugin_id)
+                item = DockItem(plugin=plugin)
 
                 #: Add to our layout
                 layout[declaration.layout].append(item.name)
@@ -154,10 +153,7 @@ class DeclaracadPlugin(Plugin):
                     for side, items in layout.items() if items]
 
         #: Update layout
-        self.dock_layout = AreaLayout(
-            main,
-            dock_bars=dockbars
-        )
+        self.dock_layout = AreaLayout(main, dock_bars=dockbars)
 
     # -------------------------------------------------------------------------
     # Settings API

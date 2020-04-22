@@ -5,7 +5,7 @@ import signal
 import pytest
 import subprocess
 
-
+@pytest.mark.skipIf(sys.platform == 'win32', "Doesn't work")
 def test_app():
     p = subprocess.Popen(
         'declaracad', stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

@@ -45,14 +45,35 @@ def material_to_material_aspect(material):
 
     Parameters
     ----------
-    material: String
-        The material name
+    material: declaracad.shape.Material
+        The material definition
 
     Returns
     -------
-    result: Graphic3d_MaterialAspect
+    result: Graphic3d_MaterialAspect or None
         The material
 
     """
-    material_type = 'Graphic3d_NOM_%s' % material.upper()
-    return Graphic3d_MaterialAspect(getattr(Graphic3d, material_type))
+    if material.name:
+        material_type = 'Graphic3d_NOM_%s' % material.name.upper()
+        return Graphic3d_MaterialAspect(getattr(Graphic3d, material_type))
+    a = Graphic3d_MaterialAspect()
+    a.SetTransparency(material.transparency)
+    a.SetShininess(material.shininess)
+    a.SetRefractionIndex(material.refraction_index)
+    if material.color:
+        c, t = color_to_quantity_color(material.color)
+        a.SetColor(c)
+    if material.ambient_color:
+        c, t = color_to_quantity_color(material.ambient_color)
+        a.SetAmbientColor(c)
+    if material.diffuse_color:
+        c, t = color_to_quantity_color(material.diffuse_color)
+        a.SetDiffuseColor(c)
+    if material.specular_color:
+        c, t = color_to_quantity_color(material.specular_color)
+        a.SetSpecularColor(c)
+    if material.emissive_color:
+        c, t = color_to_quantity_color(material.emissive_color)
+        a.SetEmissiveColor(c)
+    return a

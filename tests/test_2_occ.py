@@ -155,6 +155,20 @@ TESTS = {
             pass
         Box:
             position = (0.5, 0.5, 0)
+    """,
+'fuse': """
+    Fuse:
+        Box:
+            pass
+        Box:
+            position = (0.5, 0.5, 0)
+    """,
+'common': """
+    Common:
+        Box:
+            pass
+        Box:
+            position = (0.5, 0.5, 0)
     """
 }
 

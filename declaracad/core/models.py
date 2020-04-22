@@ -131,6 +131,7 @@ class Plugin(EnamlPlugin):
         """ Try to save the plugin state """
         if change['type'] not in ('update', 'container', 'request'):
             return
+
         try:
             log.info("Saving state due to change: {}".format(change))
 
@@ -141,7 +142,7 @@ class Plugin(EnamlPlugin):
                 m.name for m in self.members().values()
                 if not m.metadata or not m.metadata.get('config', False)
             ]
-            for k in excluded+self._state_excluded:
+            for k in excluded + self._state_excluded:
                 if k in state:
                     del state[k]
             state = pickle.dumps(state)

@@ -939,7 +939,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                     topods_shape,
                     d.color,
                     d.transparency,
-                    d.material,
+                    d.material if d.material.name else None,
                     d.texture,
                     update=False)
                 if ais_shape:
