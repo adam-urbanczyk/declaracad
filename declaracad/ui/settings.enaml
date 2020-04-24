@@ -13,6 +13,7 @@ import re
 import sys
 if sys.platform == 'win32':
     from enaml import winutil
+from OCCT import __version__ as OCCT_VERSION
 from enaml.core.api import Looper
 from enaml.layout.api import align, hbox, spacer
 from enaml.core.api import Conditional
@@ -31,6 +32,7 @@ from enaml.widgets.api import (
 from enamlx.widgets.api import TreeView, TreeViewItem
 
 
+
 enamldef SystemSettingsPage(Container):
     attr model
     Form:
@@ -39,6 +41,10 @@ enamldef SystemSettingsPage(Container):
         ObjectCombo:
             items = list(model.get_member('dock_style').items)
             selected := model.dock_style
+        Label:
+            text = "OCCT Version"
+        Label:
+            text = str(OCCT_VERSION)
 
 
 enamldef SettingsDialog(Dialog): dialog:
