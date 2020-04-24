@@ -25,6 +25,8 @@ from enaml.application import deferred_call, timed_call, Application
 
 
 from OCCT import Aspect, Graphic3d, TopAbs, V3d
+from OCCT import __version__ as OCCT_VERSION
+
 from OCCT.AIS import (
     AIS_InteractiveContext, AIS_Shape, AIS_Shaded, AIS_WireFrame,
     AIS_ColoredDrawer, AIS_TexturedShape
@@ -80,7 +82,10 @@ elif sys.platform == 'darwin':
     from OCCT.Cocoa import Cocoa_Window
     V3d_Window = Cocoa_Window
 else:
-    from OCCT.XwWindow import Xw_Window
+    if "7.2" in OCCT_VERSION:
+        from OCCT.XwWindow import Xw_Window
+    else:
+        from OCCT.Xw import Xw_Window
     V3d_Window = Xw_Window
 
 
