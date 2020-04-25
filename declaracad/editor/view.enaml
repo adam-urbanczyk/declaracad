@@ -494,7 +494,6 @@ enamldef EditorDockItem(DockItem): view:
     icon = load_icon('script_code')
     name = 'editor-item-{}'.format(id(self))
     Container:
-        minimum_size = (480, 320)
         padding = 0
         Conditional:
             condition << editor.show_find_bar or editor.show_replace_bar
@@ -506,6 +505,7 @@ enamldef EditorDockItem(DockItem): view:
             EditorGotoBar:
                 editor << view.editor
         Editor: editor:
+            minimum_size = (480, 320)
             attr show_find_bar: bool << False
             attr show_replace_bar: bool << False
             attr show_goto_bar: bool << False
@@ -575,6 +575,7 @@ enamldef ErrorsDockItem(DockItem):
   icon = load_icon('bug')
   Container:
       padding = 0
+      minimum_size = (320, 320)
       MultilineField:
           text << "\n".join(plugin.active_document.errors)
 
@@ -584,6 +585,7 @@ enamldef OutputDockItem(DockItem):
   name = 'script-output-item'
   icon = load_icon('script')
   Container:
+      minimum_size = (320, 320)
       padding = 0
       MultilineField:
           text << "\n".join(plugin.active_document.output)
@@ -631,6 +633,7 @@ enamldef OutlineDockItem(DockItem): view:
     Container:
         padding = 0
         TreeView: tree:
+            minimum_size = (320, 320)
             horizontal_headers = ['Name', 'Type', "Line"]
             horizontal_stretch = True
             resize_mode = 'resize_to_contents'
