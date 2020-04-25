@@ -238,6 +238,10 @@ class ViewerProcess(ProcessLineReceiver):
 
         doc = self.document
 
+        if not isinstance(response, dict):
+            log.debug(f"viewer | out | {response}")
+            return
+
         #: Special case for startup
         response_id = response.get('id')
         if response_id == 'window_id':

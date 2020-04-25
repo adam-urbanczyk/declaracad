@@ -91,19 +91,23 @@ class OccBooleanOperation(OccOperation, ProxyBooleanOperation):
         d = self.declaration
         shapes = TopTools_ListOfShape()
         tools = TopTools_ListOfShape()
-        added = False
+        first_shape = None
         if d.shape1:
             shapes.Append(d.shape1)
-            added = True
+            first_shape = d.shape1
         if d.shape2:
             tools.Append(d.shape2)
 
         for c in self.children():
-            if added:
+            if first_shape is not None:
                 tools.Append(c.shape)
             else:
                 shapes.Append(c.shape)
-                added = True
+                first_shape = c.shape
+
+        if tools.Size() == 0:
+            self.shape = first_shape
+            return
 
         op.SetArguments(shapes)
         op.SetTools(tools)
