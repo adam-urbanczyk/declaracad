@@ -574,7 +574,7 @@ class Shape(ToolkitObject):
         self.constructed()
 
     #: Triggered when the shape is constructed
-    constructed = Event()
+    constructed = d_(Event(), writable=False)
 
     def render(self):
         """ Generates and returns the actual shape from the declaration.
