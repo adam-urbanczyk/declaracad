@@ -472,11 +472,13 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
         """
         bbox = Bnd_Box()
-        add = BRepBndLib.Add_
         for shape in shapes:
-            add(shape, bbox)
-        pmin = bbox.CornerMin()
-        pmax = bbox.CornerMax()
+            BRepBndLib.Add_(shape, bbox)
+        try:
+            pmin = bbox.CornerMin()
+            pmax = bbox.CornerMax()
+        except RuntimeError:
+            return (0, 0, 0, 0, 0, 0)
         return (pmin.X(), pmin.Y(), pmin.Z(), pmax.X(), pmax.Y(), pmax.Z())
 
     def get_screen_coordinate(self, point):
