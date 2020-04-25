@@ -179,6 +179,9 @@ class ProxyText(ProxyShape):
 class ProxyWire(ProxyShape):
     declaration = ForwardTyped(lambda: Wire)
 
+    def set_reverse(self, reverse):
+        raise NotImplementedError
+
 
 class ProxySvg(ProxyShape):
     #: A reference to the shape declaration.
@@ -713,9 +716,12 @@ class Wire(Shape):
     proxy = Typed(ProxyWire)
 
     #: Edges used to create this wire
-    edges = d_(List((TopoDS_Edge, TopoDS_Wire)))
+    edges = d_(List())
 
-    @observe('edges')
+    #: Reverse the order of the wire
+    reverse = d_(Bool())
+
+    @observe('edges', 'reverse')
     def _update_proxy(self, change):
         super(Wire, self)._update_proxy(change)
 

@@ -568,7 +568,10 @@ class OccWire(OccDependentShape, ProxyWire):
                 shape.Add(wire)
 
         assert shape.IsDone(), 'Edges must be connected %s' % d
-        self.shape = shape.Wire()
+        wire = shape.Wire()
+        if d.reverse:
+            wire.Reverse()
+        self.shape = wire
 
     def child_added(self, child):
         super(OccWire, self).child_added(child)
@@ -577,3 +580,5 @@ class OccWire(OccDependentShape, ProxyWire):
     def child_removed(self, child):
         super(OccEdge, self).child_removed(child)
         child.unobserve('shape', self.update_shape)
+
+
