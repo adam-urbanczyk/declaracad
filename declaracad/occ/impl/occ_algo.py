@@ -89,32 +89,18 @@ class OccBooleanOperation(OccOperation, ProxyBooleanOperation):
     def update_shape(self, change=None):
         op = self.op()
         d = self.declaration
-        shapes = TopTools_ListOfShape()
-        tools = TopTools_ListOfShape()
-        first_shape = None
-        if d.shape1:
-            shapes.Append(d.shape1)
-            first_shape = d.shape1
-        if d.shape2:
-            tools.Append(d.shape2)
+        if d.shape1 and d.shape2:
+            shape = self.op(coerce_shape(d.shape1),
+                            coerce_shape(d.shape2)).Shape()
+        else:
+            shape = None
 
         for c in self.children():
-            if first_shape is not None:
-                tools.Append(c.shape)
+            if shape is not None:
+                shape = self.op(shape, c.shape).Shape()
             else:
-                shapes.Append(c.shape)
-                first_shape = c.shape
-
-        if tools.Size() == 0:
-            self.shape = first_shape
-            return
-
-        op.SetArguments(shapes)
-        op.SetTools(tools)
-        op.Build()
-        if op.HasErrors():
-            raise ValueError("Could not build shape %s" % d)
-        self.shape = op.Shape()
+                shape = c.shape
+        self.shape = shape
 
 
 class OccCommon(OccBooleanOperation, ProxyCommon):
