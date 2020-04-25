@@ -258,6 +258,10 @@ class Topology(Atom):
     vertices = Property(lambda self: self._loop_topo(TopAbs_VERTEX),
                         cached=True)
 
+    #: Get a list of points from verticies
+    points = Property(lambda self: [coerce_point(v) for v in self.vertices],
+                        cached=True)
+
     def number_of_vertices(self):
         return self._number_of_topo(self.vertices)
 
@@ -267,7 +271,7 @@ class Topology(Atom):
     def number_of_edges(self):
         return self._number_of_topo(self.edges)
 
-    wires = Property(lambda self:self._loop_topo(TopAbs_WIRE),
+    wires = Property(lambda self: self._loop_topo(TopAbs_WIRE),
                      cached=True)
 
     def number_of_wires(self):

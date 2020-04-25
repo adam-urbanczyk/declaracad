@@ -28,6 +28,7 @@ from declaracad.core.utils import log
 
 #: TODO: This breaks the proxy pattern
 from OCCT.gp import gp, gp_Pnt, gp_Dir
+from OCCT.BRep import BRep_Tool
 from OCCT.TopoDS import TopoDS_Face, TopoDS_Shell, TopoDS_Shape
 
 
@@ -380,6 +381,8 @@ class Direction(Point):
 
 
 def coerce_point(arg):
+    if isinstance(arg, TopoDS_Shape):
+        arg = BRep_Tool.Pnt_(arg)
     if hasattr(arg, 'XYZ'): # copy from gp_Pnt, gp_Vec, gp_Dir, etc..
         return Point(arg.X(), arg.Y(), arg.Z())
     if isinstance(arg, Point):
@@ -390,6 +393,8 @@ def coerce_point(arg):
 
 
 def coerce_direction(arg):
+    if isinstance(arg, TopoDS_Shape):
+        arg = BRep_Tool.Pnt_(arg)
     if hasattr(arg, 'XYZ'): # copy from gp_Pnt2d, gp_Vec2d, gp_Dir2d, etc..
         return Direction(arg.X(), arg.Y(), arg.Z())
     if isinstance(arg, Direction):

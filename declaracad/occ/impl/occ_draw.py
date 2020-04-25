@@ -51,6 +51,8 @@ from ..draw import (
 from .occ_shape import OccShape, OccDependentShape, Topology, coerce_axis
 from .occ_svg import make_ellipse
 
+from declaracad.core.utils import log
+
 
 
 #: Track registered fonts
@@ -567,10 +569,12 @@ class OccWire(OccDependentShape, ProxyWire):
                     BRepLib.BuildCurves3d_(wire)
                 shape.Add(wire)
 
-        assert shape.IsDone(), 'Edges must be connected %s' % d
+        if not shape.IsDone():
+            log.warning('Edges must be connected %s' % d)
         wire = shape.Wire()
         if d.reverse:
             wire.Reverse()
+
         self.shape = wire
 
     def child_added(self, child):
