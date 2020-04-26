@@ -28,6 +28,7 @@ from OCCT.gp import (
     gp_Dir, gp_Pnt, gp_Lin, gp_Pln, gp_Circ, gp_Elips, gp_Vec, gp_Trsf,
     gp_Ax3, gp_Ax2, gp
 )
+from OCCT.TopTools import TopTools_ListOfShape
 from OCCT.TopoDS import (
     TopoDS, TopoDS_Shape, TopoDS_Edge, TopoDS_Wire, TopoDS_Vertex
 )
@@ -546,35 +547,32 @@ class OccWire(OccDependentShape, ProxyWire):
     def create_shape(self):
         pass
 
-    def shape_to_wire(self, shape):
-        if isinstance(shape, (TopoDS_Edge, TopoDS_Wire)):
-            return shape
-        return TopoDS.Wire_(shape)
+    def extract_edges(self, child, edges):
+        d = child.declaration
+        if isinstance(child.shape, list):
+            for c in child.children():
+                self.extract_edges(c, edges)
+        else:
+            for edge in d.topology.edges:
+                if getattr(d, 'surface', None):
+                    BRepLib.BuildCurves3d_(edge)
+                edges.Append(edge)
 
     def update_shape(self, change=None):
         d = self.declaration
-        shape = BRepBuilderAPI_MakeWire()
-        convert = self.shape_to_wire
+        edges = TopTools_ListOfShape()
         for c in self.children():
             if c.shape is None:
                 raise ValueError("Cannot build wire from empty shape: %s" % c)
-            if isinstance(c.shape, (list, tuple)):
-                #: Assume it's a list of drawn objects...
-                for item in c.shape:
-                    if item is not None:
-                        shape.Add(convert(item))
-            else:
-                wire = convert(c.shape)
-                if getattr(c.declaration, 'surface', None):
-                    BRepLib.BuildCurves3d_(wire)
-                shape.Add(wire)
+            self.extract_edges(c, edges)
 
-        if not shape.IsDone():
+        builder = BRepBuilderAPI_MakeWire()
+        builder.Add(edges)
+        if not builder.IsDone():
             log.warning('Edges must be connected %s' % d)
-        wire = shape.Wire()
+        wire = builder.Wire()
         if d.reverse:
             wire.Reverse()
-
         self.shape = wire
 
     def child_added(self, child):
