@@ -290,10 +290,7 @@ class OccOffset(OccOperation, ProxyOffset):
         d = self.declaration
         if d.shape:
             return coerce_shape(d.shape)
-        else:
-            #: Get the shape to apply the fillet to
-            child = self.get_first_child()
-            return child.shape
+        return self.get_first_child().shape
 
     def update_shape(self, change=None):
         d = self.declaration
@@ -304,9 +301,13 @@ class OccOffset(OccOperation, ProxyOffset):
             t = type(shape)
             raise TypeError(
                 "Unsupported child shape %s when using planar mode" % t)
+
         offset_shape = BRepOffsetAPI_MakeOffset(
             shape, self.join_types[d.join_type], not d.closed)
         offset_shape.Perform(d.offset)
+        if not offset_shape.IsDone():
+            # Note: Lines cannot be offset as they have no plane of reference
+            raise ValueError("Could not perform offset: %s" % d)
         self.shape = offset_shape.Shape()
 
     def set_shape(self, shape):
