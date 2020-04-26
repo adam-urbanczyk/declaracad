@@ -28,7 +28,7 @@ enamldef Threads(Transform):
                 v = 2*pi
                 Ellipse: e1:
                     position = (2*pi, height/2, 0)
-                    direction = (pi/16, height/4, 0)
+                    rotation = (pi/16, height/4)
                     major_radius = 12*pi
                     minor_radius = height/30
             Segment: s1:
@@ -37,10 +37,10 @@ enamldef Threads(Transform):
         Wire:
             TrimmedCurve: c2:
                 surface = make_cylinder_surface(outer_radius)
-                v = 2*pi
+                v = c1.v
                 Ellipse: e2:
                     position = e1.position
-                    direction = e1.direction
+                    rotation = e1.rotation
                     major_radius = e1.major_radius
                     minor_radius = 0
             Segment:
