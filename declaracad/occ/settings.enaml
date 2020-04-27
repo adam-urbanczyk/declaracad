@@ -25,7 +25,7 @@ from enaml.stdlib.task_dialog import (
 )
 from enaml.widgets.api import (
     Dialog, Field, Label, PushButton, Form, ObjectCombo, SplitItem, Splitter,
-    Container, SpinBox, FileDialogEx, ObjectCombo, ColorDialog
+    Container, SpinBox, FileDialogEx, ObjectCombo, ColorDialog, CheckBox
 )
 from .widgets.api import OccViewer
 
@@ -79,5 +79,20 @@ enamldef ViewerSettingsPage(Container):
                 dlg = ColorDialog(parent=self, current_color=model.shape_color)
                 if dlg.exec_():
                     model.shape_color = dlg.selected_color
-
+        Label:
+            text = "Render shadows"
+        CheckBox:
+            checked := model.renderer_show_shadows
+        Label:
+            text = "Render boundaries"
+        CheckBox:
+            checked := model.renderer_draw_boundaries
+        Label:
+            text = "Enable antialiasing"
+        CheckBox:
+            checked := model.renderer_use_antialiasing
+        Label:
+            text = "Enable raytracing"
+        CheckBox:
+            checked := model.renderer_use_raytracing
 

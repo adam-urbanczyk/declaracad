@@ -369,6 +369,13 @@ class ViewerPlugin(Plugin):
     #: Defaults
     shape_color = ColorMember('steelblue').tag(config=True)
 
+    #: Rendering options
+    renderer_use_antialiasing = Bool(True).tag(config=True)
+    renderer_use_raytracing = Bool(True).tag(config=True)
+    renderer_draw_boundaries = Bool(True).tag(config=True)
+    renderer_show_shadows = Bool(True).tag(config=True)
+
+
     #: Exporters
     exporters = ContainerList()
 

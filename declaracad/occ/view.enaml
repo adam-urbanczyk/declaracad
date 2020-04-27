@@ -340,26 +340,32 @@ enamldef ModelViewer(OccViewer): viewer:
                             viewer.proxy.set_display_mode(loop_item)
                         else:
                             viewer.display_mode = loop_item
+                        viewer.proxy.update_display()
             Action:
                 checkable = True
                 text = 'Hidden line removal'
                 checked := viewer.hlr
+                checked :: viewer.proxy.update_display()
             Action:
                 checkable = True
                 text = 'Shadows'
                 checked := viewer.shadows
+                checked :: viewer.proxy.update_display()
             Action:
                 checkable = True
                 text = 'Raytracing'
                 checked := viewer.raytracing
+                checked :: viewer.proxy.update_display()
             Action:
                 checkable = True
                 text = 'Antialiasing'
                 checked := viewer.antialiasing
+                checked :: viewer.proxy.update_display()
             Action:
                 checkable = True
                 text = 'Draw boundaries'
                 checked := viewer.draw_boundaries
+                checked :: viewer.proxy.update_display()
         Action:
             separator = True
         Menu:
@@ -414,6 +420,9 @@ enamldef ClippedPlaneRow(Container):
 
 
 enamldef ViewerWindow(Window): window:
+    #: Window title
+    title = "DeclaraCAD"
+
     #: File to load
     attr filename: str = "-"
 
@@ -435,6 +444,9 @@ enamldef ViewerWindow(Window): window:
     alias viewer
 
     initial_size = (1, 1) if frameless else (960, 480)
+
+    #: Window Icon
+    icon = load_icon('logo')
 
     # When the filename changes, clear the source so it's loaded from the file
     filename ::
@@ -547,16 +559,40 @@ enamldef RemoteViewer(Conditional): viewer:
     func update_trihedron(change):
         renderer.set_trihedron_mode(plugin.trihedron_mode)
 
+    func update_antialiasing(change):
+        renderer.set_antialiasing(plugin.renderer_use_antialiasing)
+
+    func update_raytracing(change):
+        renderer.set_raytracing(plugin.renderer_use_raytracing)
+
+    func update_shadows(change):
+        renderer.set_shadows(plugin.renderer_show_shadows)
+
+    func update_draw_boundaries(change):
+        renderer.set_draw_boundaries(plugin.renderer_draw_boundaries)
+
+    func resync():
+        """ Resync all plugin settings """
+        for fn in (update_backgound, update_shape_color, update_trihedron,
+                   update_antialiasing, update_raytracing, update_shadows,
+                   update_draw_boundaries):
+            fn({})
+
     func setup():
+        """ Connect all plugin observers """
         plugin = viewer.plugin
         plugin.observe('background_mode', update_backgound)
         plugin.observe('background_top', update_backgound)
         plugin.observe('background_bottom', update_backgound)
         plugin.observe('trihedron_mode', update_trihedron)
         plugin.observe('shape_color', update_shape_color)
-        update_backgound({})
-        update_shape_color({})
-        update_trihedron({})
+
+        plugin.observe('renderer_use_antialiasing', update_antialiasing)
+        plugin.observe('renderer_use_raytracing', update_raytracing)
+        plugin.observe('renderer_show_shadows', update_shadows)
+        plugin.observe('renderer_draw_boundaries', update_draw_boundaries)
+
+        self.resync()
 
     #: Embedded viewer
     EmbeddedWindow: window:

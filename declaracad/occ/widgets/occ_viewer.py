@@ -176,7 +176,7 @@ class OccViewer(Control):
     shape_color = d_(ColorMember('steelblue'))
 
     #: Display shadows
-    shadows = d_(Bool(False))
+    shadows = d_(Bool(True))
 
     #: Display reflections
     reflections = d_(Bool(True))
@@ -191,7 +191,7 @@ class OccViewer(Control):
     hlr = d_(Bool(False))
 
     #: Draw face boundaries
-    draw_boundaries = d_(Bool(True))
+    draw_boundaries = d_(Bool(False))
 
     #: View expands freely in width by default.
     hug_width = set_default('ignore')
