@@ -63,6 +63,12 @@ enamldef ViewerSettingsPage(Container):
                     dlg = ColorDialog(parent=self, current_color=model.background_top)
                     if dlg.exec_():
                         model.background_bottom = dlg.selected_color
+            Label:
+                text = "Fill method"
+            ObjectCombo:
+                items = list(model.get_member('background_fill_method').items)
+                to_string = lambda it: it.replace("-", " ").title()
+                selected := model.background_fill_method
 
         Label:
             text = "Trihedron display"
@@ -83,6 +89,10 @@ enamldef ViewerSettingsPage(Container):
             text = "Render shadows"
         CheckBox:
             checked := model.renderer_show_shadows
+        Label:
+            text = "Render reflections"
+        CheckBox:
+            checked := model.renderer_show_reflections
         Label:
             text = "Render boundaries"
         CheckBox:

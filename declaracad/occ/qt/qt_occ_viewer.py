@@ -373,11 +373,11 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         drawer = self.prs3d_drawer = ais_context.DefaultDrawer()
 
         # Turn up tesselation defaults
-        # chord_dev = drawer.MaximalChordialDeviation() / 10.0
-        # drawer.SetMaximalChordialDeviation(chord_dev)
+        #chord_dev = drawer.MaximalChordialDeviation() / 10.0
+        #drawer.SetMaximalChordialDeviation(chord_dev)
 
         viewer.SetDefaultLights()
-        viewer.SetLightOn()
+        #viewer.DisplayPrivilegedPlane(True, 1)
 
         # background gradient
         self.set_background_gradient(d.background_gradient)
@@ -506,6 +506,9 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     def set_raytracing(self, enabled):
         self._update_rendering_params()
 
+    def set_raytracing_depth(self, depth):
+        self._update_rendering_params()
+
     def _update_rendering_params(self, **params):
         """ Set the rendering parameters of the view
 
@@ -525,7 +528,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
         defaults = dict(
             Method=method,
-            RaytracingDepth=3,
+            RaytracingDepth=d.raytracing_depth,
             IsShadowEnabled=d.shadows,
             IsReflectionEnabled=d.reflections,
             IsAntialiasingEnabled=d.antialiasing,
@@ -540,9 +543,21 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         view.Redraw()
 
     def set_background_gradient(self, gradient):
+        """ Set the background gradient
+
+        Parameters
+        ----------
+        gradient: Tuple
+            Gradient parameters Color 1, Color 2, and optionally th fill method
+
+        """
         c1, _ = color_to_quantity_color(gradient[0])
         c2, _ = color_to_quantity_color(gradient[1])
-        self.v3d_view.SetBgGradientColors(c1, c2, Aspect_GFM_VER, True)
+        fill_method = Aspect_GFM_VER
+        if len(gradient) == 3:
+            attr = 'Aspect_GFM_{}'.format(gradient[2].upper())
+            fill_method = getattr(Aspect, attr, Aspect_GFM_VER)
+        self.v3d_view.SetBgGradientColors(c1, c2, fill_method, True)
 
     def set_shape_color(self, color):
         self.shape_color = color_to_quantity_color(color)

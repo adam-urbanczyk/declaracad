@@ -100,6 +100,9 @@ class ProxyOccViewer(ProxyControl):
     def set_raytracing(self, enabled):
         raise NotImplementedError
 
+    def set_raytracing_depth(self, depth):
+        raise NotImplementedError
+
     def set_draw_boundaries(self, enabled):
         raise NotImplementedError
 
@@ -187,6 +190,9 @@ class OccViewer(Control):
     #: Enable raytracing
     raytracing = d_(Bool(False))
 
+    #: Raytracing depth
+    raytracing_depth = d_(Int(3))
+
     #: Enable hidden line removal
     hlr = d_(Bool(False))
 
@@ -224,7 +230,8 @@ class OccViewer(Control):
     @observe('position', 'display_mode', 'view_mode', 'trihedron_mode',
              'selection_mode', 'background_gradient', 'double_buffer',
              'shadows', 'reflections', 'antialiasing', 'lock_rotation',
-             'lock_zoom', 'draw_boundaries', 'hlr', 'shape_color')
+             'lock_zoom', 'draw_boundaries', 'hlr', 'shape_color',
+             'raytracing_depth')
     def _update_proxy(self, change):
         """ An observer which sends state change to the proxy.
         """

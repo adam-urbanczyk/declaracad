@@ -358,6 +358,11 @@ enamldef ModelViewer(OccViewer): viewer:
                 checked :: viewer.proxy.update_display()
             Action:
                 checkable = True
+                text = 'Reflections'
+                checked := viewer.reflections
+                checked :: viewer.proxy.update_display()
+            Action:
+                checkable = True
                 text = 'Antialiasing'
                 checked := viewer.antialiasing
                 checked :: viewer.proxy.update_display()
@@ -548,7 +553,7 @@ enamldef RemoteViewer(Conditional): viewer:
             c2 = plugin.background_bottom
             if not c2:
                 return
-        renderer.set_background_gradient((c1, c2))
+        renderer.set_background_gradient((c1, c2, plugin.background_fill_method))
 
     func update_shape_color(change):
         renderer.set_shape_color(plugin.shape_color)
@@ -568,6 +573,9 @@ enamldef RemoteViewer(Conditional): viewer:
     func update_shadows(change):
         renderer.set_shadows(plugin.renderer_show_shadows)
 
+    func update_reflections(change):
+        renderer.set_reflections(plugin.renderer_show_reflections)
+
     func update_draw_boundaries(change):
         renderer.set_draw_boundaries(plugin.renderer_draw_boundaries)
 
@@ -575,7 +583,7 @@ enamldef RemoteViewer(Conditional): viewer:
         """ Resync all plugin settings """
         for fn in (update_backgound, update_shape_color, update_trihedron,
                    update_antialiasing, update_raytracing, update_shadows,
-                   update_draw_boundaries):
+                   update_draw_boundaries, update_reflections):
             fn({})
 
     func setup():
@@ -584,12 +592,14 @@ enamldef RemoteViewer(Conditional): viewer:
         plugin.observe('background_mode', update_backgound)
         plugin.observe('background_top', update_backgound)
         plugin.observe('background_bottom', update_backgound)
+        plugin.observe('background_fill_method', update_backgound)
         plugin.observe('trihedron_mode', update_trihedron)
         plugin.observe('shape_color', update_shape_color)
 
         plugin.observe('renderer_use_antialiasing', update_antialiasing)
         plugin.observe('renderer_use_raytracing', update_raytracing)
         plugin.observe('renderer_show_shadows', update_shadows)
+        plugin.observe('renderer_show_reflections', update_reflections)
         plugin.observe('renderer_draw_boundaries', update_draw_boundaries)
 
         self.resync()

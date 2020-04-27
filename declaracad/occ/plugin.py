@@ -364,6 +364,10 @@ class ViewerPlugin(Plugin):
     background_mode = Enum('gradient', 'solid').tag(config=True)
     background_top = ColorMember('lightgrey').tag(config=True)
     background_bottom = ColorMember('grey').tag(config=True)
+    background_fill_method = Enum(
+        'corner3', 'corner1', 'corner2', 'corner4',
+        'ver', 'hor', 'diag1', 'diag2',
+        ).tag(config=True)
     trihedron_mode = Str('right-lower').tag(config=True)
 
     #: Defaults
@@ -374,6 +378,7 @@ class ViewerPlugin(Plugin):
     renderer_use_raytracing = Bool(True).tag(config=True)
     renderer_draw_boundaries = Bool(True).tag(config=True)
     renderer_show_shadows = Bool(True).tag(config=True)
+    renderer_show_reflections = Bool(True).tag(config=True)
 
 
     #: Exporters
