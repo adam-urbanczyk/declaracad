@@ -33,8 +33,8 @@ def init_logging(log_format=LOG_FORMAT):
     """ Log to stdout and the file """
 
     log_filename = get_log_filename()
-    root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
+    log = logging.getLogger('declaracad')
+    log.setLevel(logging.DEBUG)
     formatter = logging.Formatter(log_format)
 
     #: Log to stdout
@@ -51,8 +51,8 @@ def init_logging(log_format=LOG_FORMAT):
     disk.setLevel(logging.DEBUG)
     disk.setFormatter(formatter)
 
-    root.addHandler(disk)
-    root.addHandler(stream)
+    log.addHandler(disk)
+    log.addHandler(stream)
 
 
 def launch_exporter(args):
