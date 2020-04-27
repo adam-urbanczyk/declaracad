@@ -9,15 +9,16 @@ Created on Sep 26, 2016
 
 @author: jrm
 """
+import math
 from atom.api import (
    Atom, Event, List, Tuple, Bool, Int, Enum, Typed, ForwardTyped, observe,
-   Coerced, Dict, Str, Float, Instance, set_default
+   Coerced, Dict, Str, Float, Instance, FloatRange, set_default
 )
 from enaml.core.declarative import d_
 from enaml.colors import Color, ColorMember, parse_color
 from enaml.widgets.control import Control, ProxyControl
 
-from ..shape import BBox
+from ..shape import BBox, Point, Direction
 
 
 def gradient_coercer(arg):
@@ -46,6 +47,68 @@ class ViewerSelection(Atom):
     area = Instance(tuple)
 
 
+class ViewerLight(Atom):
+    """ A Light in the view
+
+    """
+    #: Whether the light is on
+    enabled = Bool(True)
+
+    #: Type of light
+    type = Enum("directional", "spot", "ambient")
+
+    #: Color of the light source
+    color = ColorMember()
+
+    #: Name of the light
+    name = Str()
+
+    #: Intensity of light source
+    intensity = FloatRange(0.0, 1.0, 1.0)
+
+    # ------------------------------------------------------------------------
+    # Directional light parameters
+    # ------------------------------------------------------------------------
+    orientation = Enum(
+        'XnegYnegZneg',
+        'Xpos', 'Ypos', 'Zpos',
+        'Xneg', 'Yneg', 'Zneg',
+        'XposYpos', 'XposZpos', 'YposZpos',
+        'XnegYneg', 'XnegYpos', 'XnegZneg',
+        'XnegZpos', 'YnegZneg', 'YnegZpos',
+        'XposYneg', 'XposZneg', 'YposZneg',
+        'XposYposZpos', 'XposYnegZpos', 'XposYposZneg',
+        'XnegYposZpos', 'XposYnegZneg', 'XnegYposZneg',
+        'XnegYnegZpos',
+        'Zup_AxoLeft', 'Zup_AxoRight',
+        'Zup_Front', 'Zup_Back', 'Zup_Top', 'Zup_Bottom', 'Zup_Left',
+        'Zup_Right', 'Yup_AxoLeft', 'Yup_AxoRight', 'Yup_Front', 'Yup_Back',
+        'Yup_Top', 'Yup_Bottom', 'Yup_Left', 'Yup_Right')
+
+    #: Headlight flag means that light position/direction are defined not in a
+    #: World coordinate system, but relative to the camera orientation
+    headlight = Bool()
+
+
+    # ------------------------------------------------------------------------
+    # Spot light parameters
+    # ------------------------------------------------------------------------
+    #: Position of the spot light
+    position = Typed(Point)
+
+    #: Direction of the spot light
+    direction = Typed(Direction)
+
+    def _default_direction(self):
+        return Direction(-1, -1, -1)
+
+    #: Range of the light source, 0.0 means infininte
+    range = Float(0.0, strict=False)
+
+    # Angle in radians of the cone created by the spot
+    angle = FloatRange(0.0, math.pi, math.pi/2)
+
+
 class ProxyOccViewer(ProxyControl):
     """ The abstract definition of a proxy Viewer object.
     """
@@ -56,6 +119,9 @@ class ProxyOccViewer(ProxyControl):
         raise NotImplementedError
 
     def set_pan(self, position):
+        raise NotImplementedError
+
+    def set_lights(self, lights):
         raise NotImplementedError
 
     def set_background_gradient(self, gradient):
@@ -211,6 +277,15 @@ class OccViewer(Control):
     #: Lock zoom so the mouse wheel cannot not zoom
     lock_zoom = d_(Bool())
 
+    #: Lights
+    lights = d_(List(ViewerLight))
+
+    def _default_lights(self):
+        headlight = ViewerLight(
+            type="directional", color="white", headlight=True)
+        ambient = ViewerLight(type="ambient", color="white", intensity=0.9)
+        return [headlight, ambient]
+
     #: Events
     #: Raise StopIteration to indicate handling should stop
     key_pressed = d_(Event(), writable=False)
@@ -218,7 +293,6 @@ class OccViewer(Control):
     mouse_released = d_(Event(), writable=False)
     mouse_wheeled = d_(Event(), writable=False)
     mouse_moved = d_(Event(), writable=False)
-
 
     #: Loading status
     loading = d_(Bool(), writable=False)
@@ -231,7 +305,7 @@ class OccViewer(Control):
              'selection_mode', 'background_gradient', 'double_buffer',
              'shadows', 'reflections', 'antialiasing', 'lock_rotation',
              'lock_zoom', 'draw_boundaries', 'hlr', 'shape_color',
-             'raytracing_depth')
+             'raytracing_depth', 'lights')
     def _update_proxy(self, change):
         """ An observer which sends state change to the proxy.
         """

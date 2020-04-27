@@ -54,7 +54,7 @@ from OCCT.MeshVS import (
     MeshVS_MeshPrsBuilder
 )
 from OCCT.OpenGl import OpenGl_GraphicDriver
-from OCCT.Quantity import Quantity_Color, Quantity_NOC_BLACK
+from OCCT.Quantity import Quantity_Color, Quantity_NOC_BLACK, Quantity_NOC_WHITE
 from OCCT.Prs3d import Prs3d_Drawer
 from OCCT.TopoDS import TopoDS_Shape
 from OCCT.TopAbs import TopAbs_FACE, TopAbs_EDGE, TopAbs_WIRE
@@ -105,6 +105,7 @@ V3D_DISPLAY_MODES = {
 }
 
 BLACK = Quantity_Color(Quantity_NOC_BLACK)
+WHITE = Quantity_Color(Quantity_NOC_WHITE)
 
 
 class QtViewer3d(QOpenGLWidget):
@@ -353,6 +354,9 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     prs3d_drawer = Typed(Prs3d_Drawer)
     v3d_window = Typed(V3d_Window)
 
+    #: List of lights
+    lights = List()
+
     def get_shapes(self):
         return [c for c in self.children() if not isinstance(c, QtControl)]
 
@@ -376,7 +380,13 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         #chord_dev = drawer.MaximalChordialDeviation() / 10.0
         #drawer.SetMaximalChordialDeviation(chord_dev)
 
-        viewer.SetDefaultLights()
+        #viewer.SetDefaultLights()
+        try:
+            self.set_lights(d.lights)
+        except Exception as e:
+            log.exception(e)
+            viewer.SetDefaultLights()
+
         #viewer.DisplayPrivilegedPlane(True, 1)
 
         # background gradient
@@ -490,6 +500,41 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             A 3d coordinate
         """
         return self.v3d_view.Convert(point[0], point[1], point[2], 0, 0)
+
+    def set_lights(self, lights):
+        viewer = self.v3d_viewer
+        new_lights = []
+
+        for d in lights:
+            color, _ = color_to_quantity_color(d.color)
+            if d.type == "directional":
+                if '_' in d.orientation:
+                    attr = 'V3d_TypeOfOrientation_{}'.format(d.orientation)
+                else:
+                    attr = 'V3d_{}'.format(d.orientation)
+                orientation = getattr(
+                    V3d.V3d_TypeOfOrientation, attr, V3d.V3d_Zneg)
+                light = V3d.V3d_DirectionalLight(
+                    orientation, color, d.headlight)
+            elif d.type == "spot":
+                light = V3d.V3d_SpotLight(d.position, d.direction, color)
+                light.SetAngle(d.angle)
+            else:
+                light = V3d.V3d_AmbientLight(color)
+            light.SetIntensity(d.intensity)
+
+            if d.range:
+                light.SetRange(d.range)
+
+            viewer.AddLight(light)
+            if d.enabled:
+                viewer.SetLightOn(light)
+            new_lights.append(light)
+
+        for light in self.lights:
+            viewer.DelLight(self.light)
+
+        self.lights = new_lights
 
     def set_draw_boundaries(self, enabled):
         self.prs3d_drawer.SetFaceBoundaryDraw(enabled)
