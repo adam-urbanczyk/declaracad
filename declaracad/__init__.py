@@ -33,7 +33,7 @@ def init_logging(log_format=LOG_FORMAT):
     """ Log to stdout and the file """
 
     log_filename = get_log_filename()
-    log = logging.getLogger('declaracad')
+    log = logging.getLogger()
     log.setLevel(logging.DEBUG)
     formatter = logging.Formatter(log_format)
 
@@ -53,6 +53,12 @@ def init_logging(log_format=LOG_FORMAT):
 
     log.addHandler(disk)
     log.addHandler(stream)
+
+    #: Set ipython logging to warning
+    for name in ('ipykernel.inprocess.ipkernel', 'traitlets',
+                 'parso.python.diff', 'parso.cache'):
+        log = logging.getLogger(name)
+        log.setLevel(logging.WARNING)
 
 
 def launch_exporter(args):
