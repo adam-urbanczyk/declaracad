@@ -25,7 +25,7 @@ from enaml.layout.api import align, hbox
 from enaml.qt.QtCore import Qt
 from enaml.widgets.api import (
     Window, Container, Menu, Action, DualSlider, CheckBox, Label,
-    IPythonConsole, ProgressBar
+    IPythonConsole, ProgressBar, ScrollArea
 )
 
 from .widgets.api import OccViewer, OccViewerClippedPlane
@@ -604,10 +604,18 @@ enamldef RemoteViewer(Conditional): viewer:
 
         self.resync()
 
-    #: Embedded viewer
-    EmbeddedWindow: window:
-        window_id = renderer.window_id
-        activated :: viewer.setup()
+    ScrollArea:
+        widget_resizable = True
+        # When a window container is used as a child of a QAbstractScrollArea or
+        # QMdiArea, it will create a native window for every widget in its
+        # parent chain to allow for proper stacking and clipping
+        # See https://doc.qt.io/qt-5/qwidget.html#createWindowContainer
+        Container:
+            padding = 0
+            #: Embedded viewer
+            EmbeddedWindow: window:
+                window_id = renderer.window_id
+                activated :: viewer.setup()
 
 
 enamldef ViewerDockItem(DockItem): view:
