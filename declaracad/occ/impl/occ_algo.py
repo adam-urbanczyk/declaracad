@@ -189,10 +189,13 @@ class OccFillet(OccOperation, ProxyFillet):
         d = self.declaration
         # Get the shape to apply the fillet to
         child = self.get_first_child()
+
+        # Ignore this operation
+        if d.disabled:
+            self.shape = child.shape
+            return
+
         fillet = BRepFilletAPI_MakeFillet(child.shape)
-
-        # TODO: Set shape type
-
         operations = d.operations if d.operations else child.topology.edges
         for item in operations:
             if not isinstance(item, (list, tuple)):
@@ -231,6 +234,12 @@ class OccChamfer(OccOperation, ProxyChamfer):
 
         #: Get the shape to apply the fillet to
         child = self.get_first_child()
+
+        # Ignore this operation
+        if d.disabled:
+            self.shape = child.shape
+            return
+
         chamfer = BRepFilletAPI_MakeChamfer(child.shape)
 
         operations = d.operations if d.operations else child.topology.faces
@@ -294,7 +303,7 @@ class OccOffset(OccOperation, ProxyOffset):
 
     def update_shape(self, change=None):
         d = self.declaration
-        shape = self.get_shape_to_offset()
+        shape = Topology.cast_shape(self.get_shape_to_offset())
         if isinstance(shape, TopoDS_Edge):
             shape = BRepBuilderAPI_MakeWire(shape).Wire()
         elif not isinstance(shape, (TopoDS_Wire, TopoDS_Face)):
@@ -412,30 +421,22 @@ class OccPipe(OccOperation, ProxyPipe):
         'discrete_trihedron': GeomFill_IsDiscreteTrihedron
     })
 
-    def init_shape(self):
-        super(OccPipe, self).init_shape()
-        d = self.declaration
-        if d.spline:
-            self.set_spline(d.spline)
-        if d.profile:
-            self.set_profile(d.profile)
-
     def update_shape(self, change=None):
         d = self.declaration
 
         if d.spline and d.profile:
-            spline, profile = d.spline.proxy, d.profile.proxy
+            spline, profile = d.spline, d.profile
         elif d.spline:
-            spline = d.spline.proxy
-            profile = self.get_first_child()
+            spline = d.spline
+            profile = self.get_first_child().shape
         elif d.profile:
-            profile = d.spline.proxy
-            spline = self.get_first_child()
+            profile = d.profile
+            spline = self.get_first_child().shape
         else:
-            shapes = [c for c in self.children() if isinstance(c, OccShape)]
+            shapes = [c.shape for c in self.children() if isinstance(c, OccShape)]
             spline, profile = shapes[0:2]
 
-        args = [spline.shape, profile.shape]
+        args = [coerce_shape(spline), coerce_shape(profile)]
 
         # Make sure spline is a wire
         if isinstance(args[0], TopoDS_Edge):
@@ -447,28 +448,10 @@ class OccPipe(OccOperation, ProxyPipe):
         self.shape = pipe.Shape()
 
     def set_spline(self, spline):
-        # Unobserve the old spline and observe the new one
-        if self._old_spline:
-            self._old_spline.unobserve('shape', self.update_shape)
-        child = spline.proxy
-        child.observe('shape', self.update_shape)
-        self._old_spline = child
-
-        # Trigger an update if the shape was already built
-        if self.shape:
-            self.update_shape()
+        self.update_shape()
 
     def set_profile(self, profile):
-        # Unobserve the old spline and observe the new one
-        if self._old_profile:
-            self._old_profile.unobserve('shape', self.update_shape)
-        child = profile.proxy
-        child.observe('shape', self.update_shape)
-        self._old_profile = child
-
-        # Trigger an update if the shape was already built
-        if self.shape:
-            self.update_shape()
+        self.update_shape()
 
     def set_fill_mode(self, mode):
         self.update_shape()
@@ -482,19 +465,20 @@ class OccThruSections(OccOperation, ProxyThruSections):
         from .occ_draw import OccVertex, OccWire
 
         d = self.declaration
-        thru_sect = BRepOffsetAPI_ThruSections(d.solid, d.ruled, d.precision)
-
+        loft = BRepOffsetAPI_ThruSections(d.solid, d.ruled, d.precision)
+        #loft.CheckCompatibility(True)
         #: TODO: Support Smoothing, Max degree, par type, etc...
 
         for child in self.children():
             if isinstance(child, OccVertex):
-                thru_sect.AddVertex(child.shape)
+                loft.AddVertex(child.shape)
             elif isinstance(child, OccWire):
-                thru_sect.AddWire(child.shape)
+                loft.AddWire(child.shape)
             #: TODO: Handle transform???
 
+
         #: Set the shape
-        self.shape = thru_sect.Shape()
+        self.shape = loft.Shape()
 
     def set_solid(self, solid):
         self.update_shape()
@@ -535,6 +519,12 @@ class OccTransform(OccOperation, ProxyTransform):
             axis.SetDirection(d.direction.proxy)
             result.SetTransformation(axis)
             result.SetTranslationPart(gp_Vec(*d.position))
+            if d.rotation:
+                t = gp_Trsf()
+                t.SetRotation(gp_Ax1(d.position.proxy, d.direction.proxy),
+                              d.rotation)
+                result.Multiply(t)
+
         return result
 
     def update_shape(self, change=None):

@@ -18,12 +18,6 @@ from enaml.core.declarative import d_
 from .shape import ProxyShape, Shape, TopoDS_Shape
 
 
-def WireFactory():
-    #: Deferred import of wire
-    from .draw import Wire
-    return Wire
-
-
 class ProxyOperation(ProxyShape):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: Operation)
@@ -67,6 +61,9 @@ class ProxyFillet(ProxyOperation):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: Fillet)
 
+    def set_disabled(self, disabled):
+        raise NotImplementedError
+
     def set_radius(self, r):
         raise NotImplementedError
 
@@ -80,6 +77,9 @@ class ProxyFillet(ProxyOperation):
 class ProxyChamfer(ProxyOperation):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: Chamfer)
+
+    def set_disabled(self, disabled):
+        raise NotImplementedError
 
     def set_distance(self, d):
         raise NotImplementedError
@@ -382,6 +382,9 @@ class Fillet(Operation):
     #: Reference to the implementation control
     proxy = Typed(ProxyFillet)
 
+    #: If True, don't apply the fillet (for debugging)
+    disabled = d_(Bool())
+
     #: Fillet shape type
     shape_type = d_(Enum('rational', 'angular', 'polynomial')).tag(
         view=True, group='Fillet')
@@ -393,7 +396,7 @@ class Fillet(Operation):
     #: Leave blank to use all edges of the shape
     operations = d_(List()).tag(view=True, group='Fillet')
 
-    @observe('shape_type', 'radius', 'operations')
+    @observe('shape_type', 'radius', 'operations', 'disabled')
     def _update_proxy(self, change):
         super(Fillet, self)._update_proxy(change)
 
@@ -426,6 +429,9 @@ class Chamfer(Operation):
     #: Reference to the implementation control
     proxy = Typed(ProxyChamfer)
 
+    #: If True, don't apply the chamfer (for debugging)
+    disabled = d_(Bool())
+
     #: Distance of chamfer
     distance = d_(Float(1, strict=False)).tag(view=True, group='Chamfer')
 
@@ -435,7 +441,7 @@ class Chamfer(Operation):
     #: Edges or faces to apply chamfer to
     operations = d_(List()).tag(view=True, group='Chamfer')
 
-    @observe('distance', 'distance2', 'operations')
+    @observe('distance', 'distance2', 'operations', 'disabled')
     def _update_proxy(self, change):
         super(Chamfer, self)._update_proxy(change)
 
@@ -580,10 +586,10 @@ class Pipe(Operation):
     proxy = Typed(ProxyPipe)
 
     #: Spline to make the pipe along
-    spline = d_(ForwardInstance(WireFactory))
+    spline = d_(Instance(object))
 
     #: Profile to make the pipe from
-    profile = d_(Instance(Shape))
+    profile = d_(Instance(object))
 
     #: Fill mode
     fill_mode = d_(Enum(None, 'corrected_frenet', 'fixed', 'frenet',
