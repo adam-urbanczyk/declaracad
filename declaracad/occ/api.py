@@ -20,6 +20,9 @@ from .algo import (
     Transform, Translate, Rotate, Scale, Mirror
 )
 
+Loft = ThruSections
+Sweep = Pipe
+
 from .dimension import (
     AngleDimension, DiameterDimension, LengthDimension, RadiusDimension
 )
