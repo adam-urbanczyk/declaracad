@@ -269,6 +269,9 @@ class Point(Atom):
     z = Float(0, strict=False)
 
     def __init__(self, x=0, y=0, z=0, **kwargs):
+        if isinstance(x, TopoDS_Shape):
+            pnt = BRep_Tool.Pnt_(x)
+            x, y, z = pnt.X(), pnt.Y(), pnt.Z()
         super().__init__(x=x, y=y, z=z, **kwargs)
 
     def _default_proxy(self):

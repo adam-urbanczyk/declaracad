@@ -77,6 +77,9 @@ def coerce_axis(value):
 
 
 def coerce_shape(shape):
+    """ Coerce a declaration into a TopoDS_Shape
+
+    """
     if isinstance(shape, Shape):
         return shape.proxy.shape
     return shape
@@ -846,11 +849,14 @@ class OccShape(ProxyShape):
         self.init_layout()
 
     def _default_topology(self):
+        if self.shape is None:
+            self.create_shape()
         return Topology(shape=self.shape)
 
     @observe('shape')
     def update_topology(self, change):
-        self.topology = self._default_topology()
+        if self.shape is not None:
+            self.topology = self._default_topology()
 
     def check_done(self, shape):
         """ Make sure the shape is done before attempting to access it
