@@ -254,7 +254,7 @@ class OccViewer(Control):
     antialiasing = d_(Bool(True))
 
     #: Enable raytracing
-    raytracing = d_(Bool(False))
+    raytracing = d_(Bool(True))
 
     #: Raytracing depth
     raytracing_depth = d_(Int(3))
@@ -283,7 +283,7 @@ class OccViewer(Control):
     def _default_lights(self):
         headlight = ViewerLight(
             type="directional", color="white", headlight=True)
-        ambient = ViewerLight(type="ambient", color="white", intensity=0.9)
+        ambient = ViewerLight(type="ambient", color="white", intensity=0.95)
         return [headlight, ambient]
 
     #: Events
