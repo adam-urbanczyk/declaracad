@@ -12,6 +12,7 @@ Created on Sep 30, 2016
 import os
 from atom.api import Typed, Int, Tuple, List, set_default
 
+from OCCT import TCollection, NCollection, Graphic3d
 from OCCT.BRep import BRep_Tool
 from OCCT.BRepBuilderAPI import (
     BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace,
@@ -20,7 +21,10 @@ from OCCT.BRepBuilderAPI import (
 )
 from OCCT.BRepLib import BRepLib
 from OCCT.BRepOffsetAPI import BRepOffsetAPI_MakeOffset
-from OCCT.Font import Font_BRepTextBuilder, Font_FontAspect, Font_FontMgr
+from OCCT.Font import (
+    Font_FontMgr, Font_BRepFont, Font_BRepTextBuilder, Font_FontAspect
+)
+
 from OCCT.GC import (
     GC_MakeSegment, GC_MakeArcOfCircle, GC_MakeArcOfEllipse, GC_MakeLine
 )
@@ -38,9 +42,6 @@ from OCCT.Geom import (
     Geom_Ellipse, Geom_Circle, Geom_Parabola, Geom_Hyperbola, Geom_Line
 )
 from OCCT.TColgp import TColgp_Array1OfPnt
-from OCCT.TCollection import TCollection_HAsciiString
-from OCCT.NCollection import NCollection_Utf16String
-#from OCCT.NCollection import NCollection_UtfString
 
 from ..shape import coerce_point, coerce_direction
 from ..draw import (
@@ -59,6 +60,7 @@ from declaracad.core.utils import log
 #: Track registered fonts
 FONT_MANAGER = Font_FontMgr.GetInstance_()
 FONT_REGISTRY = set()
+FONT_CACHE = {}
 FONT_ASPECTS = {
     'regular': Font_FontAspect.Font_FA_Regular,
     'bold': Font_FontAspect.Font_FA_Bold,
@@ -392,10 +394,12 @@ class OccText(OccShape, ProxyText):
 
     builder = Typed(Font_BRepTextBuilder, ())
 
-    # font = Typed(Font_SystemFont)
+    font = Typed(Font_BRepFont)
 
-    def create_shape(self):
-        """ Create the shape by loading it from the given path. """
+    def update_font(self, change=None):
+        self.font = self._default_font()
+
+    def _default_font(self):
         d = self.declaration
         font_family = d.font
         if font_family and os.path.exists(font_family) \
@@ -404,24 +408,52 @@ class OccText(OccShape, ProxyText):
             FONT_REGISTRY.add(font_family)
 
         font_style = FONT_ASPECTS.get(d.style)
-        font_name = TCollection_HAsciiString(font_family)
-        font = FONT_MANAGER.FindFont(font_name, font_style, int(d.size))
-        text = NCollection_Utf16String(d.text.encode('utf-16'))
-        self.shape = self.builder.Perform(font, text)
+
+        # Fonts are cached by OpenCASCADE so we also cache the here or
+        # each time the font instance is released by python it get's lost
+        key = (font_family, d.style, d.size)
+        font = FONT_CACHE.get(key)
+        if font is None:
+            font_name = TCollection.TCollection_AsciiString(font_family)
+            font = Font_BRepFont()
+            assert font.FindAndInit(font_name, font_style, float(d.size))
+            FONT_CACHE[key] = font
+        return font
+
+    def create_shape(self):
+        """ Create the shape by loading it from the given path. """
+        d = self.declaration
+        font = self.font
+        axis = gp_Ax3(coerce_axis(d.axis))
+        attr = 'Graphic3d_HTA_{}'.format(d.horizontal_alignment.upper())
+        halign = getattr(Graphic3d, attr)
+        attr = 'Graphic3d_VTA_{}'.format(d.vertical_alignment .upper())
+        valign = getattr(Graphic3d, attr)
+        text = NCollection.NCollection_String(d.text.encode("utf-8"))
+        self.shape = self.builder.Perform(self.font, text, axis, halign, valign)
 
     def set_text(self, text):
         self.create_shape()
 
     def set_font(self, font):
+        self.update_font()
         self.create_shape()
 
     def set_size(self, size):
+        self.update_font()
         self.create_shape()
 
     def set_style(self, style):
+        self.update_font()
         self.create_shape()
 
     def set_composite(self, composite):
+        self.create_shape()
+
+    def set_vertical_alignment(self, alignment):
+        self.create_shape()
+
+    def set_horizontal_alignment(self, alignment):
         self.create_shape()
 
 

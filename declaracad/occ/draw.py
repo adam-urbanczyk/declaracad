@@ -175,6 +175,12 @@ class ProxyText(ProxyShape):
     def set_composite(self, composite):
         raise NotImplementedError
 
+    def set_vertical_alignment(self, alignment):
+        raise NotImplementedError
+
+    def set_horizontal_alignment(self, alignment):
+        raise NotImplementedError
+
 
 class ProxyWire(ProxyShape):
     declaration = ForwardTyped(lambda: Wire)
@@ -768,10 +774,15 @@ class Text(Shape):
     #: Font style
     style = d_(Enum('regular', 'bold', 'italic', 'bold-italic'))
 
+    #: Font alignment
+    horizontal_alignment = d_(Enum('left', 'center', 'right'))
+    vertical_alignment = d_(Enum('bottom', 'center', 'top', 'topfirstline'))
+
     #: Composite curve
     composite = d_(Bool(True))
 
-    @observe('text', 'font', 'size', 'style', 'composite')
+    @observe('text', 'font', 'size', 'style', 'composite',
+             'horizontal_alignment', 'vertical_alignment')
     def _update_proxy(self, change):
         """ Base class implementation is sufficient"""
         super(Text, self)._update_proxy(change)
