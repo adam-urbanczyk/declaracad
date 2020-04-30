@@ -574,10 +574,12 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         defaults = dict(
             Method=method,
             RaytracingDepth=d.raytracing_depth,
+            IsGlobalIlluminationEnabled=d.raytracing,
             IsShadowEnabled=d.shadows,
             IsReflectionEnabled=d.reflections,
             IsAntialiasingEnabled=d.antialiasing,
             IsTransparentShadowEnabled=d.shadows,
+            NbMsaaSamples=4,
             StereoMode=Graphic3d_StereoMode_QuadBuffer,
             AnaglyphFilter=Graphic3d_RenderingParams.Anaglyph_RedCyan_Optimized,
             ToReverseStereo=False
