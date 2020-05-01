@@ -14,11 +14,10 @@ from atom.api import Typed
 from ..part import ProxyPart
 from .occ_shape import OccDependentShape, OccShape
 
-from OCCT.TopoDS import TopoDS_Compound, TopoDS_Shape
 from OCCT.BRep import BRep_Builder
-from OCCT.BRepBuilderAPI import BRepBuilderAPI_Transform
 from OCCT.gp import gp, gp_Trsf, gp_Ax1, gp_Ax3, gp_Vec, gp_Dir
-
+from OCCT.TopLoc import TopLoc_Location
+from OCCT.TopoDS import TopoDS_Compound, TopoDS_Shape
 
 
 DX = gp.DX_()
@@ -30,8 +29,29 @@ class OccPart(OccDependentShape, ProxyPart):
     #: A reference to the toolkit shape created by the proxy.
     builder = Typed(BRep_Builder)
 
-    #: Transform
-    transform = Typed(gp_Trsf, ())
+    #: Location
+    location = Typed(TopLoc_Location)
+
+    def _default_location(self):
+        d = self.declaration
+        # Move to position and align along direction axis
+        result = gp_Trsf()
+        if d.direction == DX:
+            # The "normal" direction is DX so if we want this to point
+            # in DX the gp_Ax3 method does not work
+            result.SetRotation(AY, -pi/2)
+        else:
+            axis = gp_Ax3()
+            axis.SetDirection(d.direction.proxy)
+            result.SetTransformation(axis)
+
+        result.SetTranslationPart(gp_Vec(*d.position))
+        if d.rotation:
+            t = gp_Trsf()
+            t.SetRotation(gp_Ax1(d.position.proxy, d.direction.proxy),
+                            d.rotation)
+            result.Multiply(t)
+        return TopLoc_Location(result)
 
     def update_shape(self, change=None):
         """ Create the toolkit shape for the proxy object.
@@ -48,21 +68,6 @@ class OccPart(OccDependentShape, ProxyPart):
                 continue
             # Note infinite planes cannot be added to a compound!
             builder.Add(shape, c.shape)
-
-        bbox = self.get_bounding_box(shape)
-
-        # Move to position and align along direction axis
-        t = gp_Trsf()
-        if d.direction == DX:
-            # The "normal" direction is DX so if we want this to point
-            # in DX the gp_Ax3 method does not work
-            t.SetRotation(AY, -pi/2)
-        else:
-            axis = gp_Ax3()
-            axis.SetDirection(d.direction.proxy)
-            t.SetTransformation(axis)
-
-        t.SetTranslationPart(gp_Vec(*d.position))
-        self.transform = t
-        part = BRepBuilderAPI_Transform(shape, t, False)
-        self.shape = part.Shape()
+        location = self.location = self._default_location()
+        shape.Location(location)
+        self.shape = shape

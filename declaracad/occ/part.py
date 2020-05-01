@@ -21,9 +21,6 @@ class ProxyPart(ProxyShape):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: Part)
 
-    #def update_display(self, change):
-    #    self.parent().update_display(change)
-
 
 class Part(Shape):
     """ A Part is a compound shape. It may contain

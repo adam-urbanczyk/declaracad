@@ -344,7 +344,7 @@ enamldef ModelViewer(OccViewer): viewer:
             Action:
                 checkable = True
                 text = 'Hidden line removal'
-                checked := viewer.hlr
+                checked := viewer.hidden_line_removal
                 checked :: viewer.proxy.update_display()
             Action:
                 checkable = True

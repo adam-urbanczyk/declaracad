@@ -172,7 +172,7 @@ class ProxyOccViewer(ProxyControl):
     def set_draw_boundaries(self, enabled):
         raise NotImplementedError
 
-    def set_hlr(self, enabled):
+    def set_hidden_line_removal(self, enabled):
         raise NotImplementedError
 
     def set_lock_rotation(self, locked):
@@ -260,7 +260,7 @@ class OccViewer(Control):
     raytracing_depth = d_(Int(3))
 
     #: Enable hidden line removal
-    hlr = d_(Bool(False))
+    hidden_line_removal = d_(Bool(False))
 
     #: Draw face boundaries
     draw_boundaries = d_(Bool(False))
@@ -304,8 +304,8 @@ class OccViewer(Control):
     @observe('position', 'display_mode', 'view_mode', 'trihedron_mode',
              'selection_mode', 'background_gradient', 'double_buffer',
              'shadows', 'reflections', 'antialiasing', 'lock_rotation',
-             'lock_zoom', 'draw_boundaries', 'hlr', 'shape_color',
-             'raytracing_depth', 'lights')
+             'lock_zoom', 'draw_boundaries', 'hidden_line_removal',
+             'shape_color', 'raytracing_depth', 'lights')
     def _update_proxy(self, change):
         """ An observer which sends state change to the proxy.
         """

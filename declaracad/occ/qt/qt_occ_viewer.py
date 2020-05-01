@@ -46,7 +46,7 @@ from OCCT.gp import gp_Pnt, gp_Dir, gp_Ax3
 from OCCT.Graphic3d import (
     Graphic3d_MaterialAspect, Graphic3d_StereoMode_QuadBuffer,
     Graphic3d_RM_RASTERIZATION, Graphic3d_RM_RAYTRACING,
-    Graphic3d_RenderingParams,
+    Graphic3d_RenderingParams, Graphic3d_TypeOfShadingModel
 )
 
 from OCCT.MeshVS import (
@@ -331,7 +331,6 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     #: Displayed Shapes
     _displayed_shapes = Dict()
     _displayed_dimensions = Dict()
-    _ais_shapes = List()
     _selected_shapes = List()
 
     #: Tuple of (Quantity_Color, transparency)
@@ -353,6 +352,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     ais_context = Typed(AIS_InteractiveContext)
     prs3d_drawer = Typed(Prs3d_Drawer)
     v3d_window = Typed(V3d_Window)
+    graphics_driver = Typed(OpenGl_GraphicDriver)
 
     #: List of lights
     lights = List()
@@ -370,7 +370,10 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         widget.proxy = self
 
         # Create viewer
-        graphics_driver = OpenGl_GraphicDriver(self.display_connection)
+        graphics_driver = self.graphics_driver = OpenGl_GraphicDriver(
+            self.display_connection)
+        #graphics_driver.EnableVFB(True)
+
         viewer = self.v3d_viewer = V3d_Viewer(graphics_driver)
         view = self.v3d_view = viewer.CreateView()
         ais_context = self.ais_context = AIS_InteractiveContext(viewer)
@@ -388,13 +391,14 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             viewer.SetDefaultLights()
 
         #viewer.DisplayPrivilegedPlane(True, 1)
+        view.SetShadingModel(Graphic3d_TypeOfShadingModel.V3d_PHONG)
 
         # background gradient
         self.set_background_gradient(d.background_gradient)
         self.set_draw_boundaries(d.draw_boundaries)
         self.set_trihedron_mode(d.trihedron_mode)
         self.set_display_mode(d.display_mode)
-        self.set_hlr(d.hlr)
+        self.set_hidden_line_removal(d.hidden_line_removal)
         self.set_selection_mode(d.selection_mode)
         self.set_view_mode(d.view_mode)
         self.set_lock_rotation(d.lock_rotation)
@@ -637,7 +641,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         self.ais_context.SetDisplayMode(mode, True)
         self.v3d_view.Redraw()
 
-    def set_hlr(self, enabled):
+    def set_hidden_line_removal(self, enabled):
         view = self.v3d_view
         view.SetComputedMode(enabled)
         view.Redraw()
@@ -834,7 +838,6 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         self.ais_context.Display(mesh_vs, True)
         return mesh_vs
 
-
     def update_selection(self, pos, area, shift):
         """ Update the selection state
 
@@ -924,8 +927,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         """ Remove all shapes and dimensions drawn """
         # Erase all just hides them
         remove = self.ais_context.Remove
-        for ais_shape in self._ais_shapes:
-            remove(ais_shape, False)
+        for occ_shape in self._displayed_shapes.values():
+            remove(occ_shape.ais_shape, False)
         for ais_dim in self._displayed_dimensions.keys():
             remove(ais_dim, False)
         self.ais_context.UpdateCurrentViewer()
@@ -938,9 +941,12 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         expansion = []
         for s in shapes:
             if isinstance(s, OccPart):
-                expansion.extend(self._expand_shapes(s.children(), dimensions))
-            elif isinstance(s, OccShape) and s.declaration.display:
-                expansion.append(s)
+                if s.declaration.display:
+                    subshapes = self._expand_shapes(s.children(), dimensions)
+                    expansion.extend(subshapes)
+            elif isinstance(s, OccShape):
+                if s.declaration.display:
+                    expansion.append(s)
             elif isinstance(s, OccDimension):
                 dimensions.append(s)
         return expansion
@@ -990,8 +996,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                         and not topods_shape.Locked():
 
                     # TODO: Build transform for nested parts
-                    location = TopLoc_Location(parent.transform)
-                    l = topods_shape.Location().Multiplied(location)
+                    l = parent.location.Multiplied(topods_shape.Location())
                     topods_shape.Location(l)
 
                     # HACK: Prevent doing this multiple times when the view is
@@ -1011,6 +1016,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                     d.material if d.material.name else None,
                     d.texture,
                     update=False)
+
+                occ_shape.ais_shape = ais_shape
                 if ais_shape:
                     ais_shapes.append(ais_shape)
 
@@ -1026,7 +1033,6 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             # Update
             self.ais_context.UpdateCurrentViewer()
 
-            self._ais_shapes = ais_shapes
             self._displayed_shapes = displayed_shapes
             self._displayed_dimensions = displayed_dimensions
 
