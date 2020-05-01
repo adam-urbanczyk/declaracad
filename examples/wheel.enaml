@@ -1,0 +1,8 @@
+# Created in DeclaraCAD
+from declaracad.occ.api import *
+
+enamldef Assembly(Part):
+    LoadShape:
+        path = 'examples/models/five_spoke_wheel.stl'
+        #path = 'examples/models/cylinder_head.brep'
+        

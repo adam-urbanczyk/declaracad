@@ -16,6 +16,7 @@ from atom.api import (
 )
 
 from OCCT import GeomAbs
+from OCCT.AIS import AIS_Shape
 from OCCT.Bnd import Bnd_Box
 from OCCT.BRep import BRep_Builder, BRep_Tool
 from OCCT.BRepAdaptor import BRepAdaptor_Curve, BRepAdaptor_Surface
@@ -57,7 +58,7 @@ from OCCT.IGESControl import IGESControl_Reader
 from OCCT.IFSelect import IFSelect_RetDone, IFSelect_ItemsByEntity
 from OCCT.STEPCAFControl import STEPCAFControl_Reader
 from OCCT.STEPControl import STEPControl_Reader
-from OCCT.StlAPI import StlAPI_Reader
+from OCCT.RWStl import RWStl
 
 from ..shape import (
     ProxyShape, ProxyFace, ProxyBox, ProxyCone, ProxyCylinder,
@@ -797,6 +798,9 @@ class OccShape(ProxyShape):
     #: A reference to the toolkit shape created by the proxy.
     shape = Typed(TopoDS_Shape)
 
+    #: The shape that was shown on the screen
+    ais_shape = Instance(AIS_Shape)
+
     #: Topology explorer of the shape
     topology = Typed(Topology)
 
@@ -848,6 +852,9 @@ class OccShape(ProxyShape):
         #log.debug(f"{self}.init_layout()")
         self.init_layout()
 
+    # -------------------------------------------------------------------------
+    # Defaults and Observers
+    # -------------------------------------------------------------------------
     def _default_topology(self):
         if self.shape is None:
             self.create_shape()
@@ -858,12 +865,6 @@ class OccShape(ProxyShape):
         if self.shape is not None:
             self.topology = self._default_topology()
 
-    def check_done(self, shape):
-        """ Make sure the shape is done before attempting to access it
-        which will segfault.
-
-        """
-        assert shape.IsDone(), "Could not build shape %s" % self.declaration
 
     #@observe('shape')
     #def update_display(self, change):
@@ -876,6 +877,10 @@ class OccShape(ProxyShape):
         for child in self.children():
             if isinstance(child, OccShape):
                 return child
+
+    # -------------------------------------------------------------------------
+    # Proxy API
+    # -------------------------------------------------------------------------
 
     def set_direction(self, direction):
         self.create_shape()
@@ -1328,9 +1333,11 @@ class OccLoadShape(OccShape, ProxyLoadShape):
 
     def load_stl(self, path):
         """ Load a stl model """
-        reader = StlAPI_Reader()
-        shape = TopoDS_Shape()
-        reader.Read(shape, path)
+        builder = BRep_Builder()
+        shape = TopoDS_Face()
+        builder.MakeFace(shape)
+        poly = RWStl.ReadFile_(path)
+        builder.UpdateFace(shape, poly)
         return shape
 
     # -------------------------------------------------------------------------
