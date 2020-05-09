@@ -36,7 +36,7 @@ from .draw import (
     Wire
 )
 
-from .part import Part
+from .part import Part, RawPart, LoadPart
 
 from .shape import (
     Point, Direction, Shape, RawShape, LoadShape, Face, Texture, Material,

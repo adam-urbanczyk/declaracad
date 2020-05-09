@@ -89,7 +89,6 @@ class ViewerLight(Atom):
     #: World coordinate system, but relative to the camera orientation
     headlight = Bool()
 
-
     # ------------------------------------------------------------------------
     # Spot light parameters
     # ------------------------------------------------------------------------
@@ -119,6 +118,9 @@ class ProxyOccViewer(ProxyControl):
         raise NotImplementedError
 
     def set_pan(self, position):
+        raise NotImplementedError
+
+    def set_chordial_deviation(self, deviation):
         raise NotImplementedError
 
     def set_lights(self, lights):
@@ -218,7 +220,7 @@ class OccViewer(Control):
 
     #: Selection mode
     selection_mode = d_(Enum(
-        'shape', 'shell', 'face', 'edge', 'wire', 'vertex'))
+        'any', 'shape', 'shell', 'face', 'edge', 'wire', 'vertex'))
 
     #: Selected items
     selection = d_(Typed(ViewerSelection), writable=False)
@@ -285,6 +287,9 @@ class OccViewer(Control):
             type="directional", color="white", headlight=True)
         ambient = ViewerLight(type="ambient", color="white", intensity=0.95)
         return [headlight, ambient]
+
+    #: Chordial Deviation. This is the "smoothness" of curves
+    chordial_deviation = d_(Float(0.001, strict=False))
 
     #: Events
     #: Raise StopIteration to indicate handling should stop

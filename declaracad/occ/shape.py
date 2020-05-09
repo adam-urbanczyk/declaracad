@@ -1086,8 +1086,8 @@ class RawShape(Shape):
 
 
 class LoadShape(Shape):
-    """ Load a shape from the given path. Shapes can be repositioned and
-    colored as needed.
+    """ Load a single shape from the given path. Shapes can be repositioned and
+    but can only be a single color.
 
     Attributes
     ----------
@@ -1118,3 +1118,17 @@ class LoadShape(Shape):
     def _update_proxy(self, change):
         """ Base class implementation is sufficient"""
         super(LoadShape, self)._update_proxy(change)
+
+
+class TopoShape(RawShape):
+    """ A shape loaded
+
+    """
+    shape = Instance(TopoDS_Shape)
+
+    def create_shape(self, parent):
+        return self.shape
+
+    def get_shape(self):
+        return self.shape
+

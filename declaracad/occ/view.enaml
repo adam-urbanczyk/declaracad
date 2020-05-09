@@ -45,8 +45,8 @@ enamldef ModelViewer(OccViewer): viewer:
     attr p0 = None
     attr clipped_planes: dict = {} # Map axis to tuple of (lower, upper)
     attr dimensions: list = []
-    attr show_console: bool = False
     attr shapes: list = []
+    attr show_console: bool = False
 
     # Last key event
     attr keymap = {
@@ -80,11 +80,6 @@ enamldef ModelViewer(OccViewer): viewer:
 
     Include:
         objects << list(expand_dict(clipped_planes))
-    Conditional:
-        condition << show_console
-        IPythonConsole:
-            initial_ns = {'viewer': viewer}
-            minimum_size = (640, 240)
     Include:
         objects << viewer.shapes
     Include:
@@ -517,6 +512,11 @@ enamldef ViewerWindow(Window): window:
             # Load the 3d models and include them in the viewer
             shapes << load_source() if filename and version else []
         Conditional:
+            condition << viewer.show_console
+            IPythonConsole:
+                initial_ns = {'viewer': viewer}
+                minimum_size = (640, 240)
+        Conditional:
             condition << viewer.loading
             ProgressBar:
                 value << int(viewer.progress)
@@ -579,11 +579,15 @@ enamldef RemoteViewer(Conditional): viewer:
     func update_draw_boundaries(change):
         renderer.set_draw_boundaries(plugin.renderer_draw_boundaries)
 
+    func update_chordial_deviation(change):
+        renderer.set_chordial_deviation(plugin.renderer_chordial_deviation)
+
     func resync():
         """ Resync all plugin settings """
         for fn in (update_backgound, update_shape_color, update_trihedron,
                    update_antialiasing, update_raytracing, update_shadows,
-                   update_draw_boundaries, update_reflections):
+                   update_draw_boundaries, update_reflections,
+                   update_chordial_deviation):
             fn({})
 
     func setup():
@@ -601,6 +605,7 @@ enamldef RemoteViewer(Conditional): viewer:
         plugin.observe('renderer_show_shadows', update_shadows)
         plugin.observe('renderer_show_reflections', update_reflections)
         plugin.observe('renderer_draw_boundaries', update_draw_boundaries)
+        plugin.observe('renderer_chordial_deviation', update_chordial_deviation)
 
         self.resync()
 

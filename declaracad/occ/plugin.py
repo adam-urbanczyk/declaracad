@@ -379,7 +379,7 @@ class ViewerPlugin(Plugin):
     renderer_draw_boundaries = Bool(True).tag(config=True)
     renderer_show_shadows = Bool(True).tag(config=True)
     renderer_show_reflections = Bool(True).tag(config=True)
-
+    renderer_chordial_deviation = Float(0.001).tag(config=True)
 
     #: Exporters
     exporters = ContainerList()

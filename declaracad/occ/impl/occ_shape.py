@@ -56,7 +56,6 @@ from OCCT.TopTools import (
 
 from OCCT.IGESControl import IGESControl_Reader
 from OCCT.IFSelect import IFSelect_RetDone, IFSelect_ItemsByEntity
-from OCCT.STEPCAFControl import STEPCAFControl_Reader
 from OCCT.STEPControl import STEPControl_Reader
 from OCCT.RWStl import RWStl
 
@@ -1302,7 +1301,7 @@ class OccLoadShape(OccShape, ProxyLoadShape):
         """ Load a brep model """
         shape = TopoDS_Shape()
         builder = BRep_Builder()
-        BRepTools.Read_(shape, path, builder)
+        BRepTools.Read_(shape, path, builder, None)
         return shape
 
     def load_iges(self, path):
@@ -1336,7 +1335,7 @@ class OccLoadShape(OccShape, ProxyLoadShape):
         builder = BRep_Builder()
         shape = TopoDS_Face()
         builder.MakeFace(shape)
-        poly = RWStl.ReadFile_(path)
+        poly = RWStl.ReadFile_(path, None)
         builder.UpdateFace(shape, poly)
         return shape
 

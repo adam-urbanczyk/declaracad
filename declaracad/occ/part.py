@@ -9,9 +9,7 @@ Created on Sept 28, 2016
 
 @author: jrm
 """
-from atom.api import (
-    Typed, ForwardTyped, Str
-)
+from atom.api import Typed, ForwardTyped, Str, Enum, observe
 from enaml.core.declarative import d_
 
 from .shape import Shape, ProxyShape
@@ -20,6 +18,25 @@ from .shape import Shape, ProxyShape
 class ProxyPart(ProxyShape):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: Part)
+
+
+class ProxyRawPart(ProxyPart):
+    #: A reference to the shape declaration.
+    declaration = ForwardTyped(lambda: RawPart)
+
+    def get_shapes(self):
+        raise NotImplementedError
+
+
+class ProxyLoadPart(ProxyPart):
+    #: A reference to the shape declaration.
+    declaration = ForwardTyped(lambda: LoadPart)
+
+    def set_path(self, path):
+        raise NotImplementedError
+
+    def set_loader(self, loader):
+        raise NotImplementedError
 
 
 class Part(Shape):
@@ -56,3 +73,95 @@ class Part(Shape):
     @property
     def shapes(self):
         return [child for child in self.children if isinstance(child, Shape)]
+
+
+class RawPart(Shape):
+    """ A RawPart is a part that delegates creation to the declaration.
+    This allows custom shapes to be added to the 3D model hierarchy. Users
+    should subclass this and implement the `create_shapes` method.
+
+    Examples
+    --------
+
+    from OCC.TopoDS import TopoDS_Shape
+    from OCC.StlAPI import StlAPI_Reader
+
+    class StlShape(RawShape):
+        #: Loads a shape from an stl file
+        def create_shape(self, parent):
+            stl_reader = StlAPI_Reader()
+            shape = TopoDS_Shape()
+            stl_reader.Read(shape, './models/fan.stl')
+            return shape
+
+
+    """
+    #: Reference to the implementation control
+    proxy = Typed(ProxyRawPart)
+
+    def create_shapes(self, parent):
+        """ Create the shape for the control.
+        This method should create and initialize the shape.
+
+        Parameters
+        ----------
+        parent : shape or None
+            The parent shape for the control.
+
+        Returns
+        -------
+        result : List[shape]
+            The shapes for the control.
+
+
+        """
+        raise NotImplementedError
+
+    def get_shapes(self):
+        """ Retrieve the shapes for display.
+
+        Returns
+        -------
+        shapes : List[shape] or None
+            The toolkit shape that was previously created by the
+            call to 'create_shapes' or None if the proxy is not
+            active or the shape has been destroyed.
+        """
+        if self.proxy_is_active:
+            return self.proxy.get_shapes()
+
+
+class LoadPart(Part):
+    """ Load a shape from the given path. Unlike LoadShape this will create
+    a separate (colored and named) child shape for each item in the file.
+
+    Attributes
+    ----------
+
+    path: String
+        The path of the 3D model to load. Supported types are, .stl, .stp,
+        .igs, and .brep
+
+
+    Examples
+    --------
+
+    LoadPart:
+        path = "examples/models/fan.stl"
+        position = (10, 100, 0)
+
+    """
+    #: Proxy shape
+    proxy = Typed(ProxyLoadPart)
+
+    #: Path of the shape to load
+    path = d_(Str())
+
+    #: Loader to use
+    loader = d_(Enum('auto', 'stl', 'stp', 'caf', 'iges', 'brep'))
+
+    @observe('path', 'type')
+    def _update_proxy(self, change):
+        """ Base class implementation is sufficient"""
+        super()._update_proxy(change)
+

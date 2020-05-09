@@ -71,6 +71,8 @@ from declaracad.occ.impl.occ_dimension import OccDimension
 from declaracad.occ.widgets.occ_viewer import (
     ProxyOccViewer, ViewerSelection
 )
+
+from declaracad.occ.dimension import Dimension
 from declaracad.occ.shape import BBox
 
 from declaracad.core.utils import log
@@ -161,9 +163,7 @@ class QtViewer3d(QOpenGLWidget):
         return hwnd
 
     def resizeEvent(self, event):
-        if self._inited:
-            self.proxy.v3d_view.MustBeResized()
-        return super().resizeEvent(event)
+        self.proxy.v3d_view.MustBeResized()
 
     def keyPressEvent(self, event):
         if self._fire_event('key_pressed', event):
@@ -177,20 +177,12 @@ class QtViewer3d(QOpenGLWidget):
         #    log.info(msg)
 
     def focusInEvent(self, event):
-        if self._inited:
-            self.proxy.v3d_view.Redraw()
-        return super().focusInEvent(event)
+        self.proxy.v3d_view.Redraw()
 
     def focusOutEvent(self, event):
-        if self._inited:
-            self.proxy.v3d_view.Redraw()
-        return super().focusOutEvent(event)
+        self.proxy.v3d_view.Redraw()
 
     def paintEvent(self, event):
-        if not self._inited:
-            self.proxy.init_window()
-            self._inited = True
-
         self.proxy.ais_context.UpdateCurrentViewer()
         # important to allow overpainting of the OCC OpenGL context in Qt
 
@@ -340,7 +332,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     shapes = Property(lambda self: self.get_shapes(), cached=True)
 
     #: Dimensions
-    dimensions = List()
+    dimensions = Typed(set)
 
     # -------------------------------------------------------------------------
     # OpenCascade specific members
@@ -372,18 +364,25 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         # Create viewer
         graphics_driver = self.graphics_driver = OpenGl_GraphicDriver(
             self.display_connection)
-        #graphics_driver.EnableVFB(True)
+        # Setup window
+        win_id = widget.get_window_id()
+        if sys.platform == 'win32':
+            window = WNT_Window(win_id)
+        elif sys.platform == 'darwin':
+            window = Cocoa_Window(win_id)
+        else:
+            window = Xw_Window(self.display_connection, win_id)
+        if not window.IsMapped():
+            window.Map()
+        self.v3d_window = window
 
+        # Setup viewer
         viewer = self.v3d_viewer = V3d_Viewer(graphics_driver)
         view = self.v3d_view = viewer.CreateView()
+        self.v3d_view.SetWindow(window)
         ais_context = self.ais_context = AIS_InteractiveContext(viewer)
         drawer = self.prs3d_drawer = ais_context.DefaultDrawer()
 
-        # Turn up tesselation defaults
-        #chord_dev = drawer.MaximalChordialDeviation() / 10.0
-        #drawer.SetMaximalChordialDeviation(chord_dev)
-
-        #viewer.SetDefaultLights()
         try:
             self.set_lights(d.lights)
         except Exception as e:
@@ -404,9 +403,46 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         self.set_lock_rotation(d.lock_rotation)
         self.set_lock_zoom(d.lock_zoom)
         self.set_shape_color(d.shape_color)
+        self.set_chordial_deviation(d.chordial_deviation)
         self._update_rendering_params()
 
         self.init_signals()
+        self.dump_gl_info()
+
+    def dump_gl_info(self):
+        # Debug info
+        try:
+            ctx = self.graphics_driver.GetSharedContext()
+            if ctx is None or not ctx.IsValid():
+                return
+            v1 = ctx.VersionMajor()
+            v2 = ctx.VersionMinor()
+            log.info("OpenGL version: {}.{}".format(v1, v2))
+            log.info("GPU memory: {}".format(ctx.AvailableMemory()))
+            log.info("GPU memory info: {}".format(ctx.MemoryInfo().ToCString()))
+            log.info("Max MSAA samples: {}".format(ctx.MaxMsaaSamples()))
+
+            supports_raytracing = ctx.HasRayTracing()
+            log.info("Supports ray tracing: {}".format(supports_raytracing))
+            if supports_raytracing:
+                log.info("Supports textures: {}".format(
+                    ctx.HasRayTracingTextures()))
+                log.info("Supports adaptive sampling: {}".format(
+                    ctx.HasRayTracingAdaptiveSampling()))
+                log.info("Supports adaptive sampling atomic: {}".format(
+                    ctx.HasRayTracingAdaptiveSamplingAtomic()))
+            else:
+                ver_too_low = ctx.IsGlGreaterEqual(3, 1)
+                if not ver_too_low:
+                    log.info("OpenGL version must be >= 3.1")
+                else:
+                    ext = "GL_ARB_texture_buffer_object_rgb32"
+                    if not ctx.CheckExtension(ext):
+                        log.info("OpenGL extension {} is missing".format(ext))
+                    else:
+                        log.info("OpenGL glBlitFramebuffer is missing")
+        except Exception as e:
+            log.exception(e)
 
     def init_signals(self):
         d = self.declaration
@@ -421,25 +457,6 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         for child in self.children():
             self.child_added(child, update=False)
         self.update_display()
-
-    def init_window(self):
-        """ Initialize the window when this widget is first painted
-        otherwise the window handle will be invalid.
-
-        """
-        widget = self.widget
-        win_id = widget.get_window_id()
-        # Setup window
-        if sys.platform == 'win32':
-            window = WNT_Window(win_id)
-        elif sys.platform == 'darwin':
-            window = Cocoa_Window(win_id)
-        else:
-            window = Xw_Window(self.display_connection, win_id)
-        if not window.IsMapped():
-            window.Map()
-        self.v3d_view.SetWindow(window)
-        self.v3d_window = window
 
     def child_added(self, child, update=True):
         if isinstance(child, OccShape):
@@ -505,6 +522,14 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         """
         return self.v3d_view.Convert(point[0], point[1], point[2], 0, 0)
 
+    def set_chordial_deviation(self, deviation):
+        # Turn up tesselation defaults
+        self.prs3d_drawer.SetMaximalChordialDeviation(deviation)
+
+
+    # -------------------------------------------------------------------------
+    # Rendering parameters
+    # -------------------------------------------------------------------------
     def set_lights(self, lights):
         viewer = self.v3d_viewer
         new_lights = []
@@ -543,6 +568,11 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     def set_draw_boundaries(self, enabled):
         self.prs3d_drawer.SetFaceBoundaryDraw(enabled)
 
+    def set_hidden_line_removal(self, enabled):
+        view = self.v3d_view
+        view.SetComputedMode(enabled)
+        view.Redraw()
+
     def set_antialiasing(self, enabled):
         self._update_rendering_params()
 
@@ -578,7 +608,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         defaults = dict(
             Method=method,
             RaytracingDepth=d.raytracing_depth,
-            IsGlobalIlluminationEnabled=d.raytracing,
+            #IsGlobalIlluminationEnabled=d.raytracing,
             IsShadowEnabled=d.shadows,
             IsReflectionEnabled=d.reflections,
             IsAntialiasingEnabled=d.antialiasing,
@@ -619,6 +649,9 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         self.v3d_view.TriedronDisplay(position, BLACK, 0.1, V3d.V3d_ZBUFFER)
         self.ais_context.UpdateCurrentViewer()
 
+    # -------------------------------------------------------------------------
+    # Viewer interaction
+    # -------------------------------------------------------------------------
     def set_selection_mode(self, mode):
         """ Set the selection mode.
 
@@ -630,6 +663,12 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         """
         ais_context = self.ais_context
         ais_context.Deactivate()
+        if mode == 'any':
+            for mode in (TopAbs.TopAbs_SHAPE, TopAbs.TopAbs_SHELL,
+                         TopAbs.TopAbs_FACE, TopAbs.TopAbs_EDGE,
+                         TopAbs.TopAbs_WIRE, TopAbs.TopAbs_VERTEX):
+                ais_context.Activate(AIS_Shape.SelectionMode_(mode))
+            return
         attr = 'TopAbs_%s' % mode.upper()
         mode = getattr(TopAbs, attr, TopAbs.TopAbs_SHAPE)
         ais_context.Activate(AIS_Shape.SelectionMode_(mode))
@@ -640,11 +679,6 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             return
         self.ais_context.SetDisplayMode(mode, True)
         self.v3d_view.Redraw()
-
-    def set_hidden_line_removal(self, enabled):
-        view = self.v3d_view
-        view.SetComputedMode(enabled)
-        view.Redraw()
 
     def set_view_mode(self, mode):
         """ Set the view mode or (or direction)
@@ -937,6 +971,14 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         """ Reset to default zoom and orientation """
         self.v3d_view.Reset()
 
+    def _extract_dimensions(self, child, dimensions):
+        """ Extract any dimensions defined in the given child shape
+
+        """
+        for c in child.declaration.traverse():
+            if isinstance(c, Dimension):
+                dimensions.add(c.proxy)
+
     def _expand_shapes(self, shapes, dimensions):
         expansion = []
         for s in shapes:
@@ -947,8 +989,9 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             elif isinstance(s, OccShape):
                 if s.declaration.display:
                     expansion.append(s)
+                    self._extract_dimensions(s, dimensions)
             elif isinstance(s, OccDimension):
-                dimensions.append(s)
+                dimensions.add(s)
         return expansion
 
     def _do_update(self):
@@ -970,7 +1013,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             log.debug("Rendering...")
 
             #: Expand all parts otherwise we lose the material information
-            self.dimensions = []
+            self.dimensions = set()
             shapes = self._expand_shapes(self.children(), self.dimensions)
             if not shapes:
                 log.debug("No shapes to display")
@@ -1007,8 +1050,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                 displayed_shapes[topods_shape] = occ_shape
 
                 progress = self.declaration.progress = min(100, max(0, i * 100 / n))
-                log.debug("Displaying {} ({}%)".format(
-                    topods_shape, round(progress, 2)))
+                #log.debug("Displaying {} ({}%)".format(
+                #    topods_shape, round(progress, 2)))
                 ais_shape = self.display_shape(
                     topods_shape,
                     d.color,

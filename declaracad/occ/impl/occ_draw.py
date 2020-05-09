@@ -21,9 +21,13 @@ from OCCT.BRepBuilderAPI import (
 )
 from OCCT.BRepLib import BRepLib
 from OCCT.BRepOffsetAPI import BRepOffsetAPI_MakeOffset
-from OCCT.Font import (
-    Font_FontMgr, Font_BRepFont, Font_BRepTextBuilder, Font_FontAspect
-)
+from OCCT.Font import Font_FontMgr, Font_BRepTextBuilder, Font_FontAspect
+
+try:
+    from OCCT.Font import Font_BRepFont
+except ImportError:
+    Font_BRepFont = object
+
 
 from OCCT.GC import (
     GC_MakeSegment, GC_MakeArcOfCircle, GC_MakeArcOfEllipse, GC_MakeLine
@@ -470,6 +474,8 @@ class OccTrimmedCurve(OccEdge, ProxyTrimmedCurve):
     def init_layout(self):
         self.update_shape()
         for child in self.children():
+            if not isinstance(child, OccShape):
+                continue
             child.observe('shape', self.update_shape)
 
     def update_shape(self, change=None):
@@ -583,6 +589,8 @@ class OccWire(OccDependentShape, ProxyWire):
         d = child.declaration
         if isinstance(child.shape, list):
             for c in child.children():
+                if not isinstance(c, OccShape):
+                    continue
                 self.extract_edges(c, edges)
         else:
             for edge in d.topology.edges:
@@ -594,6 +602,8 @@ class OccWire(OccDependentShape, ProxyWire):
         d = self.declaration
         edges = TopTools_ListOfShape()
         for c in self.children():
+            if not isinstance(c, OccShape):
+                continue
             if c.shape is None:
                 raise ValueError("Cannot build wire from empty shape: %s" % c)
             self.extract_edges(c, edges)

@@ -15,6 +15,7 @@ from OCCT.AIS import (
     AIS_RadiusDimension, AIS_Dimension
 )
 from OCCT.BRep import BRep_Tool
+from OCCT.BRepBuilderAPI import BRepBuilderAPI_MakeVertex
 from OCCT.GC import GC_MakePlane
 from OCCT.gp import gp_Pnt, gp_Dir
 from OCCT.TopoDS import TopoDS, TopoDS_Edge, TopoDS_Vertex, TopoDS_Shape
@@ -24,7 +25,11 @@ from ..dimension import (
     ProxyDimension, ProxyAngleDimension, ProxyDiameterDimension,
     ProxyRadiusDimension, ProxyLengthDimension
 )
+from ..shape import Point
+
 from .occ_shape import Topology
+
+
 
 from declaracad.core.utils import log
 
@@ -112,7 +117,14 @@ class OccDimension(ProxyDimension):
     # -------------------------------------------------------------------------
     def get_shapes(self):
         """ Get the shapes casted to the actual type """
-        return [Topology.cast_shape(s) for s in self.declaration.shapes]
+        shapes = []
+        for s in self.declaration.shapes:
+            if isinstance(s, Point):
+                shapes.append(BRepBuilderAPI_MakeVertex(s.proxy).Vertex())
+            else:
+                shapes.append(Topology.cast_shape(s))
+
+        return shapes
 
     def make_custom_plane(self, dimension):
         d = self.declaration
