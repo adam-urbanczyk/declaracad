@@ -11,12 +11,9 @@ Created on Sep 28, 2016
 """
 import os
 import math
+import inspect
 import traceback
-from atom.api import Atom
-
-
-from declaracad.core.api import DockItem, EmbeddedWindow
-from declaracad.core.utils import log, load_icon, capture_output, format_title
+from atom.api import Atom, Tuple, Str, Callable
 
 import enaml
 from enaml.core.api import Looper, Include, Conditional
@@ -25,8 +22,12 @@ from enaml.layout.api import align, hbox
 from enaml.qt.QtCore import Qt
 from enaml.widgets.api import (
     Window, Container, Menu, Action, DualSlider, CheckBox, Label,
-    IPythonConsole, ProgressBar, ScrollArea
+    IPythonConsole, ProgressBar, ScrollArea, PopupView, Field, PushButton
 )
+
+from declaracad.core.api import DockItem, EmbeddedWindow
+from declaracad.core.utils import log, load_icon, capture_output, format_title
+
 
 from .widgets.api import OccViewer, OccViewerClippedPlane
 from .dimension import (
@@ -41,15 +42,112 @@ def expand_dict(p):
             yield p
 
 
+class ViewerAction(Atom):
+    name = Str()
+    key_sequence = Tuple(str)
+    action = Callable()
+
+
+enamldef ActionPopup(PopupView): popup:
+    #foreground = 'white'
+    #background = 'rgba(30, 30, 30, 0.85)'
+    arrow_edge = 'top'
+    arrow_size = 20
+    anchor_mode = 'cursor'
+    anchor = (0.5, 0.5)
+    offset = (0, 0)
+    attr available_actions: list = []
+    attr default_search: str = ""
+    attr on_action_clicked = lambda popup, action: popup.close()
+
+    func is_match(text, name):
+        n = name.lower()
+        if text in n:
+            return True
+        return False
+
+    func get_actions(action, search_text):
+        if not search_text:
+            return available_actions
+        return [a for a in available_actions if is_match(search_text, a.name)]
+
+    Container:
+        padding = 10
+        Field: search:
+            activated :: self.set_focus()
+            submit_triggers = ['auto_sync', 'return_pressed']
+            text := default_search
+        Looper:
+            iterable << get_actions(actions, search.text)[0:10]
+            PushButton:
+                attr action = loop_item
+                text = action.name
+                clicked :: popup.on_action_clicked(popup, action)
+
+
+enamldef NotificationPopup(PopupView):
+    foreground = 'white'
+    background = 'rgba(30, 30, 30, 0.85)'
+    window_type = 'tool_tip'
+    parent_anchor = (0.0, 0.0)
+    anchor = (0.0, 0.0)
+    offset = (10, 10)
+    timeout = 5
+    fade_in_duration = 200
+    fade_out_duration = 200
+    attr message: str = ""
+    Container:
+        Label:
+            foreground = 'white'
+            text << message
+            align = 'left'
+
+
+
 enamldef ModelViewer(OccViewer): viewer:
     attr p0 = None
     attr clipped_planes: dict = {} # Map axis to tuple of (lower, upper)
     attr dimensions: list = []
     attr shapes: list = []
     attr show_console: bool = False
+    attr notification = None
+    attr action_search: str = ""
+    attr actions: list = get_actions()
+
+
+    func get_actions():
+        actions = [
+            ViewerAction(name="View iso", action=keymap['v']['i']),
+            ViewerAction(name="View top", action=keymap['v']['t']),
+            ViewerAction(name="View bottom", action=keymap['v']['b']),
+            ViewerAction(name="View left", action=keymap['v']['l']),
+            ViewerAction(name="View front", action=keymap['v']['f']),
+            ViewerAction(name="View right", action=lambda: set_view_mode('right')),
+            ViewerAction(name="View rear", action=lambda: set_view_mode('rear')),
+            ViewerAction(name="Fit all", action=self.fit_all),
+            ViewerAction(name="Fit selection", action=self.fit_selection),
+            ViewerAction(name="Reset view", action=self.reset_view),
+            ViewerAction(name="Rotate X -90", action=keymap['l']['x']),
+            ViewerAction(name="Rotate Y -90", action=keymap['l']['y']),
+            ViewerAction(name="Rotate Z -90", action=keymap['l']['z']),
+            ViewerAction(name="Rotate X 90", action=keymap['r']['x']),
+            ViewerAction(name="Rotate Y 90", action=keymap['r']['y']),
+            ViewerAction(name="Rotate Z 90", action=keymap['r']['z']),
+            ViewerAction(name="Select anything", action=keymap['s']['a']),
+            ViewerAction(name="Select shape", action=lambda: set_selection_mode('shape')),
+            ViewerAction(name="Select shell", action=lambda: set_selection_mode('shell')),
+            ViewerAction(name="Select face", action=keymap['s']['f']),
+            ViewerAction(name="Select edge", action=keymap['s']['e']),
+            ViewerAction(name="Select wire", action=keymap['s']['w']),
+            ViewerAction(name="Select vertex", action=keymap['s']['v']),
+        ]
+        return actions
 
     # Last key event
     attr keymap = {
+        '': {
+            ' ': show_action_popup,
+        },
         'd': menu_dimensions.keymap,
         'v': menu_view_direction.keymap,
         's': menu_selection_mode.keymap,
@@ -65,6 +163,7 @@ enamldef ModelViewer(OccViewer): viewer:
         },
     }
     attr last_key: str = ""
+    attr last_key_count: int = 0
     attr keypress_timeout: int = 2000
 
     func get_selected_shapes():
@@ -78,42 +177,26 @@ enamldef ModelViewer(OccViewer): viewer:
                     shapes.extend(mapping.values())
         return shapes
 
+    func show_action_popup():
+        popup = ActionPopup(
+            parent=self,
+            available_actions=actions,
+            on_action_clicked=on_action_clicked,
+            default_search=self.action_search)
+        popup.show()
+
+    func on_action_clicked(popup, action):
+        action.action()
+        popup.close()
+        self.action_search = ""
+
     Include:
         objects << list(expand_dict(clipped_planes))
     Include:
         objects << viewer.shapes
     Include:
         objects << viewer.dimensions
-#     on_mouse_press::
-#         display, event = change['value']
-#         #print 'mouse_press',event
-#         pt = event.pos()
-#         if event.button() == Qt.LeftButton:
-#             display.Select(pt.x(), pt.y())
-#         #viewer.p0 = display.View.Convert(pt.x(),pt.y())
-#             #raise StopIteration
-#    on_mouse_move::
-#        display, event = change['value']
-#        pt = event.pos()
-#        display.MoveTo(pt.x(),pt.y())
-#
-#        #: Drag selected object
-#        if event.buttons() == Qt.LeftButton:
-#            p0 = viewer.p0
-#            p1 =  display.View.Convert(pt.x(),pt.y())
-#            viewer.p0 = p1
-#            if viewer.selection and p0:
-#                dx,dy,dz = p1[0]-p0[0],p1[1]-p0[1],0
-#                for item in viewer.selection:
-#                    item.position = (item.x+dx,item.y+dy,item.z)
-#
-#                raise StopIteration
-#        else:
-#            viewer.p0 = None
-    #on_mouse_release::
-    #    display, event = change['value']
-    #    print 'mouse_release',event
-    #    raise StopIteration
+
     key_pressed ::
         key = change['value'][1].text()
         last_key = self.last_key
@@ -124,15 +207,52 @@ enamldef ModelViewer(OccViewer): viewer:
         # Lookup the key sequence
         keymap = self.keymap.get(last_key)
         action = None
-        if keymap is not None:
+        if keymap is not None and isinstance(keymap, dict):
             action = keymap.get(key)
 
         # Clear the last key after a timeout
         if action is not None:
             deferred_call(action)
             self.last_key = ''
-        #else:
-        #    timed_call(self.keypress_timeout, setattr, self, 'last_key', '')
+        else:
+            self.last_key_count += 1
+            timed_call(500, clear_last_key)
+
+    func clear_last_key():
+        self.last_key_count -= 1
+        if self.last_key_count > 0:
+            return
+        self.last_key = ''
+
+    func describe_selection(selection):
+        if not selection or not selection.selection:
+            return 'Nothing selected'
+        desc = []
+        for d, items in selection.selection.items():
+            if desc:
+                desc.append("")
+
+            desc.append(f"{d.__class__.__name__}:")
+            if d.name:
+                desc.append(f"  Name: {d.name}")
+            #pos = d.position
+            #desc.append(f"  Position: {pos.x}, {pos.y}, {pos.z}")
+            for shape_type, mapping in items.items():
+                n = len(mapping)
+                keys = ', '.join(map(str, sorted(mapping.keys())))
+                if n == 1:
+                    shape_type = shape_type[:-1]
+                desc.append(f"  Topoolgy: {n} {shape_type}")
+                desc.append(f"  Indices: {keys}")
+        return "\n".join(desc)
+
+    selection ::
+        if self.notification:
+            self.notification.close()
+        if selection and selection.selection:
+            popup = NotificationPopup(self, message=describe_selection(selection))
+            popup.show()
+            self.notification = popup
 
     Menu:
         context_menu = True
