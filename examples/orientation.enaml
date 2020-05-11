@@ -1,0 +1,47 @@
+# Created in DeclaraCAD
+from math import pi
+from declaracad.occ.api import *
+
+
+enamldef Assembly(Part):
+
+    # For reference
+    Line: xaxis:
+        color = 'black'
+        direction = (1, 0)
+    Line: yaxis:
+        color = 'black'
+        direction = (0, 1)
+    Line: zaxis:
+        color = 'black'
+        direction = (0, 0, 1)
+    Polygon:
+       color = 'lime'
+       #position = (0, 0, 1)
+       rotation = pi
+       radius = 1
+       count = 3
+    Polygon:
+       color = 'green'
+       #position = (0, 0, 1)
+       radius = 1
+       count = 3
+    Polygon:
+       color = 'red'
+       direction = (0, 1, 0)
+       position = (0, 0, 1)
+       radius = 1
+       count = 3
+    Polygon:
+        color = 'yellow'
+        direction = (1, 0, 0)
+        #position = (0, 0, 1)
+        radius = 1
+        count = 3
+    Polygon:
+        color = 'blue'
+        direction = (1, 1, 0)
+        position = (3, 0, 0)
+        #rotation = pi
+        radius = 1
+        count = 3

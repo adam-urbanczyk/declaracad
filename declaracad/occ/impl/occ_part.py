@@ -10,7 +10,6 @@ Created on Sep 30, 2016
 @author: jrm
 """
 import os
-from math import pi
 from atom.api import Typed, List, set_default
 
 from OCCT.BRep import BRep_Builder
@@ -47,11 +46,6 @@ from declaracad.occ.shape import TopoShape
 from .occ_shape import OccDependentShape, OccShape
 
 
-DX = gp.DX_()
-AY = gp_Ax1()
-AY.SetDirection(gp.DY_())
-
-
 class OccPart(OccDependentShape, ProxyPart):
     #: A reference to the toolkit shape created by the proxy.
     builder = Typed(BRep_Builder)
@@ -60,25 +54,7 @@ class OccPart(OccDependentShape, ProxyPart):
     location = Typed(TopLoc_Location)
 
     def _default_location(self):
-        d = self.declaration
-        # Move to position and align along direction axis
-        result = gp_Trsf()
-        if d.direction == DX:
-            # The "normal" direction is DX so if we want this to point
-            # in DX the gp_Ax3 method does not work
-            result.SetRotation(AY, -pi/2)
-        else:
-            axis = gp_Ax3()
-            axis.SetDirection(d.direction.proxy)
-            result.SetTransformation(axis)
-
-        result.SetTranslationPart(gp_Vec(*d.position))
-        if d.rotation:
-            t = gp_Trsf()
-            t.SetRotation(gp_Ax1(d.position.proxy, d.direction.proxy),
-                            d.rotation)
-            result.Multiply(t)
-        return TopLoc_Location(result)
+        return TopLoc_Location(self.get_transform())
 
     def update_shape(self, change=None):
         """ Create the toolkit shape for the proxy object.

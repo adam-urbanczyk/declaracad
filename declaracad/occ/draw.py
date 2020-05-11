@@ -72,23 +72,6 @@ class ProxyArc(ProxyEdge):
         raise NotImplementedError
 
 
-class ProxyRectangle(ProxyEdge):
-    #: A reference to the shape declaration.
-    declaration = ForwardTyped(lambda: Rectangle)
-
-    def set_rx(self, rx):
-        raise NotImplementedError
-
-    def set_ry(self, ry):
-        raise NotImplementedError
-
-    def set_width(self, w):
-        raise NotImplementedError
-
-    def set_height(self, h):
-        raise NotImplementedError
-
-
 class ProxyCircle(ProxyEdge):
     #: A reference to the shape declaration.
     declaration = ForwardTyped(lambda: Circle)
@@ -124,14 +107,6 @@ class ProxyParabola(ProxyEdge):
     declaration = ForwardTyped(lambda: Parabola)
 
     def set_focal_length(self, l):
-        raise NotImplementedError
-
-
-class ProxyPolyline(ProxyLine):
-    #: A reference to the shape declaration.
-    declaration = ForwardTyped(lambda: Polyline)
-
-    def set_closed(self, closed):
         raise NotImplementedError
 
 
@@ -182,14 +157,39 @@ class ProxyText(ProxyShape):
         raise NotImplementedError
 
 
-class ProxyWire(ProxyShape):
+class ProxyWire(ProxyEdge):
     declaration = ForwardTyped(lambda: Wire)
 
     def set_reverse(self, reverse):
         raise NotImplementedError
 
 
-class ProxySvg(ProxyShape):
+class ProxyPolyline(ProxyWire):
+    #: A reference to the shape declaration.
+    declaration = ForwardTyped(lambda: Polyline)
+
+    def set_closed(self, closed):
+        raise NotImplementedError
+
+
+class ProxyRectangle(ProxyWire):
+    #: A reference to the shape declaration.
+    declaration = ForwardTyped(lambda: Rectangle)
+
+    def set_rx(self, rx):
+        raise NotImplementedError
+
+    def set_ry(self, ry):
+        raise NotImplementedError
+
+    def set_width(self, w):
+        raise NotImplementedError
+
+    def set_height(self, h):
+        raise NotImplementedError
+
+
+class ProxySvg(ProxyWire):
     #: A reference to the shape declaration.
     declaration = ForwardTyped(lambda: Svg)
 
@@ -289,7 +289,7 @@ class Line(Edge):
 
     @observe('points')
     def _update_proxy(self, change):
-        super(Line, self)._update_proxy(change)
+        super()._update_proxy(change)
 
 
 class Segment(Line):
@@ -383,7 +383,7 @@ class Circle(Edge):
 
     @observe('radius')
     def _update_proxy(self, change):
-        super(Circle, self)._update_proxy(change)
+        super()._update_proxy(change)
 
 
 class Ellipse(Edge):
@@ -415,7 +415,7 @@ class Ellipse(Edge):
 
     @observe('major_radius', 'minor_radius')
     def _update_proxy(self, change):
-        super(Ellipse, self)._update_proxy(change)
+        super()._update_proxy(change)
 
 
 class Hyperbola(Edge):
@@ -476,7 +476,7 @@ class Hyperbola(Edge):
 
     @observe('major_radius', 'minor_radius')
     def _update_proxy(self, change):
-        super(Hyperbola, self)._update_proxy(change)
+        super()._update_proxy(change)
 
 
 class Parabola(Edge):
@@ -520,130 +520,7 @@ class Parabola(Edge):
 
     @observe('focal_length')
     def _update_proxy(self, change):
-        super(Parabola, self)._update_proxy(change)
-
-
-class Polyline(Line):
-    """ A Polyline that can be built from any number of points or vertices,
-    and consists of a sequence of connected rectilinear edges. If a position
-    and direction are given the points are transformed to align with the
-    plane defined by the given position and direction.
-
-    Attributes
-    ----------
-    points: List[Point]
-        The points of the polygon.
-    closed: Bool
-        Automatically close the polygon
-
-    Examples
-    ---------
-
-    Wire:
-        Polyline:
-            closed = True
-            points = [(0, 0, 0), (10, 0, 0), (10, 10, 0), (0, 10, 0)]
-
-    """
-    proxy = Typed(ProxyPolyline)
-
-    #: Polyline is closed
-    closed = d_(Bool(False)).tag(view=True)
-
-    @property
-    def start(self):
-        return self.points[0]
-
-    @property
-    def end(self):
-        if self.closed:
-            return self.points[0]
-        return self.points[-1]
-
-    @observe('closed')
-    def _update_proxy(self, change):
-        super(Polyline, self)._update_proxy(change)
-
-
-class Polygon(Polyline):
-    """ A polyline that follows points on a circle of a given inscribed or
-    circumscribed radius.
-
-    Attributes
-    ----------
-    radius: Float
-        Radius of the polygon
-    count: Int
-        Number of points in the polygon, must be 3 or more.
-    inscribed: Bool
-        Whether the radius should be interpreted as an "inscribed" or
-        "circumscribed" radius. The default is "circumscribed" meaning the
-        points will be on the given radius (inside the circle). If
-        `inscribed=True` then the midpoint of each segment will be on the
-        circle of the given radius (outside the circle).
-
-    Examples
-    ---------
-
-    Wire:
-        Polygon: # A hexagon of radius 6
-            radius = 4
-            count = 6
-
-    """
-    #: This is fixed
-    closed = True
-
-    #: Radius is inscribed
-    inscribed = d_(Bool())
-
-    #: Radius of the polygon
-    radius = d_(Float(1, strict=False)).tag(view=True)
-
-    #: Number of points
-    count = d_(Range(low=3)).tag(view=True)
-
-    @observe('radius', 'inscribed', 'count')
-    def _update_points(self, change):
-        self.points = self._default_points()
-
-    def _default_points(self):
-        n = self.count
-        r = self.radius
-        a = 2 * pi / n
-        if self.inscribed:
-            r /= cos(pi / n)
-        return [Pt(x=cos(i*a)*r, y=sin(i*a)*r) for i in range(n)]
-
-
-
-class Rectangle(Edge):
-    """ A Wire in the shape of a Rectangle with optional radius'd corners.
-
-    Examples
-    ---------
-
-    Wire:
-        Rectangle:
-            width = 10
-            height = 5
-
-    """
-    proxy = Typed(ProxyRectangle)
-
-    #: Width of the rectangle
-    width = d_(Float(1, strict=False)).tag(view=True)
-
-    #: Height of the rectangle
-    height = d_(Float(1, strict=False)).tag(view=True)
-
-    #: Radius of the corner
-    rx = d_(Float(0, strict=False)).tag(view=True)
-    ry = d_(Float(0, strict=False)).tag(view=True)
-
-    @observe('width', 'height', 'rx', 'ry')
-    def _update_proxy(self, change):
-        super(Rectangle, self)._update_proxy(change)
+        super()._update_proxy(change)
 
 
 class BSpline(Line):
@@ -700,7 +577,7 @@ class TrimmedCurve(Edge):
     v = d_(Float(0, strict=False))
 
 
-class Wire(Shape):
+class Wire(Edge):
     """ A Wire is a Path or series of Segment, Arcs, etc... All child items
     must be connected or an error will be thrown.
 
@@ -729,7 +606,130 @@ class Wire(Shape):
 
     @observe('edges', 'reverse')
     def _update_proxy(self, change):
-        super(Wire, self)._update_proxy(change)
+        super()._update_proxy(change)
+
+
+class Polyline(Wire):
+    """ A Polyline that can be built from any number of points or vertices,
+    and consists of a sequence of connected rectilinear edges. If a position
+    and direction are given the points are transformed to align with the
+    plane defined by the given position and direction.
+
+    Attributes
+    ----------
+    points: List[Point]
+        The points of the polygon.
+    closed: Bool
+        Automatically close the polygon
+
+    Examples
+    ---------
+
+    Wire:
+        Polyline:
+            closed = True
+            points = [(0, 0, 0), (10, 0, 0), (10, 10, 0), (0, 10, 0)]
+
+    """
+    proxy = Typed(ProxyPolyline)
+
+    #: Polyline is closed
+    closed = d_(Bool(False)).tag(view=True)
+
+    #: List of points
+    points = d_(List(Coerced(Pt, coercer=coerce_point)))
+
+    @property
+    def start(self):
+        return coerce_point(self.proxy.curve.StartPoint())
+
+    @property
+    def end(self):
+        return coerce_point(self.proxy.curve.EndPoint())
+
+    @observe('closed', 'points')
+    def _update_proxy(self, change):
+        super()._update_proxy(change)
+
+
+class Polygon(Polyline):
+    """ A polyline that follows points on a circle of a given inscribed or
+    circumscribed radius.
+
+    Attributes
+    ----------
+    radius: Float
+        Radius of the polygon
+    count: Int
+        Number of points in the polygon, must be 3 or more.
+    inscribed: Bool
+        Whether the radius should be interpreted as an "inscribed" or
+        "circumscribed" radius. The default is "circumscribed" meaning the
+        points will be on the given radius (inside the circle). If
+        `inscribed=True` then the midpoint of each segment will be on the
+        circle of the given radius (outside the circle).
+
+    Examples
+    ---------
+
+    Wire:
+        Polygon: # A hexagon of radius 6
+            radius = 4
+            count = 6
+
+    """
+    #: This is fixed
+    closed = True
+
+    #: Radius is inscribed
+    inscribed = d_(Bool())
+
+    #: Radius of the polygon
+    radius = d_(Float(1, strict=False)).tag(view=True)
+
+    #: Number of points
+    count = d_(Range(low=3)).tag(view=True)
+
+    @observe('radius', 'inscribed', 'count')
+    def _update_points(self, change):
+        self.points = self._default_points()
+
+    def _default_points(self):
+        n = self.count
+        r = self.radius
+        a = 2 * pi / n
+        if self.inscribed:
+            r /= cos(pi / n)
+        return [Pt(x=cos(i*a)*r, y=sin(i*a)*r) for i in range(n)]
+
+
+class Rectangle(Wire):
+    """ A Wire in the shape of a Rectangle with optional radius'd corners.
+
+    Examples
+    ---------
+
+    Wire:
+        Rectangle:
+            width = 10
+            height = 5
+
+    """
+    proxy = Typed(ProxyRectangle)
+
+    #: Width of the rectangle
+    width = d_(Float(1, strict=False)).tag(view=True)
+
+    #: Height of the rectangle
+    height = d_(Float(1, strict=False)).tag(view=True)
+
+    #: Radius of the corner
+    rx = d_(Float(0, strict=False)).tag(view=True)
+    ry = d_(Float(0, strict=False)).tag(view=True)
+
+    @observe('width', 'height', 'rx', 'ry')
+    def _update_proxy(self, change):
+        super()._update_proxy(change)
 
 
 class Text(Shape):
@@ -784,11 +784,10 @@ class Text(Shape):
     @observe('text', 'font', 'size', 'style', 'composite',
              'horizontal_alignment', 'vertical_alignment')
     def _update_proxy(self, change):
-        """ Base class implementation is sufficient"""
-        super(Text, self)._update_proxy(change)
+        super()._update_proxy(change)
 
 
-class Svg(Shape):
+class Svg(Wire):
     """ Creates a wire from an SVG document.
 
     Attributes
@@ -813,6 +812,5 @@ class Svg(Shape):
 
     @observe('source')
     def _update_proxy(self, change):
-        """ Base class implementation is sufficient"""
-        super(Svg, self)._update_proxy(change)
+        super()._update_proxy(change)
 

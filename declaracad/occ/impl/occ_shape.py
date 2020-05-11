@@ -12,14 +12,16 @@ Created on Sep 30, 2016
 import os
 from math import pi
 from atom.api import (
-    Atom, Bool, Instance, Typed, Str, Property, observe, set_default
+    Atom, Bool, Instance, List, Typed, Str, Property, observe, set_default
 )
 
 from OCCT import GeomAbs
 from OCCT.AIS import AIS_Shape
 from OCCT.Bnd import Bnd_Box
 from OCCT.BRep import BRep_Builder, BRep_Tool
-from OCCT.BRepAdaptor import BRepAdaptor_Curve, BRepAdaptor_Surface
+from OCCT.BRepAdaptor import (
+    BRepAdaptor_Curve, BRepAdaptor_CompCurve, BRepAdaptor_Surface
+)
 from OCCT.BRepBndLib import BRepBndLib
 from OCCT.BRepBuilderAPI import (
     BRepBuilderAPI_MakeShape, BRepBuilderAPI_MakeFace,
@@ -32,9 +34,17 @@ from OCCT.BRepPrimAPI import (
     BRepPrimAPI_MakeRevol,
 )
 from OCCT.BRepTools import BRepTools, BRepTools_WireExplorer
+from OCCT.Geom import (
+    Geom_Ellipse, Geom_Circle, Geom_Parabola, Geom_Hyperbola, Geom_Line
+)
+from OCCT.GeomAbs import (
+    GeomAbs_Line, GeomAbs_Circle, GeomAbs_Ellipse, GeomAbs_Hyperbola,
+    GeomAbs_Parabola, GeomAbs_BezierCurve, GeomAbs_BSplineCurve,
+    GeomAbs_OffsetCurve, GeomAbs_OtherCurve,
+)
 
 from OCCT.gp import (
-    gp_Pnt, gp_Dir, gp_Vec, gp_Ax1, gp_Ax2, gp_Ax3, gp_Trsf, gp_Pln
+    gp, gp_Pnt, gp_Dir, gp_Vec, gp_Ax1, gp_Ax2, gp_Ax3, gp_Trsf, gp_Pln
 )
 
 from OCCT.TopAbs import (
@@ -67,6 +77,22 @@ from ..shape import (
 )
 
 from declaracad.core.utils import log
+
+
+DX = gp_Dir(1, 0, 0)
+DXN = gp_Dir(-1, 0, 0)
+DY = gp_Dir(0, 1, 0)
+DYN = gp_Dir(0, -1, 0)
+DZ = gp_Dir(0, 0, 1)
+DZN = gp_Dir(0, 0, -1)
+AX = gp_Ax1()
+AX.SetDirection(gp.DX_())
+AY = gp_Ax1()
+AY.SetDirection(gp.DY_())
+AZ = gp_Ax1()
+AZ.SetDirection(gp.DZ_())
+
+DEFAULT_AXIS = gp_Ax3(gp_Ax2(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1), gp_Dir(1, 0, 0)))
 
 
 def coerce_axis(value):
@@ -163,6 +189,18 @@ class Topology(Atom):
         TopAbs_SOLID: TopoDS_Solid,
         TopAbs_COMPOUND: TopoDS_Compound,
         TopAbs_COMPSOLID: TopoDS_CompSolid
+    }
+
+    curve_factory = {
+        GeomAbs_Line: lambda c: Geom_Line(c.Line()),
+        GeomAbs_Circle: lambda c: Geom_Circle(c.Circle()),
+        GeomAbs_Ellipse: lambda c: Geom_Ellipse(c.Ellipse()),
+        GeomAbs_Hyperbola: lambda c: Geom_Hyperbola(c.Hyperbola()),
+        GeomAbs_Parabola: lambda c: Geom_Parabola(c.Parabola()),
+        GeomAbs_BezierCurve: BRepAdaptor_Curve.Bezier,
+        GeomAbs_BSplineCurve: BRepAdaptor_Curve.BSpline,
+        GeomAbs_OffsetCurve: BRepAdaptor_Curve.OffsetCurve,
+        GeomAbs_OtherCurve: BRepAdaptor_CompCurve,
     }
 
     #: The shape which topology will be traversed
@@ -550,36 +588,56 @@ class Topology(Atom):
 
         """
         curves = []
-        attr = str(curve_type).split("_")[-1]
         for e in self.edges:
             curve = self.cast_curve(e, curve_type)
             if curve is not None:
-                curves.append({'edge': e, 'curve': getattr(curve, attr)()})
+                curves.append({'edge': e, 'curve': curve})
         return curves
 
-    line_curves = Property(
-        lambda self: self.extract_curves(GeomAbs.GeomAbs_Line), cached=True)
+    line_curves = List()
 
-    circle_curves = Property(
-        lambda self: self.extract_curves(GeomAbs.GeomAbs_Circle), cached=True)
+    def _default_line_curves(self):
+        return self.extract_curves(GeomAbs_Line)
 
-    ellipse_curves = Property(
-        lambda self: self.extract_curves(GeomAbs.GeomAbs_Ellipse), cached=True)
+    circle_curves = List()
 
-    hyperbola_curves = Property(
-        lambda self: self.extract_curves(GeomAbs.GeomAbs_Hyperbola), cached=True)
+    def _default_circle_curves(self):
+        return self.extract_curves(GeomAbs_Circle)
 
-    parabola_cuves = Property(
-        lambda self: self.extract_curves(GeomAbs.GeomAbs_Parabola), cached=True)
+    ellipse_curves = List()
 
-    bezier_curves = Property(
-        lambda self: self.extract_curves(GeomAbs.GeomAbs_BezierCurve), cached=True)
+    def _default_ellipse_curves(self):
+        return self.extract_curves(GeomAbs_Ellipse)
 
-    bspline_curves = Property(
-        lambda self: self.extract_curves(GeomAbs.GeomAbs_BSplineCurve), cached=True)
+    hyperbola_curves = List()
 
-    offset_curves = Property(
-        lambda self: self.extract_curves(GeomAbs.GeomAbs_OffsetCurve), cached=True)
+    def _default_hyperbola_curves(self):
+        return self.extract_curves(GeomAbs_Hyperbola)
+
+    parabola_cuves = List()
+
+    def _default_parabola_cuves(self):
+        return self.extract_curves(GeomAbs_Parabola)
+
+    bezier_curves = List()
+
+    def _default_bezier_curves(self):
+        return self.extract_curves(GeomAbs_BezierCurve)
+
+    bspline_curves = List()
+
+    def _default_bspline_curves(self):
+        return self.extract_curves(GeomAbs_BSplineCurve)
+
+    offset_curves = List()
+
+    def _default_offset_curves(self):
+        return self.extract_curves(GeomAbs_OffsetCurve)
+
+    curves = List()
+
+    def _default_curves(self):
+        return self.extract_curves(None)
 
 
     # -------------------------------------------------------------------------
@@ -615,21 +673,13 @@ class Topology(Atom):
 
         Returns
         -------
-        curve: BRepAdaptor_Curve or None
+        curve: Curve or None
             The curve or None if it could not be created or if it was not
             of the expected type (if given).
         """
-        try:
-            if isinstance(shape, TopoDS_Edge):
-                edge = shape
-            else:
-                edge = TopoDS.Edge_(shape)
-            curve = BRepAdaptor_Curve(edge)
-            if expected_type is not None and curve.GetType() != expected_type:
-                return None
-            return curve
-        except:
-            return None
+        edge = TopoDS.Edge_(shape)
+        curve = BRepAdaptor_Curve(edge)
+        return cls.curve_factory[curve.GetType()](curve)
 
     @classmethod
     def cast_surface(cls, shape, expected_type=None):
@@ -648,17 +698,14 @@ class Topology(Atom):
             The surface or None if it could not be created or did not
             match the expected type (if given).
         """
-        try:
-            if isinstance(shape, TopoDS_Face):
-                face = shape
-            else:
-                face = TopoDS.Face_(shape)
-            surface = BRepAdaptor_Surface(face, True)
-            if expected_type is not None and surface.GetType() != expected_type:
-                return None
-            return surface
-        except:
+        if isinstance(shape, TopoDS_Face):
+            face = shape
+        else:
+            face = TopoDS.Face_(shape)
+        surface = BRepAdaptor_Surface(face, True)
+        if expected_type is not None and surface.GetType() != expected_type:
             return None
+        return surface
 
     @classmethod
     def is_circle(cls, shape):
@@ -670,9 +717,8 @@ class Topology(Atom):
         bool: Bool
             Whether the shape is a part of circle
         """
-        curve = cls.cast_curve(shape)
-        if curve is None:
-            return False
+        edge = TopoDS.Edge_(shape)
+        curve = BRepAdaptor_Curve(edge)
         return curve.GetType() == GeomAbs.GeomAbs_Circle
 
     @classmethod
@@ -685,9 +731,8 @@ class Topology(Atom):
         bool: Bool
             Whether the shape is a part of an ellipse
         """
-        curve = cls.cast_curve(shape)
-        if curve is None:
-            return False
+        edge = TopoDS.Edge_(shape)
+        curve = BRepAdaptor_Curve(edge)
         return curve.GetType() == GeomAbs.GeomAbs_Ellipse
 
     @classmethod
@@ -700,9 +745,8 @@ class Topology(Atom):
         bool: Bool
             Whether the shape is a part of a line
         """
-        curve = cls.cast_curve(shape)
-        if curve is None:
-            return False
+        edge = TopoDS.Edge_(shape)
+        curve = BRepAdaptor_Curve(edge)
         return curve.GetType() == GeomAbs.GeomAbs_Line
 
     @classmethod
@@ -880,6 +924,37 @@ class OccShape(ProxyShape):
     # -------------------------------------------------------------------------
     # Proxy API
     # -------------------------------------------------------------------------
+    def get_transform(self):
+        """ Create a transform which rotates the default axis to align
+        with the normal given by the position
+
+        Returns
+        -------
+        transform: gp_Trsf
+
+        """
+        d = self.declaration
+
+        # Move to position and align along direction axis
+        t = gp_Trsf()
+        if d.direction.is_parallel(DZ):
+            t.SetRotation(AZ, d.direction.angle(DZ) + d.rotation)
+        else:
+            d1 = d.direction.cross(DZ)
+            axis = gp_Ax1(gp_Pnt(0,0,0), d1.proxy)
+            t.SetRotation(axis, d.direction.angle(DZ))
+
+            # Apply the rotation an reverse any rotation added in
+            sign = 1 if d1.y >= 0 else -1
+            angle = d.rotation + sign * d1.angle(DX)
+
+            if angle:
+                rot = gp_Trsf()
+                rot.SetRotation(AZ, angle)
+                t.Multiply(rot)
+
+        t.SetTranslationPart(gp_Vec(*d.position))
+        return t
 
     def set_direction(self, direction):
         self.create_shape()

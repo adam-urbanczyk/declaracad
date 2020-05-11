@@ -14,6 +14,7 @@ from atom.api import Typed, Int, Tuple, List, set_default
 
 from OCCT import TCollection, NCollection, Graphic3d
 from OCCT.BRep import BRep_Tool
+from OCCT.BRepAdaptor import BRepAdaptor_CompCurve
 from OCCT.BRepBuilderAPI import (
     BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace,
     BRepBuilderAPI_MakePolygon, BRepBuilderAPI_Transform,
@@ -121,15 +122,6 @@ class OccEdge(OccShape, ProxyEdge):
                             'class_b_rep_builder_a_p_i___make_edge.html')
 
     curve = Typed(Geom_TrimmedCurve)
-
-    def get_transform(self):
-        d = self.declaration
-        t = gp_Trsf()
-        axis = gp_Ax3()
-        axis.SetDirection(d.direction.proxy)
-        t.SetTransformation(axis)
-        t.SetTranslationPart(gp_Vec(*d.position))
-        return t
 
     def make_edge(self, *args):
         d = self.declaration
@@ -324,25 +316,6 @@ class OccParabola(OccEdge, ProxyParabola):
         self.create_shape()
 
 
-class OccPolyline(OccLine, ProxyPolyline):
-    #: Update the class reference
-    reference = set_default('https://dev.opencascade.org/doc/refman/html/'
-                            'class_b_rep_builder_a_p_i___make_polygon.html')
-
-    def create_shape(self):
-        d = self.declaration
-        points = self.get_transformed_points()
-        shape = BRepBuilderAPI_MakePolygon()
-        for p in points:
-            shape.Add(p)
-        if d.closed:
-            shape.Close()
-        self.shape = shape.Wire()
-
-    def set_closed(self, closed):
-        self.create_shape()
-
-
 class OccBSpline(OccLine, ProxyBSpline):
     #: Update the class reference
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
@@ -495,7 +468,87 @@ class OccTrimmedCurve(OccEdge, ProxyTrimmedCurve):
         self.update_shape()
 
 
-class OccRectangle(OccEdge, ProxyRectangle):
+class OccWire(OccDependentShape, ProxyWire):
+    #: Update the class reference
+    reference = set_default('https://dev.opencascade.org/doc/refman/html/'
+                            'class_b_rep_builder_a_p_i___make_wire.html')
+
+    curve = Typed(BRepAdaptor_CompCurve)
+
+    def create_shape(self):
+        pass
+
+    def update_shape(self, change=None):
+        d = self.declaration
+        edges = TopTools_ListOfShape()
+        for c in self.children():
+            if not isinstance(c, OccShape):
+                continue
+            if c.shape is None:
+                raise ValueError("Cannot build wire from empty shape: %s" % c)
+            self.extract_edges(c, edges)
+
+        builder = BRepBuilderAPI_MakeWire()
+        builder.Add(edges)
+        if not builder.IsDone():
+            log.warning('Edges must be connected %s' % d)
+        wire = builder.Wire()
+        if d.reverse:
+            wire.Reverse()
+        self.curve = BRepAdaptor_CompCurve(wire)
+        self.shape = wire
+
+    def extract_edges(self, child, edges):
+        d = child.declaration
+        if isinstance(child.shape, list):
+            for c in child.children():
+                if not isinstance(c, OccShape):
+                    continue
+                self.extract_edges(c, edges)
+        else:
+            for edge in d.topology.edges:
+                if getattr(d, 'surface', None):
+                    BRepLib.BuildCurves3d_(edge)
+                edges.Append(edge)
+
+    def get_value_at(self, t, derivative=0):
+        if self.curve is None:
+            self.update_shape()
+        return Topology.get_value_at(self.curve, t, derivative)
+
+
+class OccPolyline(OccWire, ProxyPolyline):
+    #: Update the class reference
+    reference = set_default('https://dev.opencascade.org/doc/refman/html/'
+                            'class_b_rep_builder_a_p_i___make_polygon.html')
+
+    curve = Typed(BRepAdaptor_CompCurve)
+
+    def create_shape(self):
+        d = self.declaration
+        t = self.get_transform()
+        shape = BRepBuilderAPI_MakePolygon()
+        for p in d.points:
+            shape.Add(p.proxy.Transformed(t))
+        if d.closed:
+            shape.Close()
+        curve = self.curve = BRepAdaptor_CompCurve(shape.Wire())
+        self.shape = curve.Wire()
+
+    def init_layout(self):
+        # This does not depened on children
+        pass
+
+    def update_shape(self, change=None):
+        self.create_shape()
+
+    def set_closed(self, closed):
+        self.create_shape()
+
+
+class OccRectangle(OccWire, ProxyRectangle):
+    curve = Typed(BRepAdaptor_CompCurve)
+
     def create_shape(self):
         d = self.declaration
         t = self.get_transform()
@@ -573,56 +626,13 @@ class OccRectangle(OccEdge, ProxyRectangle):
             shape = BRepBuilderAPI_MakePolygon(
                 gp_Pnt(0, 0, 0), gp_Pnt(w, 0, 0),
                 gp_Pnt(w, h, 0), gp_Pnt(0, h, 0), True).Wire()
-        rect = BRepBuilderAPI_Transform(shape, t, False).Shape()
-        self.shape = TopoDS.Wire_(rect)
-
-
-class OccWire(OccDependentShape, ProxyWire):
-    #: Update the class reference
-    reference = set_default('https://dev.opencascade.org/doc/refman/html/'
-                            'class_b_rep_builder_a_p_i___make_wire.html')
-
-    def create_shape(self):
-        pass
-
-    def extract_edges(self, child, edges):
-        d = child.declaration
-        if isinstance(child.shape, list):
-            for c in child.children():
-                if not isinstance(c, OccShape):
-                    continue
-                self.extract_edges(c, edges)
-        else:
-            for edge in d.topology.edges:
-                if getattr(d, 'surface', None):
-                    BRepLib.BuildCurves3d_(edge)
-                edges.Append(edge)
-
-    def update_shape(self, change=None):
-        d = self.declaration
-        edges = TopTools_ListOfShape()
-        for c in self.children():
-            if not isinstance(c, OccShape):
-                continue
-            if c.shape is None:
-                raise ValueError("Cannot build wire from empty shape: %s" % c)
-            self.extract_edges(c, edges)
-
-        builder = BRepBuilderAPI_MakeWire()
-        builder.Add(edges)
-        if not builder.IsDone():
-            log.warning('Edges must be connected %s' % d)
-        wire = builder.Wire()
-        if d.reverse:
-            wire.Reverse()
+        wire = TopoDS.Wire_(BRepBuilderAPI_Transform(shape, t, False).Shape())
+        self.curve = BRepAdaptor_CompCurve(wire)
         self.shape = wire
 
-    def child_added(self, child):
-        super(OccWire, self).child_added(child)
-        child.observe('shape', self.update_shape)
+    def update_shape(self, change=None):
+        self.create_shape()
 
-    def child_removed(self, child):
-        super(OccEdge, self).child_removed(child)
-        child.unobserve('shape', self.update_shape)
-
-
+    def init_layout(self):
+        # This does not depened on children
+        pass

@@ -27,7 +27,7 @@ from enaml.widgets.toolkit_object import ToolkitObject
 from declaracad.core.utils import log
 
 #: TODO: This breaks the proxy pattern
-from OCCT.gp import gp, gp_Pnt, gp_Dir
+from OCCT.gp import gp, gp_Pnt, gp_Dir, gp_Vec
 from OCCT.BRep import BRep_Tool
 from OCCT.TopoDS import TopoDS_Face, TopoDS_Shell, TopoDS_Shape
 
@@ -381,6 +381,23 @@ class Direction(Point):
         dir = gp_Dir()
         dir.Rotate(gp.OX_(), math.atan2(y, x))
         return Direction(dir.X(), dir.Y(), dir.Z())
+
+    def angle(self, other):
+        p = self.__coerce__(other)
+        return self.proxy.Angle(p.proxy)
+
+    def is_parallel(self, other, tol=1e-6):
+        p = self.__coerce__(other)
+        return self.proxy.IsParallel(p.proxy, tol)
+
+    def is_opposite(self, other, tol=1e-6):
+        p = self.__coerce__(other)
+        return self.proxy.IsOpposite(p.proxy, tol)
+
+    def is_normal(self, other, tol=1e-6):
+        """ Check if perpendicular """
+        p = self.__coerce__(other)
+        return self.proxy.IsNormal(p.proxy, tol)
 
 
 def coerce_point(arg):
