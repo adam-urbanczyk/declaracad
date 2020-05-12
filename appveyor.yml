@@ -38,7 +38,7 @@ install:
   - conda install python=%PYTHON_VERSION% anaconda-client conda-build conda-verify -q
 
   # Install depencencies
-  - conda install -c trelau -c conda-forge pyocct -q
+  - conda install -c laughlinresearch -c conda-forge pyocct -q
 
   # Install testing utils
   - pip install pytest pytest-coverage pytest-qt codecov
@@ -54,7 +54,7 @@ build_script:
   - pip install -e .
 
   # Build the conda package
-  # - conda build recipe -c conda-forge -c trelau -c codelv
+  # - conda build recipe -c conda-forge -c laughlinresearch -c codelv
 
 test_script:
 
