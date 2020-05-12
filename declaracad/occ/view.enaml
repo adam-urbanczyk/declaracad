@@ -654,12 +654,12 @@ enamldef ViewerWindow(Window): window:
                         bbox << viewer.bbox
 
 
-enamldef RemoteViewer(Conditional): viewer:
+enamldef RemoteViewer(Container): viewer:
     attr plugin: ViewerPlugin
+    padding = 0
 
     #: Process handle for communication with the child viewer
     attr renderer: ViewerProcess = ViewerProcess(plugin=plugin)
-    condition << bool(renderer.window_id)
 
     func update_backgound(change):
         """ Updates the background color on the viewer """
@@ -702,32 +702,37 @@ enamldef RemoteViewer(Conditional): viewer:
     func update_chordial_deviation(change):
         renderer.set_chordial_deviation(plugin.renderer_chordial_deviation)
 
-    func resync():
-        """ Resync all plugin settings """
-        for fn in (update_backgound, update_shape_color, update_trihedron,
-                   update_antialiasing, update_raytracing, update_shadows,
-                   update_draw_boundaries, update_reflections,
-                   update_chordial_deviation):
-            fn({})
+    # Since this is a remote viewer changes have to be passed manually
+    attr observers = {
+        'background_mode': update_backgound,
+        'background_top': update_backgound,
+        'background_bottom': update_backgound,
+        'background_fill_method': update_backgound,
+        'trihedron_mode': update_trihedron,
+        'shape_color': update_shape_color,
+        'renderer_use_antialiasing': update_antialiasing,
+        'renderer_use_raytracing': update_raytracing,
+        'renderer_show_shadows': update_shadows,
+        'renderer_show_reflections': update_reflections,
+        'renderer_draw_boundaries': update_draw_boundaries,
+        'renderer_chordial_deviation': update_chordial_deviation,
+    }
 
     func setup():
-        """ Connect all plugin observers """
-        plugin = viewer.plugin
-        plugin.observe('background_mode', update_backgound)
-        plugin.observe('background_top', update_backgound)
-        plugin.observe('background_bottom', update_backgound)
-        plugin.observe('background_fill_method', update_backgound)
-        plugin.observe('trihedron_mode', update_trihedron)
-        plugin.observe('shape_color', update_shape_color)
-
-        plugin.observe('renderer_use_antialiasing', update_antialiasing)
-        plugin.observe('renderer_use_raytracing', update_raytracing)
-        plugin.observe('renderer_show_shadows', update_shadows)
-        plugin.observe('renderer_show_reflections', update_reflections)
-        plugin.observe('renderer_draw_boundaries', update_draw_boundaries)
-        plugin.observe('renderer_chordial_deviation', update_chordial_deviation)
-
+        """ Bind all plugin observers """
+        for n, fn in observers.items():
+            plugin.observe(n, fn)
         self.resync()
+
+    func resync():
+        """ Resync all plugin settings """
+        for fn in set(observers.values()):
+            fn({})
+
+    func cleanup():
+        """ Unbind all plugin observers """
+        for n, fn in observers.items():
+            plugin.unobserve(n, fn)
 
     ScrollArea:
         widget_resizable = True
@@ -737,10 +742,12 @@ enamldef RemoteViewer(Conditional): viewer:
         # See https://doc.qt.io/qt-5/qwidget.html#createWindowContainer
         Container:
             padding = 0
-            #: Embedded viewer
-            EmbeddedWindow: window:
-                window_id = renderer.window_id
-                activated :: viewer.setup()
+            Conditional:
+                condition << bool(renderer.window_id)
+                EmbeddedWindow: window:
+                    # Embedded viewer
+                    window_id = renderer.window_id
+                    activated :: viewer.setup()
 
 
 enamldef ViewerDockItem(DockItem): view:
@@ -756,32 +763,26 @@ enamldef ViewerDockItem(DockItem): view:
         ) if document else 'active document'
     )
 
-    #: Manually assigned document
-    attr document = None
-    document :: handle_document_changed(change)
-    activated ::
-        renderer.document = editor_plugin.active_document
-        editor_plugin.observe('active_document', handle_document_changed)
-
     func get_document():
         return self.document or editor_plugin.active_document
 
-    func handle_document_changed(change):
-        """ When the editor active document changes or this view's document
-        changes, update the renderer.
+    #: Manually assigned document
+    attr document = None
+    attr active_document << editor_plugin.active_document
 
-        """
-        renderer.document = get_document()
+    # When either changes update the renderer
+    document :: renderer.document = get_document()
+    active_document :: renderer.document = get_document()
+    activated :: renderer.document = get_document()
 
     icon = load_icon("bricks")
     stretch = 1
     closed ::
-        editor_plugin.unobserve('active_document', handle_document_changed)
         renderer.terminate()
-    Container: container:
-        padding = 0
-        RemoteViewer: viewer:
-            plugin << view.plugin
+        viewer.cleanup()
+
+    RemoteViewer: viewer:
+        plugin << view.plugin
 
     title_bar_right_clicked ::
         # Populate the documents
