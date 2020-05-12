@@ -22,14 +22,10 @@ from OCCT.BRepBuilderAPI import (
 )
 from OCCT.BRepLib import BRepLib
 from OCCT.BRepOffsetAPI import BRepOffsetAPI_MakeOffset
-from OCCT.Font import Font_FontMgr, Font_BRepTextBuilder, Font_FontAspect
-
-try:
-    from OCCT.Font import Font_BRepFont
-except ImportError:
-    Font_BRepFont = object
-
-
+from OCCT.Font import (
+    Font_FontMgr, Font_BRepFont, Font_BRepTextBuilder, Font_FontAspect,
+    Font_FA_Regular
+)
 from OCCT.GC import (
     GC_MakeSegment, GC_MakeArcOfCircle, GC_MakeArcOfEllipse, GC_MakeLine
 )
@@ -61,20 +57,10 @@ from .occ_svg import make_ellipse
 from declaracad.core.utils import log
 
 
-
 #: Track registered fonts
 FONT_MANAGER = Font_FontMgr.GetInstance_()
 FONT_REGISTRY = set()
 FONT_CACHE = {}
-FONT_ASPECTS = {
-    'regular': Font_FontAspect.Font_FA_Regular,
-    'bold': Font_FontAspect.Font_FA_Bold,
-    'italic': Font_FontAspect.Font_FA_Italic,
-    'bold-italic': Font_FontAspect.Font_FA_BoldItalic
-}
-
-ORIGIN = gp.Origin_()
-DEFAULT_AXIS = gp_Ax3(gp.Origin_(), gp.DZ_())
 
 
 class OccPlane(OccShape, ProxyPlane):
@@ -384,7 +370,8 @@ class OccText(OccShape, ProxyText):
             FONT_MANAGER.RegisterFont(font_family, True)
             FONT_REGISTRY.add(font_family)
 
-        font_style = FONT_ASPECTS.get(d.style)
+        attr = "Font_FA_{}".format(d.style.title().replace("-", ""))
+        font_style = getattr(Font_FontAspect, attr, Font_FA_Regular)
 
         # Fonts are cached by OpenCASCADE so we also cache the here or
         # each time the font instance is released by python it get's lost
