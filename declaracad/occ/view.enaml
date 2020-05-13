@@ -731,6 +731,7 @@ enamldef RemoteViewer(Container): viewer:
 
     func cleanup():
         """ Unbind all plugin observers """
+        renderer.terminate()
         for n, fn in observers.items():
             plugin.unobserve(n, fn)
 
@@ -756,30 +757,22 @@ enamldef ViewerDockItem(DockItem): view:
     alias renderer: viewer.renderer
     attr editor_plugin << plugin.workbench.get_plugin('declaracad.editor')
 
-    title << "Viewer {}".format(
-        format_title(
-            editor_plugin.documents, document,
-            document.name, document.unsaved
-        ) if document else 'active document'
-    )
+    title << "Viewer {}".format(format_title(
+        editor_plugin.documents, active_document,
+        active_document.name, active_document.unsaved
+    ))
 
-    func get_document():
-        return self.document or editor_plugin.active_document
-
-    #: Manually assigned document
+    # If set the viewer says on this file even if the editor_plugin document
+    # changes
     attr document = None
-    attr active_document << editor_plugin.active_document
 
     # When either changes update the renderer
-    document :: renderer.document = get_document()
-    active_document :: renderer.document = get_document()
-    activated :: renderer.document = get_document()
+    attr active_document << self.document or editor_plugin.active_document
+    active_document :: renderer.document = change['value']
 
     icon = load_icon("bricks")
     stretch = 1
-    closed ::
-        renderer.terminate()
-        viewer.cleanup()
+    closed :: viewer.cleanup()
 
     RemoteViewer: viewer:
         plugin << view.plugin
