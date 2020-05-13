@@ -921,6 +921,16 @@ class OccShape(ProxyShape):
             if isinstance(child, OccShape):
                 return child
 
+    def child_shapes(self):
+        """ Iterator of all child shapes """
+        for child in self.children():
+            if isinstance(child, OccShape):
+                if hasattr(child, 'shapes'):
+                    for s in child.shapes:
+                        yield s
+                else:
+                    yield child.shape
+
     # -------------------------------------------------------------------------
     # Proxy API
     # -------------------------------------------------------------------------
