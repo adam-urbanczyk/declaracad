@@ -143,6 +143,7 @@ enamldef ScreenCaptureDialog(Dialog): dialog:
         editor = plugin.workbench.get_plugin('declaracad.editor')
         doc = editor.active_document
         return ScreenshotOptions(filename=doc.name,
+                                 default_dir=plugin.screenshot_dir,
                                  target=event.parameters.get('target', ''))
 
     TaskDialogStyleSheet:

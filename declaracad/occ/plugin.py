@@ -117,6 +117,9 @@ class ScreenshotOptions(Atom):
     #: Path to save
     path = Str()
 
+    #: Default save directory
+    default_dir = Str()
+
     #: Document file name
     filename = Str()
 
@@ -124,7 +127,10 @@ class ScreenshotOptions(Atom):
     target = Str()
 
     def _default_path(self):
-        return "{}.png".format(os.path.splitext(self.filename)[0])
+        path, filename = os.path.split(self.filename)
+        default_dir = self.default_dir or path
+        filename, ext = os.path.splitext(filename)
+        return os.path.join(default_dir, "{}.png".format(filename))
 
     def format(self):
         """ Return formatted option values for the exporter app to parse """
@@ -359,6 +365,8 @@ class ViewerProcess(ProcessLineReceiver):
 
 
 class ViewerPlugin(Plugin):
+    #: Default dir for screenshots
+    screenshot_dir = Str().tag(config=True)
 
     #: Background color
     background_mode = Enum('gradient', 'solid').tag(config=True)
@@ -442,9 +450,14 @@ class ViewerPlugin(Plugin):
         """ Export the views as a screenshot """
         if 'options' not in event.parameters:
             editor = self.workbench.get_plugin('declaracad.editor')
-            options = ScreenshotOptions(filename=editor.active_document.name)
+            filename = editor.active_document.name
+            options = ScreenshotOptions(
+                filename=filename,
+                default_dir=self.screenshot_dir)
         else:
             options = event.parameters.get('options')
+            # Update the default screenshot dir
+            self.screenshot_dir, _ = os.path.split(options.path)
         results = []
         if options.target:
             viewer = self.get_viewer(options.target)
