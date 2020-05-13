@@ -44,5 +44,7 @@ from .shape import (
     HalfSpace, Prism, Revol
 )
 
+Extrude = Prism
+
 
 from enaml.core.api import Looper, Conditional, Include
