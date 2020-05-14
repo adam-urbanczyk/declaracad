@@ -173,9 +173,9 @@ class JSONRRCProtocol(Atom, LineReceiver):
 
         handler = getattr(self, 'handle_{}'.format(method), None)
         if handler is None:
-            self.send_message({"id": request_id,
-                               'error': {'code': -32601,
-                                         'message': "Method not found"}})
+            msg = f"Method '{method}' not found"
+            self.send_message({
+                "id": request_id, 'error': {'code': -32601, 'message': msg}})
             return
 
         try:
