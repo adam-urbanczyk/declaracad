@@ -73,6 +73,12 @@ def settngs_page_factory():
     return ViewerSettingsPage
 
 
+def grid_settings_page_factory():
+    with enaml.imports():
+        from .settings import ViewerGridSettingsPage
+    return ViewerGridSettingsPage
+
+
 enamldef ViewerManifest(PluginManifest):
     """ The manifest which is registered when the view is loaded.
 
@@ -110,6 +116,10 @@ enamldef ViewerManifest(PluginManifest):
     Extension:
         id = 'settings'
         point = SETTINGS_PAGE_POINT
+        SettingsPage:
+            name = "Grid"
+            plugin_id = 'declaracad.viewer'
+            factory = grid_settings_page_factory
         SettingsPage:
             name = "Viewer"
             plugin_id = 'declaracad.viewer'

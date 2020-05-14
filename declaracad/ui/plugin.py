@@ -39,7 +39,6 @@ class DeclaracadPlugin(Plugin):
     settings_page = Instance(extensions.SettingsPage)
 
     #: Internal settings models
-    settings_typemap = Dict()
     settings_model = Instance(Atom)
 
     def start(self):
@@ -175,19 +174,11 @@ class DeclaracadPlugin(Plugin):
         point = workbench.get_extension_point(extensions.SETTINGS_PAGE_POINT)
 
         settings_pages = []
-        typemap = {}
         for extension in sorted(point.extensions, key=lambda ext: ext.rank):
             for d in extension.get_children(extensions.SettingsPage):
-                #: Save it
                 settings_pages.append(d)
 
-                #: Update the type map
-                plugin = self.workbench.get_plugin(d.plugin_id)
-                t = type(getattr(plugin, d.model) if d.model else plugin)
-                typemap[t] = d.factory()
-
         #: Update items
+        settings_pages.sort(key=lambda p: p.name)
         log.debug("Updating settings pages: {}".format(settings_pages))
-
-        self.settings_typemap = typemap
-        self.settings_pages = sorted(settings_pages, key=lambda p: p.name)
+        self.settings_pages = settings_pages

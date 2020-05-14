@@ -31,13 +31,42 @@ from enamlx.widgets.api import DoubleSpinBox
 from .widgets.api import OccViewer
 
 
-enamldef ViewerSettingsPage(Container):
+def format_color(color):
+    if not color:
+        return "Not set"
+    return str(hex(color.argb)).replace('0x','#').upper()
+
+
+enamldef ViewerGridSettingsPage(Container):
     attr model
 
-    func format_color(color):
-        if not color:
-            return "Not set"
-        return str(hex(color.argb)).replace('0x','#').upper()
+    Form:
+        Label:
+            text = "Grid Mode"
+        ObjectCombo:
+            items = list(OccViewer.grid_mode.items)
+            to_string = lambda it: it.title().replace("-", " ")
+            selected := model.grid_mode
+        Label:
+            text = "Grid Color"
+        PushButton:
+            text << format_color(model.grid_major_color)
+            clicked ::
+                dlg = ColorDialog(parent=self, current_color=model.grid_major_color)
+                if dlg.exec_():
+                    model.grid_major_color = dlg.selected_color
+        Label:
+            text = "Grid Tenth Color"
+        PushButton:
+            text << format_color(model.grid_minor_color)
+            clicked ::
+                dlg = ColorDialog(parent=self, current_color=model.grid_minor_color)
+                if dlg.exec_():
+                    model.grid_minor_color = dlg.selected_color
+
+
+enamldef ViewerSettingsPage(Container):
+    attr model
 
     Form:
         Label:
@@ -89,28 +118,28 @@ enamldef ViewerSettingsPage(Container):
         Label:
             text = "Render shadows"
         CheckBox:
-            checked := model.renderer_show_shadows
+            checked := model.shadows
         Label:
             text = "Render reflections"
         CheckBox:
-            checked := model.renderer_show_reflections
+            checked := model.reflections
         Label:
             text = "Render boundaries"
         CheckBox:
-            checked := model.renderer_draw_boundaries
+            checked := model.draw_boundaries
         Label:
             text = "Enable antialiasing"
         CheckBox:
-            checked := model.renderer_use_antialiasing
+            checked := model.antialiasing
         Label:
             text = "Enable raytracing"
         CheckBox:
-            checked := model.renderer_use_raytracing
+            checked := model.raytracing
         Label:
             text = "Chordial Deviation"
         DoubleSpinBox:
             decimals = 6
             single_step = 0.01
-            value := model.renderer_chordial_deviation
+            value := model.chordial_deviation
 
 

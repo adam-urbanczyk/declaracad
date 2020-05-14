@@ -114,7 +114,6 @@ enamldef ModelViewer(OccViewer): viewer:
     attr action_search: str = ""
     attr actions: list = get_actions()
 
-
     func get_actions():
         actions = [
             ViewerAction(name="View iso", action=keymap['v']['i']),
@@ -654,86 +653,65 @@ enamldef ViewerWindow(Window): window:
                         bbox << viewer.bbox
 
 
-enamldef RemoteViewer(Container): viewer:
+enamldef RemoteViewer(Container): remote_viewer:
     attr plugin: ViewerPlugin
     padding = 0
 
     #: Process handle for communication with the child viewer
     attr renderer: ViewerProcess = ViewerProcess(plugin=plugin)
 
-    func update_backgound(change):
+    func update_background(change):
         """ Updates the background color on the viewer """
-        plugin = viewer.plugin
         c1 = plugin.background_top
-        if not c1:
-            return
         if plugin.background_mode == 'solid':
             c2 = c1
         else:
             c2 = plugin.background_bottom
-            if not c2:
-                return
         renderer.set_background_gradient((c1, c2, plugin.background_fill_method))
 
-    func update_shape_color(change):
-        renderer.set_shape_color(plugin.shape_color)
-        if change.get('type') == 'update' and renderer.document:
-            # Trigger a reload
-            renderer.document.version += 1
-
-    func update_trihedron(change):
-        renderer.set_trihedron_mode(plugin.trihedron_mode)
-
-    func update_antialiasing(change):
-        renderer.set_antialiasing(plugin.renderer_use_antialiasing)
-
-    func update_raytracing(change):
-        renderer.set_raytracing(plugin.renderer_use_raytracing)
-
-    func update_shadows(change):
-        renderer.set_shadows(plugin.renderer_show_shadows)
-
-    func update_reflections(change):
-        renderer.set_reflections(plugin.renderer_show_reflections)
-
-    func update_draw_boundaries(change):
-        renderer.set_draw_boundaries(plugin.renderer_draw_boundaries)
-
-    func update_chordial_deviation(change):
-        renderer.set_chordial_deviation(plugin.renderer_chordial_deviation)
+    func update_grid_colors(change):
+        c1 = plugin.grid_minor_color
+        c2 = plugin.grid_major_color
+        renderer.set_grid_colors((c1, c2))
 
     # Since this is a remote viewer changes have to be passed manually
-    attr observers = {
-        'background_mode': update_backgound,
-        'background_top': update_backgound,
-        'background_bottom': update_backgound,
-        'background_fill_method': update_backgound,
-        'trihedron_mode': update_trihedron,
-        'shape_color': update_shape_color,
-        'renderer_use_antialiasing': update_antialiasing,
-        'renderer_use_raytracing': update_raytracing,
-        'renderer_show_shadows': update_shadows,
-        'renderer_show_reflections': update_reflections,
-        'renderer_draw_boundaries': update_draw_boundaries,
-        'renderer_chordial_deviation': update_chordial_deviation,
-    }
+    func update_viewer(change):
+        setter = getattr(renderer, f'set_{change["name"]}')
+        setter(change['value'])
+        if change['type'] == 'update':
+            renderer.redraw()
 
-    func setup():
+    #: Mapping of plugin attr name to the update function
+    attr observers = {}
+
+    func bind():
         """ Bind all plugin observers """
-        for n, fn in observers.items():
-            plugin.observe(n, fn)
+        if self.observers:
+            self.unbind()
+        for m in plugin.get_viewer_members():
+            # If the member was tagged with a viewer
+            fn = getattr(self, f'update_{m.metadata["viewer"]}', update_viewer)
+            plugin.observe(m.name, fn)
+            self.observers[m.name] = fn
         self.resync()
 
     func resync():
-        """ Resync all plugin settings """
-        for fn in set(observers.values()):
-            fn({})
+        """ Resync all viewer plugin settings """
+        called = set()
+        for name, fn in observers.items():
+            if fn in called:
+                continue
+            fn({'name': name, 'value': getattr(plugin, name), 'type': 'create'})
+            called.add(fn)
 
-    func cleanup():
+    func unbind():
         """ Unbind all plugin observers """
-        renderer.terminate()
         for n, fn in observers.items():
             plugin.unobserve(n, fn)
+
+    func cleanup():
+        renderer.terminate()
+        unbind_observers()
 
     ScrollArea:
         widget_resizable = True
@@ -748,7 +726,12 @@ enamldef RemoteViewer(Container): viewer:
                 EmbeddedWindow: window:
                     # Embedded viewer
                     window_id = renderer.window_id
-                    activated :: viewer.setup()
+                    activated ::
+                        try:
+                            remote_viewer.bind()
+                        except Exception as e:
+                            log.error("Failed to setup remote viewer:")
+                            log.exception(e)
 
 
 enamldef ViewerDockItem(DockItem): view:
@@ -832,7 +815,3 @@ enamldef ViewerDockItem(DockItem): view:
                     checkable = True
                     checked << view.document == loop_item
                     triggered :: view.document = loop_item
-
-
-
-

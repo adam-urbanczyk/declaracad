@@ -174,6 +174,13 @@ class ViewerProcess(ProcessLineReceiver):
     #: Capture stderr separately
     err_to_out = set_default(False)
 
+    def redraw(self):
+        if self.document:
+            # Trigger a reload
+            self.document.version += 1
+        else:
+            self.set_version(self._id)
+
     @observe('document', 'document.version')
     def _update_document(self, change):
         doc = self.document
@@ -353,7 +360,12 @@ class ViewerProcess(ProcessLineReceiver):
         timed_call(self._ping_rate*1000, self.schedule_ping)
 
     def __getattr__(self, name):
-        """ Proxy all calls """
+        """ Proxy all calls not defined here to the remote viewer.
+
+        This makes doing `setattr(renderer, attr, value)` get passed to the
+        remote viewer.
+
+        """
         def remote_viewer_call(*args, **kwargs):
             d = Deferred()
             self._id += 1
@@ -365,32 +377,50 @@ class ViewerProcess(ProcessLineReceiver):
 
 
 class ViewerPlugin(Plugin):
-    #: Default dir for screenshots
-    screenshot_dir = Str().tag(config=True)
-
-    #: Background color
-    background_mode = Enum('gradient', 'solid').tag(config=True)
-    background_top = ColorMember('lightgrey').tag(config=True)
-    background_bottom = ColorMember('grey').tag(config=True)
+    # -------------------------------------------------------------------------
+    # Default viewer settings
+    # -------------------------------------------------------------------------
+    background_mode = Enum('gradient', 'solid').tag(config=True, viewer='background')
+    background_top = ColorMember('lightgrey').tag(config=True, viewer='background')
+    background_bottom = ColorMember('grey').tag(config=True, viewer='background')
     background_fill_method = Enum(
         'corner3', 'corner1', 'corner2', 'corner4',
         'ver', 'hor', 'diag1', 'diag2',
-        ).tag(config=True)
-    trihedron_mode = Str('right-lower').tag(config=True)
+        ).tag(config=True, viewer='background')
+    trihedron_mode = Str('right-lower').tag(config=True, viewer=True)
 
     #: Defaults
-    shape_color = ColorMember('steelblue').tag(config=True)
+    shape_color = ColorMember('steelblue').tag(config=True, viewer=True)
+
+    #: Grid options
+    grid_mode = Str().tag(config=True, viewer=True)
+    grid_major_color = ColorMember('#444').tag(config=True, viewer='grid_colors')
+    grid_minor_color = ColorMember('#888').tag(config=True, viewer='grid_colors')
 
     #: Rendering options
-    renderer_use_antialiasing = Bool(True).tag(config=True)
-    renderer_use_raytracing = Bool(True).tag(config=True)
-    renderer_draw_boundaries = Bool(True).tag(config=True)
-    renderer_show_shadows = Bool(True).tag(config=True)
-    renderer_show_reflections = Bool(True).tag(config=True)
-    renderer_chordial_deviation = Float(0.001).tag(config=True)
+    antialiasing = Bool(True).tag(config=True, viewer=True)
+    raytracing = Bool(True).tag(config=True, viewer=True)
+    draw_boundaries = Bool(True).tag(config=True, viewer=True)
+    shadows = Bool(True).tag(config=True, viewer=True)
+    reflections = Bool(True).tag(config=True, viewer=True)
+    chordial_deviation = Float(0.001).tag(config=True, viewer=True)
+
+    # -------------------------------------------------------------------------
+    # Plugin members
+    # -------------------------------------------------------------------------
+    #: Default dir for screenshots
+    screenshot_dir = Str().tag(config=True)
 
     #: Exporters
     exporters = ContainerList()
+
+    def get_viewer_members(self):
+        for m in self.members().values():
+            meta = m.metadata
+            if not meta:
+                continue
+            if meta.get('viewer'):
+                yield m
 
     def get_viewers(self):
         ViewerDockItem = viewer_factory()
@@ -423,6 +453,10 @@ class ViewerPlugin(Plugin):
         from .exporters.stl.exporter import StlExporter
         from .exporters.step.exporter import StepExporter
         return [StlExporter, StepExporter]
+
+    # -------------------------------------------------------------------------
+    # Plugin commands
+    # -------------------------------------------------------------------------
 
     def export(self, event):
         """ Export the current model to stl """

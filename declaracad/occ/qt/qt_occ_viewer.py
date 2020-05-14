@@ -29,10 +29,11 @@ from OCCT import __version__ as OCCT_VERSION
 
 from OCCT.AIS import (
     AIS_InteractiveContext, AIS_Shape, AIS_Shaded, AIS_WireFrame,
-    AIS_ColoredDrawer, AIS_TexturedShape
+    AIS_ColoredDrawer, AIS_TexturedShape,
 )
 from OCCT.Aspect import (
-    Aspect_DisplayConnection, Aspect_TOTP_LEFT_LOWER, Aspect_GFM_VER
+    Aspect_DisplayConnection, Aspect_TOTP_LEFT_LOWER, Aspect_GFM_VER,
+    Aspect_GridType, Aspect_GridDrawMode
 )
 from OCCT.Bnd import Bnd_Box
 from OCCT.BRepBndLib import BRepBndLib
@@ -328,6 +329,9 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     #: Tuple of (Quantity_Color, transparency)
     shape_color = Typed(tuple)
 
+    #: Grid colors
+    grid_colors = Dict()
+
     #: Shapes
     shapes = Property(lambda self: self.get_shapes(), cached=True)
 
@@ -405,6 +409,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         self.set_shape_color(d.shape_color)
         self.set_chordial_deviation(d.chordial_deviation)
         self._update_rendering_params()
+        self.set_grid_mode(d.grid_mode)
+        self.set_grid_colors(d.grid_colors)
 
         self.init_signals()
         self.dump_gl_info()
@@ -525,7 +531,6 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     def set_chordial_deviation(self, deviation):
         # Turn up tesselation defaults
         self.prs3d_drawer.SetMaximalChordialDeviation(deviation)
-
 
     # -------------------------------------------------------------------------
     # Rendering parameters
@@ -648,6 +653,21 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         position = getattr(Aspect, attr)
         self.v3d_view.TriedronDisplay(position, BLACK, 0.1, V3d.V3d_ZBUFFER)
         self.ais_context.UpdateCurrentViewer()
+
+    def set_grid_mode(self, mode):
+        if not mode:
+            self.v3d_viewer.DeactivateGrid()
+        else:
+            a, b = mode.title().split("-")
+            grid_type = getattr(Aspect_GridType, f'Aspect_GT_{a}')
+            grid_mode = getattr(Aspect_GridDrawMode, f'Aspect_GDM_{b}')
+            self.v3d_viewer.ActivateGrid(grid_type, grid_mode)
+
+    def set_grid_colors(self, colors):
+        c1, _ = color_to_quantity_color(colors[0])
+        c2, _ = color_to_quantity_color(colors[1])
+        grid = self.v3d_viewer.Grid()
+        grid.SetColors(c1, c2)
 
     # -------------------------------------------------------------------------
     # Viewer interaction

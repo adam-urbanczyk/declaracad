@@ -16,8 +16,7 @@ if sys.platform == 'win32':
 from OCCT import __version__ as OCCT_VERSION
 from enaml.core.api import Looper
 from enaml.layout.api import align, hbox, spacer
-from enaml.core.api import Conditional
-from enaml.stdlib.mapped_view import MappedView
+from enaml.core.api import Conditional, Include
 from enaml.stdlib.dialog_buttons import DialogButtonBox, DialogButton
 from enaml.stdlib.task_dialog import (
     TaskDialogBody, TaskDialogCommandArea,
@@ -52,17 +51,17 @@ enamldef SettingsDialog(Dialog): dialog:
     initial_size = (720, 480)
     attr plugin
     attr event
-    #TaskDialogStyleSheet:
-    #        pass
+    TaskDialogStyleSheet:
+            pass
     TaskDialogBody:
         TaskDialogInstructionArea:
             Label:
                 style_class = 'task-dialog-instructions'
                 text = 'Settings'
-        # TaskDialogContentArea:
-        #     Label:
-        #         style_class = 'task-dialog-content'
-        #         text = 'Editor settings'
+        TaskDialogContentArea:
+             Label:
+                 style_class = 'task-dialog-content'
+                 text = 'Adjust default settings'
         TaskDialogDetailsArea: details:
             visible = True
             Splitter:
@@ -82,21 +81,16 @@ enamldef SettingsDialog(Dialog): dialog:
                                 iterable << tree.items
                                 TreeViewItem:
                                     text = loop_item.name
-                                    clicked ::
-                                        d = loop_item
-                                        plugin.settings_page = d
-
-                                        #: Not sure why but it needs repeated here to force
-                                        #: an update
-                                        p = plugin.workbench.get_plugin(d.plugin_id)
-                                        settings.model = getattr(p, d.model) if p and d.model else p
+                                    clicked :: plugin.settings_page = loop_item
                 SplitItem:
                     stretch = 4
-                    MappedView: settings:
-                        attr d << plugin.settings_page
-                        attr p << plugin.workbench.get_plugin(d.plugin_id)
-                        model << getattr(p, d.model) if p and d.model else p
-                        typemap << plugin.settings_typemap
+                    Include: settings:
+                        func get_settings_page(d):
+                            """ Create the settings view for the current page """
+                            model = plugin.workbench.get_plugin(d.plugin_id)
+                            SettingsView = d.factory()
+                            return [SettingsView(model=model)]
+                        objects << get_settings_page(plugin.settings_page)
 
         TaskDialogCommandArea:
             constraints = [

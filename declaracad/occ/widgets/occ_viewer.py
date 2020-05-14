@@ -21,11 +21,11 @@ from enaml.widgets.control import Control, ProxyControl
 from ..shape import BBox, Point, Direction
 
 
-def gradient_coercer(arg):
-    """ Coerce a colors to a gradient
+def color_pair_coercer(arg):
+    """ Coerce to a tuple of colors
 
     """
-    if not isinstance(arTopAbsg, (tuple, list)):
+    if not isinstance(arg, (tuple, list)):
         c1, c2 = [arg, arg]
     else:
         c1, c2 = arg
@@ -177,6 +177,12 @@ class ProxyOccViewer(ProxyControl):
     def set_hidden_line_removal(self, enabled):
         raise NotImplementedError
 
+    def set_grid_mode(self, mode):
+        raise NotImplementedError
+
+    def set_grid_colors(self, colors):
+        raise NotImplementedError
+
     def set_lock_rotation(self, locked):
         raise NotImplementedError
 
@@ -230,6 +236,16 @@ class OccViewer(Control):
     view_mode = d_(Enum('iso', 'top', 'bottom', 'left', 'right', 'front',
                         'rear'))
 
+    # -------------------------------------------------------------------------
+    # Grid
+    # -------------------------------------------------------------------------
+    grid_mode = d_(Enum('', 'rectangular-lines', 'rectangular-points',
+                        'circular-lines', 'circular-points'))
+    grid_colors = d_(Coerced(tuple, coercer=color_pair_coercer))
+
+    def _default_grid_colors(self):
+        return (parse_color('#888'), parse_color('#444'))
+
     #: Selection event
     #reset_view = d_(Event(),writable=False)
 
@@ -238,7 +254,7 @@ class OccViewer(Control):
                              'left-upper'))
 
     #: Background gradient this is corecred from a of strings
-    background_gradient = d_(Coerced(tuple, coercer=gradient_coercer))
+    background_gradient = d_(Coerced(tuple, coercer=color_pair_coercer))
 
     def _default_background_gradient(self):
         return (parse_color('white'), parse_color('silver'))
@@ -310,7 +326,8 @@ class OccViewer(Control):
              'selection_mode', 'background_gradient', 'double_buffer',
              'shadows', 'reflections', 'antialiasing', 'lock_rotation',
              'lock_zoom', 'draw_boundaries', 'hidden_line_removal',
-             'shape_color', 'raytracing_depth', 'lights')
+             'shape_color', 'raytracing_depth', 'lights',
+             'grid_mode', 'grid_colors')
     def _update_proxy(self, change):
         """ An observer which sends state change to the proxy.
         """
