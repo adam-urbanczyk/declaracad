@@ -757,8 +757,13 @@ enamldef ViewerDockItem(DockItem): view:
     stretch = 1
     closed :: viewer.cleanup()
 
+    func reload_document():
+        renderer.document = None
+        renderer.document = active_document
+
     RemoteViewer: viewer:
         plugin << view.plugin
+        activated :: renderer.document = active_document
 
     title_bar_right_clicked ::
         # Populate the documents
@@ -786,6 +791,9 @@ enamldef ViewerDockItem(DockItem): view:
             text = "Restart viewer"
             triggered :: renderer.terminate()
         Action:
+            text = "Reload document"
+            triggered :: reload_document()
+        Action:
             separator = True
         Action:
             text = "Export screenshot..."
@@ -793,13 +801,6 @@ enamldef ViewerDockItem(DockItem): view:
                 core = plugin.workbench.get_plugin("enaml.workbench.core")
                 core.invoke_command('declaracad.viewer.screenshot',
                                     {'target': view.name})
-        Action:
-            separator = True
-        Action:
-            text = "Reload file"
-            triggered ::
-                renderer.document = None
-                renderer.document = get_document()
         Menu:
             title = "Document"
             Action:

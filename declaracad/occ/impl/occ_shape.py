@@ -92,8 +92,6 @@ AY.SetDirection(gp.DY_())
 AZ = gp_Ax1()
 AZ.SetDirection(gp.DZ_())
 
-DEFAULT_AXIS = gp_Ax3(gp_Ax2(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1), gp_Dir(1, 0, 0)))
-
 
 def coerce_axis(value):
     pos, dir, rotation = value
@@ -1423,6 +1421,11 @@ class OccLoadShape(OccShape, ProxyLoadShape):
         poly = RWStl.ReadFile_(path, None)
         builder.UpdateFace(shape, poly)
         return shape
+
+    def load_dxf(self, path):
+        """ Load a dxf model """
+        from declaracad.occ.importers import dxf
+        return dxf.load(path)
 
     # -------------------------------------------------------------------------
     # ProxyLoadShape API

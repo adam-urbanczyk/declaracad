@@ -1129,7 +1129,7 @@ class LoadShape(Shape):
     path = d_(Str())
 
     #: Loader to use
-    loader = d_(Enum('auto', 'stl', 'stp', 'caf', 'iges', 'brep'))
+    loader = d_(Enum('auto', 'stl', 'stp', 'caf', 'iges', 'brep', 'dxf'))
 
     @observe('path', 'type')
     def _update_proxy(self, change):
