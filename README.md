@@ -130,7 +130,7 @@ conda create -n declaracad
 source activate declaracad
 
 #: Install it OCCT and dependencies
-conda install -c laughlinresearch -c conda-forge pyocct
+conda install -c trelau -c conda-forge pyocct
 
 #: Clone the repo
 git clone https://github.com/codelv/declaracad.git
