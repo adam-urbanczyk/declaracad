@@ -46,7 +46,7 @@ from OCCT.GeomFill import (
     GeomFill_IsDiscreteTrihedron
 )
 from OCCT.gp import (
-    gp_Trsf, gp_Vec, gp_Pnt, gp_Ax1, gp_Ax3, gp_Dir, gp_Pnt2d
+    gp_Trsf, gp_Vec, gp_Pnt, gp_Ax1, gp_Ax2, gp_Ax3, gp_Dir, gp_Pnt2d
 )
 from OCCT.TColgp import TColgp_Array1OfPnt2d
 from OCCT.TopTools import TopTools_ListOfShape
@@ -509,8 +509,9 @@ class OccTransform(OccOperation, ProxyTransform):
                     t.SetRotation(gp_Ax1(gp_Pnt(*op.point),
                                         gp_Dir(*op.direction)), op.angle)
                 elif isinstance(op, Mirror):
-                    t.SetMirror(gp_Ax1(gp_Pnt(*op.point),
-                                    gp_Dir(op.x, op.y, op.z)))
+                    Ax = gp_Ax2 if op.plane else gp_Ax1
+                    t.SetMirror(Ax(gp_Pnt(*op.point),
+                                   gp_Dir(op.x, op.y, op.z)))
                 elif isinstance(op, Scale):
                     t.SetScale(gp_Pnt(*op.point), op.s)
                 result.Multiply(t)

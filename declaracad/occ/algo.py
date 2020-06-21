@@ -728,6 +728,9 @@ class Mirror(TransformOperation):
     y = Float(0.0, strict=False)
     z = Float(0.0, strict=False)
 
+    #: Mirror as plane
+    plane = Bool()
+
     def __init__(self, x=0, y=0, z=0, **kwargs):
         super(Mirror, self).__init__(x=x, y=y, z=z, **kwargs)
 
