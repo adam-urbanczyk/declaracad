@@ -1058,8 +1058,12 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                 if parent and isinstance(parent, OccPart) \
                         and not topods_shape.Locked():
 
-                    # TODO: Build transform for nested parts
-                    l = parent.location.Multiplied(topods_shape.Location())
+                    # Build transform for nested parts
+                    l = topods_shape.Location()
+                    while isinstance(parent, OccPart):
+                        l = parent.location.Multiplied(l)
+                        parent = parent.parent()
+
                     topods_shape.Location(l)
 
                     # HACK: Prevent doing this multiple times when the view is
