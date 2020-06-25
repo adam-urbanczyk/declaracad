@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Copyright (c) 2017-2019, Jairus Martin.
+Copyright (c) 2017-2020, Jairus Martin.
 Distributed under the terms of the GPL v3 License.
 The full license is in the file COPYING.txt, distributed with this software.
 Created on Dec 13, 2017
@@ -11,6 +11,7 @@ from setuptools import setup, find_packages
 
 
 requirements = [
+    'twisted',
     'enaml>=0.10.4',
     'jsonpickle',
     'qtconsole',
@@ -24,13 +25,14 @@ requirements = [
     'PyQt5',
     'PyQtWebEngine',
     'service_identity',
+    'ezdxf',
 ]
+
 
 if sys.platform == 'win32':
     requirements.extend([
         'pywin32',
     ])
-
 
 
 def find_version():
