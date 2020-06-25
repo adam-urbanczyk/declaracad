@@ -109,16 +109,15 @@ class Plugin(EnamlPlugin):
 
     def _bind_observers(self):
         """ Try to load the plugin state """
-        if not os.path.exists(self._state_file):
-            return
         try:
-            with enaml.imports():
-                with open(self._state_file, 'r') as f:
-                    state = pickle.loads(f.read())
-            #with self.suppress_notifications():
-            self.__setstate__(state)
-            log.warning("Plugin {} state restored from: {}".format(
-                self.manifest.id, self._state_file))
+            if os.path.exists(self._state_file):
+                with enaml.imports():
+                    with open(self._state_file, 'r') as f:
+                        state = pickle.loads(f.read())
+                #with self.suppress_notifications():
+                self.__setstate__(state)
+                log.warning("Plugin {} state restored from: {}".format(
+                    self.manifest.id, self._state_file))
         except Exception as e:
             log.warning("Plugin {} failed to load state: {}".format(
                 self.manifest.id, traceback.format_exc()))
@@ -133,7 +132,7 @@ class Plugin(EnamlPlugin):
             return
 
         try:
-            log.info("Saving state due to change: {}".format(change))
+            log.info("Saving: {} due to {}".format(self._state_file, change))
 
             #: Dump first so any failure to encode doesn't wipe out the
             #: previous state
