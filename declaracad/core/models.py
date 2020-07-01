@@ -114,7 +114,6 @@ class Plugin(EnamlPlugin):
                 with enaml.imports():
                     with open(self._state_file, 'r') as f:
                         state = pickle.loads(f.read())
-                #with self.suppress_notifications():
                 self.__setstate__(state)
                 log.warning("Plugin {} state restored from: {}".format(
                     self.manifest.id, self._state_file))

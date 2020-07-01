@@ -573,7 +573,7 @@ class Topology(Atom):
         lambda self: self.extract_surfaces(GeomAbs.GeomAbs_BezierSurface), cached=True)
 
     bspline_surfaces = Property(
-        lambda self: self.extract_surfaces(GeomAbs.GeomAbs_BplineSurface), cached=True)
+        lambda self: self.extract_surfaces(GeomAbs.GeomAbs_BSplineSurface), cached=True)
 
     offset_surfaces = Property(
         lambda self: self.extract_surfaces(GeomAbs.GeomAbs_OffsetSurface), cached=True)

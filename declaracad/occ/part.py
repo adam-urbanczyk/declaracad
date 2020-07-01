@@ -70,6 +70,9 @@ class Part(Shape):
     #: Optional description of the part
     description = d_(Str())
 
+    #: Cache
+    cache = {}
+
     @property
     def shapes(self):
         return [child for child in self.children if isinstance(child, Shape)]

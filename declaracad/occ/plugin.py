@@ -208,11 +208,13 @@ class ViewerProcess(ProcessLineReceiver):
 
     def _default_process(self):
         from twisted.internet import reactor
-        exe = sys.executable
         atexit.register(self.terminate)
-        return reactor.spawnProcess(self, exe,
-                                    args=[exe, 'main.py', 'view', '-', '-f'],
-                                    env=os.environ)
+        cmd = [sys.executable]
+        if not sys.executable.endswith('declaracad'):
+            cmd.extend(['-m', 'declaracad'])
+        cmd.extend(['view', '-', '-f'])
+        return reactor.spawnProcess(
+            self, sys.executable, args=cmd, env=os.environ)
 
     def _default_window_id(self):
         # Spawn the process
@@ -468,7 +470,7 @@ class ViewerPlugin(Plugin):
         # Pickle the configured exporter and send it over
         cmd = [sys.executable]
         if not sys.executable.endswith('declaracad'):
-            cmd.append('main.py')
+            cmd.extend(['-m', 'declaracad'])
 
         data = jsonpickle.dumps(options)
         assert data != 'null', f"Exporter failed to serialize: {options}"
