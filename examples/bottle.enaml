@@ -19,20 +19,20 @@ enamldef Assembly(Part): part:
         cylinder = Cylinder(**kwargs)
         cylinder.render()
         return cylinder.topology.faces[0]
-    
+
     Fuse:
       color = '#abc'
       transparency = 0.4
-      
+
       ThickSolid: bottle:
         # Hollows out the bottle
-        #faces << [neck.shape_faces[0]]
+        faces << [neck.topology.faces[1]]
         offset << thickness/50.0
         Fuse:
             # Fuse the bottle to the neck
             Cylinder: neck:
                 # Bottle neck
-                position << (0,0,part.height)
+                position << (0,0, part.height)
                 direction = (0,0,1)
                 radius << thickness/4.0
                 height << part.height/10.0
@@ -60,7 +60,7 @@ enamldef Assembly(Part): part:
                                 operations = [Mirror(x=1)]
                                 shape = profile
 
-    
+
       ThruSections: threads:
         solid = True
         Wire: w1:
