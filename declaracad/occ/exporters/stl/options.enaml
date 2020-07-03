@@ -34,15 +34,15 @@ enamldef OptionsForm(Form):
         minimum = 0.0000001
         single_step = 0.01
         maximum = 100
-    CheckBox:
-        text = "Binary mode"
-        tool_tip = "Export as binary (checked) or ascii (unchecked)"
-        checked := model.binary
+    #CheckBox:
+        #text = "Binary mode"
+        #tool_tip = "Export as binary (checked) or ascii (unchecked)"
+        #checked := model.binary
     CheckBox:
         text = "Relative deflection"
         tool_tip = textwrap.dedent("""
         If checked, deflection used for discretization of each edge will be
-        <lin_deflection> * <size of edge>. Deflection used for the faces 
+        <lin_deflection> * <size of edge>. Deflection used for the faces
         will be the maximum deflection of their edges
         """).strip()
 
