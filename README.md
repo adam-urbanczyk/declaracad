@@ -141,6 +141,9 @@ cd declaracad
 #: Install declaracad
 pip install -e .
 
+#: Now just run "declaracad" to start it
+declaracad
+
 ```
 
 
