@@ -9,6 +9,7 @@ Created on Dec 6, 2015
 
 @author: jrm
 """
+import sys
 from enaml.workbench.api import Extension, PluginManifest
 from enaml.workbench.ui.api import ActionItem, MenuItem, ItemGroup, Autostart
 
@@ -19,6 +20,11 @@ def application_factory():
     """
     from enaml.qt.qt_application import QtApplication
     app = QtApplication()
+
+    #: Set event loop policy for windows
+    if sys.platform == 'win32':
+        import asyncio
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     #: Install twisted support into the Qt event loop
     import qreactor
