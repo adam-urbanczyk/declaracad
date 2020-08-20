@@ -34,6 +34,9 @@ from OCCT.BRepPrimAPI import (
     BRepPrimAPI_MakeRevol,
 )
 from OCCT.BRepTools import BRepTools, BRepTools_WireExplorer
+from OCCT.GCPnts import (
+    GCPnts_UniformDeflection, GCPnts_QuasiUniformDeflection,
+)
 from OCCT.Geom import (
     Geom_Ellipse, Geom_Circle, Geom_Parabola, Geom_Hyperbola, Geom_Line
 )
@@ -149,7 +152,7 @@ class WireExplorer(Atom):
 
 
 class Topology(Atom):
-    """ Topology traversal ported from the pythonocc examples by @jf--
+    """ Topology traversal ported from the pythonocc examples by @jf---
 
     Implements topology traversal from any TopoDS_Shape this class lets you
     find how various topological entities are connected from one to another
@@ -534,7 +537,6 @@ class Topology(Atom):
     def number_of_faces_from_solids(self, solid):
         return len(self._loop_topo(TopAbs_FACE, solid))
 
-
     # -------------------------------------------------------------------------
     # Surface Types
     # -------------------------------------------------------------------------
@@ -834,6 +836,34 @@ class Topology(Atom):
                     coerce_direction(v2), coerce_direction(v3))
         raise ValueError("Invalid derivative")
 
+    @classmethod
+    def discretize(self, wire, deflection=0.01, quasi=True):
+        """ Convert a wire to points.
+
+        Parameters
+        ----------
+        deflection: Float
+            Maximum deflection allowed
+        n: Int
+            Number of points to use
+        quasi: Bool
+            If True, use the Quasi variant which is faster but less accurate.
+
+        Returns
+        -------
+        points: List[Point]
+            A list of points that make up the curve
+
+        """
+        c = BRepAdaptor_CompCurve(wire)
+        start = c.FirstParameter()
+        end = c.LastParameter()
+        if quasi:
+            a = GCPnts_QuasiUniformDeflection(c, deflection, start, end)
+        else:
+            a = GCPnts_UniformDeflection(c, deflection, start, end)
+        return [coerce_point(a.Value(i)) for i in range(1, a.NbPoints())]
+
 
 class OccShape(ProxyShape):
     #: A reference to the toolkit shape created by the proxy.
@@ -979,7 +1009,7 @@ class OccShape(ProxyShape):
             return BBox()
         bbox = Bnd_Box()
         BRepBndLib.Add_(shape, bbox)
-        pmin, pmax  = bbox.CornerMin(), bbox.CornerMax()
+        pmin, pmax = bbox.CornerMin(), bbox.CornerMax()
         return BBox(*(pmin.X(), pmin.Y(), pmin.Z(),
                       pmax.X(), pmax.Y(), pmax.Z()))
 
