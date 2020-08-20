@@ -862,7 +862,7 @@ class Topology(Atom):
             a = GCPnts_QuasiUniformDeflection(c, deflection, start, end)
         else:
             a = GCPnts_UniformDeflection(c, deflection, start, end)
-        return [coerce_point(a.Value(i)) for i in range(1, a.NbPoints())]
+        return [coerce_point(a.Value(i)) for i in range(1, a.NbPoints()+1)]
 
 
 class OccShape(ProxyShape):
