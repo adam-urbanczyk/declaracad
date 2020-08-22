@@ -89,7 +89,9 @@ class ViewerProtocol(JSONRRCProtocol):
             for target in (self.view, self.view.viewer):
                 handler = getattr(target, attr, None)
                 if handler is not None and not callable(handler):
-                    return lambda v: setattr(target, attr, v)
+                    def handler(v, target=target, attr=attr):
+                        setattr(target, attr, v)
+                    return handler
         raise AttributeError(name)
 
     def schedule_close(self):
