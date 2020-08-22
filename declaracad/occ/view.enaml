@@ -189,10 +189,17 @@ enamldef ModelViewer(OccViewer): viewer:
         popup.close()
         self.action_search = ""
 
+    func render(shapes):
+        """ Make sure shapes are initialized """
+        for s in shapes:
+            if not s.is_initialized:
+                s.initialize()
+        return shapes
+
     Include:
         objects << list(expand_dict(clipped_planes))
     Include:
-        objects << viewer.shapes
+        objects << render(viewer.shapes)
     Include:
         objects << viewer.dimensions
 
@@ -228,6 +235,8 @@ enamldef ModelViewer(OccViewer): viewer:
             return 'Nothing selected'
         desc = []
         for d, items in selection.selection.items():
+            if not d:
+                continue
             if desc:
                 desc.append("")
 
@@ -710,8 +719,11 @@ enamldef RemoteViewer(Container): remote_viewer:
             plugin.unobserve(n, fn)
 
     func cleanup():
-        renderer.terminate()
-        unbind_observers()
+        try:
+            renderer.terminate()
+            unbind_observers()
+        except:
+            pass
 
     ScrollArea:
         widget_resizable = True

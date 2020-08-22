@@ -10,7 +10,7 @@ Created on Dec 13, 2017
 @author: jrm
 """
 from .algo import (
-    Cut, Common, Fuse, Split, Intersection,
+    Cut, Common, Fuse, Split, Intersection, Sew,
     Fillet, Chamfer,
     Offset, OffsetShape,
     ThickSolid,
@@ -39,12 +39,14 @@ from .draw import (
 from .part import Part, RawPart, LoadPart
 
 from .shape import (
-    Point, Direction, Shape, RawShape, LoadShape, Face, Texture, Material,
+    Point, Direction, BBox, Shape, RawShape, LoadShape, Face, Texture, Material,
     Box, Cylinder, Sphere, Cone, Wedge, Torus,
-    HalfSpace, Prism, Revol
+    HalfSpace, Prism, Revol, TopoShape
 )
 
 Extrude = Prism
 
 
 from enaml.core.api import Looper, Conditional, Include
+
+from .impl.occ_shape import Topology

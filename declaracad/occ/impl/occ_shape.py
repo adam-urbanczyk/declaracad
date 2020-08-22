@@ -837,7 +837,7 @@ class Topology(Atom):
         raise ValueError("Invalid derivative")
 
     @classmethod
-    def discretize(self, wire, deflection=0.01, quasi=True):
+    def discretize(cls, wire, deflection=0.01, quasi=True):
         """ Convert a wire to points.
 
         Parameters
@@ -863,6 +863,34 @@ class Topology(Atom):
         else:
             a = GCPnts_UniformDeflection(c, deflection, start, end)
         return [coerce_point(a.Value(i)) for i in range(1, a.NbPoints()+1)]
+
+    @classmethod
+    def bbox(cls, shapes, optimal=False, tolerance=0):
+        """ Compute the bounding box of the shape or list of shapes
+
+        Parameters
+        ----------
+        shapes: Shape, TopoDS_Shape or list of them
+            The shapes to compute the bounding box for
+
+        Returns
+        -------
+        bbox: BBox
+            The boudning g
+
+        """
+        if not shapes:
+            return BBox()
+        bbox = Bnd_Box()
+        bbox.SetGap(tolerance)
+        if not isinstance(shapes, (list, tuple, set)):
+            shapes = [shapes]
+        add = BRepBndLib.AddOptimal_ if optimal else BRepBndLib.Add_
+        for s in shapes:
+            add(coerce_shape(s), bbox)
+        pmin, pmax = bbox.CornerMin(), bbox.CornerMax()
+        return BBox(*(pmin.X(), pmin.Y(), pmin.Z(),
+                      pmax.X(), pmax.Y(), pmax.Z()))
 
 
 class OccShape(ProxyShape):
@@ -928,7 +956,7 @@ class OccShape(ProxyShape):
     # -------------------------------------------------------------------------
     def _default_topology(self):
         if self.shape is None:
-            self.create_shape()
+            self.declaration.render()  # Force build the shape
         return Topology(shape=self.shape)
 
     @observe('shape')
@@ -1001,7 +1029,9 @@ class OccShape(ProxyShape):
         self.create_shape()
 
     def parent_shape(self):
-        return self.parent().shape
+        p = self.parent()
+        if p is not None:
+            return p.shape
 
     def get_bounding_box(self, shape=None):
         shape = shape or self.shape

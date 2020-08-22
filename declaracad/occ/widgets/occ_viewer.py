@@ -263,16 +263,16 @@ class OccViewer(Control):
     shape_color = d_(ColorMember('steelblue'))
 
     #: Display shadows
-    shadows = d_(Bool(True))
+    shadows = d_(Bool(False))
 
     #: Display reflections
-    reflections = d_(Bool(True))
+    reflections = d_(Bool(False))
 
     #: Enable antialiasing
-    antialiasing = d_(Bool(True))
+    antialiasing = d_(Bool(False))
 
     #: Enable raytracing
-    raytracing = d_(Bool(True))
+    raytracing = d_(Bool(False))
 
     #: Raytracing depth
     raytracing_depth = d_(Int(3))

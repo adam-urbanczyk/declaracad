@@ -12,13 +12,17 @@ Created on Sep 27, 2016
 from atom.api import Int, Dict, Instance, Subclass, set_default
 from enaml.application import timed_call
 
-from OCCT.BOPAlgo import BOPAlgo_Splitter, BOPAlgo_Section
+from OCCT.BOPAlgo import (
+    BOPAlgo_Splitter, BOPAlgo_Section, BOPAlgo_MakeConnected
+)
+from OCCT.BRep import BRep_Builder
 from OCCT.BRepAlgoAPI import (
     BRepAlgoAPI_BooleanOperation, BRepAlgoAPI_Fuse, BRepAlgoAPI_Common,
     BRepAlgoAPI_Cut
 )
 from OCCT.BRepBuilderAPI import (
-    BRepBuilderAPI_Transform, BRepBuilderAPI_MakeWire
+    BRepBuilderAPI_Transform, BRepBuilderAPI_MakeWire, BRepBuilderAPI_Sewing,
+    BRepBuilderAPI_MakeSolid
 )
 from OCCT.BRepFilletAPI import (
     BRepFilletAPI_MakeFillet, BRepFilletAPI_MakeChamfer
@@ -32,6 +36,7 @@ from OCCT.BRepOffset import (
     BRepOffset_Skin, BRepOffset_Pipe,
     BRepOffset_RectoVerso
 )
+from OCCT.BRepLib import BRepLib_FuseEdges
 from OCCT.ChFi3d import (
     ChFi3d_Rational, ChFi3d_QuasiAngular, ChFi3d_Polynomial
 )
@@ -42,16 +47,18 @@ from OCCT.GeomFill import (
     GeomFill_IsCorrectedFrenet, GeomFill_IsFixed,
     GeomFill_IsFrenet, GeomFill_IsConstantNormal, GeomFill_IsDarboux,
     GeomFill_IsGuideAC, GeomFill_IsGuidePlan,
-    GeomFill_IsGuideACWithContact,GeomFill_IsGuidePlanWithContact,
+    GeomFill_IsGuideACWithContact, GeomFill_IsGuidePlanWithContact,
     GeomFill_IsDiscreteTrihedron
 )
 from OCCT.gp import (
     gp_Trsf, gp_Vec, gp_Pnt, gp_Ax1, gp_Ax2, gp_Ax3, gp_Dir, gp_Pnt2d
 )
+from OCCT.ShapeAnalysis import ShapeAnalysis_FreeBounds
+from OCCT.ShapeUpgrade import ShapeUpgrade_UnifySameDomain
 from OCCT.TColgp import TColgp_Array1OfPnt2d
-from OCCT.TopTools import TopTools_ListOfShape
+from OCCT.TopTools import TopTools_ListOfShape, TopTools_HSequenceOfShape
 from OCCT.TopoDS import (
-    TopoDS, TopoDS_Edge, TopoDS_Face, TopoDS_Wire, TopoDS_Shape
+    TopoDS, TopoDS_Edge, TopoDS_Face, TopoDS_Wire, TopoDS_Shape, TopoDS_Compound
 )
 
 
@@ -59,8 +66,8 @@ from declaracad.core.utils import log
 from declaracad.occ.algo import (
     ProxyOperation, ProxyBooleanOperation, ProxyCommon, ProxyCut, ProxyFuse,
     ProxyFillet, ProxyChamfer, ProxyOffset, ProxyOffsetShape, ProxyThickSolid,
-    ProxyPipe, ProxyThruSections, ProxySplit, ProxyIntersection,
-    ProxyTransform, Translate, Rotate, Scale, Mirror, Shape
+    ProxyPipe, ProxyThruSections, ProxySplit, ProxyIntersection, ProxySew,
+    ProxyGlue, ProxyTransform, Translate, Rotate, Scale, Mirror, Shape
 )
 
 from .occ_shape import (
@@ -100,7 +107,13 @@ class OccBooleanOperation(OccOperation, ProxyBooleanOperation):
                 shape = self.op(shape, c.shape).Shape()
             else:
                 shape = c.shape
-        self.shape = shape
+
+        if d.unify:
+            tool = ShapeUpgrade_UnifySameDomain(shape)
+            tool.Perform()
+            shape = tool.Shape()
+
+        self.shape = Topology.cast_shape(shape)
 
 
 class OccCommon(OccBooleanOperation, ProxyCommon):
@@ -539,6 +552,9 @@ class OccTransform(OccOperation, ProxyTransform):
             # Use the first child
             make_copy = False
             child = self.get_first_child()
+            if child is None:
+                raise ValueError(
+                    "Transform has no shape to transform %s" % d)
             original = child.shape
 
         t = self.get_transform()
@@ -565,3 +581,19 @@ class OccTransform(OccOperation, ProxyTransform):
 
     def set_mirror(self, axis):
         self.update_shape()
+
+
+class OccSew(OccOperation, ProxySew):
+    def update_shape(self, change=None):
+        d = self.declaration
+        builder = BRepBuilderAPI_Sewing()
+        for s in self.child_shapes():
+            builder.Add(Topology.cast_shape(s))
+        builder.Perform()
+        self.shape = Topology.cast_shape(builder.SewedShape())
+
+
+class OccGlue(OccOperation, ProxyGlue):
+    def update_shape(self, change=None):
+        d = self.declaration
+        raise NotImplementedError # TODO: This

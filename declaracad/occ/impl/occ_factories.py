@@ -82,6 +82,11 @@ def occ_fuse_factory():
     return OccFuse
 
 
+def occ_glue_factory():
+    from .occ_algo import OccGlue
+    return OccGlue
+
+
 def occ_half_space_factory():
     from .occ_shape import OccHalfSpace
     return OccHalfSpace
@@ -185,6 +190,11 @@ def occ_revolution_factory():
 def occ_segment_factory():
     from .occ_draw import OccSegment
     return OccSegment
+
+
+def occ_sew_factory():
+    from .occ_algo import OccSew
+    return OccSew
 
 
 def occ_sphere_factory():
@@ -305,6 +315,8 @@ OCC_FACTORIES = {
     'Intersection': occ_intersection_factory,
     'Split': occ_split_factory,
     'Fillet': occ_fillet_factory,
+    'Sew': occ_sew_factory,
+    'Glue': occ_glue_factory,
 
     'OffsetShape': occ_offset_shape_factory,
     'ThickSolid': occ_thick_solid_factory,

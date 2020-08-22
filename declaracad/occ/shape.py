@@ -69,6 +69,24 @@ class BBox(Atom):
                      (self.zmin + self.zmax)/2)
     center = Property(_get_center, cached=True)
 
+    def _get_diagonal(self):
+        return math.sqrt(self.dx**2+self.dy**2+self.dz**2)
+
+    diagonal = Property(_get_diagonal, cached=True)
+
+    def _get_min(self):
+        return Point(self.xmin, self.ymin, self.zmin)
+
+    def _get_max(self):
+        return Point(self.xmax, self.xmax, self.xmax)
+
+    min = Property(_get_min)
+    max = Property(_get_max)
+
+    def __repr__(self):
+        return "<BBox: x=%s y=%s z=%s w=%s h=%s d=%s>" % (
+            self.xmin, self.ymin, self.zmin, self.dx, self.dy, self.dz)
+
 
 class ProxyShape(ProxyControl):
     #: A reference to the Shape declaration.
@@ -271,6 +289,8 @@ class Point(Atom):
     def __init__(self, x=0, y=0, z=0, **kwargs):
         if isinstance(x, TopoDS_Shape):
             pnt = BRep_Tool.Pnt_(x)
+            x, y, z = pnt.X(), pnt.Y(), pnt.Z()
+        elif isinstance(x, gp_Pnt):
             x, y, z = pnt.X(), pnt.Y(), pnt.Z()
         super().__init__(x=x, y=y, z=z, **kwargs)
 
@@ -600,6 +620,26 @@ class Shape(ToolkitObject):
 
     #: Triggered when the shape is constructed
     constructed = d_(Event(), writable=False)
+
+    def activate_proxy(self):
+        """ Activate the proxy object tree.
+
+        This method should be called by a node to activate the proxy
+        tree by making two initialization passes over the tree, from
+        this node downward. This method is automatically at the proper
+        times and should not normally need to be invoked by user code.
+
+        """
+        self.activate_top_down()
+        for child in self.children:
+            # Make sure each is initialized upon activation
+            if not child.is_initialized:
+                child.initialize()
+            if isinstance(child, ToolkitObject):
+                child.activate_proxy()
+        self.activate_bottom_up()
+        self.proxy_is_active = True
+        self.activated()
 
     def render(self):
         """ Generates and returns the actual shape from the declaration.
@@ -1141,7 +1181,7 @@ class TopoShape(RawShape):
     """ A shape loaded
 
     """
-    shape = Instance(TopoDS_Shape)
+    shape = d_(Instance(TopoDS_Shape))
 
     def create_shape(self, parent):
         return self.shape

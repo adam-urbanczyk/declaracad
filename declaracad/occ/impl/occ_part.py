@@ -76,7 +76,6 @@ class OccPart(OccDependentShape, ProxyPart):
         self.shape = shape
 
 
-
 class OccRawPart(OccPart, ProxyRawPart):
     #: Update the class reference
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'

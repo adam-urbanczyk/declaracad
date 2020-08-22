@@ -573,13 +573,13 @@ class OccSvg(OccShape, ProxySvg):
         if d.mirror:
             m = gp_Trsf()
             m.SetMirror(gp_Ax2(gp_Pnt(*bbox.center), gp_Dir(0, 1, 0)))
-            t.PreMultiply(m)
+            t.Multiply(m)
 
         s = gp_Trsf()
         s.SetValues(sx, 0, 0, x,
                     0, sy, 0, y,
                     0, 0, 1, 0)
-        t.PreMultiply(s)
+        t.Multiply(s)
 
 
 

@@ -33,6 +33,9 @@ class ProxyBooleanOperation(ProxyOperation):
     def set_shape2(self, shape):
         raise NotImplementedError
 
+    def set_unify(self, unify):
+        raise NotImplementedError
+
     def _do_operation(self, shape1, shape2):
         raise NotImplementedError
 
@@ -210,6 +213,16 @@ class ProxyTransform(ProxyOperation):
         raise NotImplementedError
 
 
+class ProxySew(ProxyOperation):
+    #: A reference to the Shape declaration.
+    declaration = ForwardTyped(lambda: Sew)
+
+
+class ProxyGlue(ProxyOperation):
+    #: A reference to the Shape declaration.
+    declaration = ForwardTyped(lambda: Glue)
+
+
 class Operation(Shape):
     """ Base class for Operations that are applied to other shapes.
 
@@ -248,7 +261,10 @@ class BooleanOperation(Operation):
 
     shape2 = d_(Instance(object))
 
-    @observe('shape1', 'shape2')
+    #: Unify using ShapeUpgrade_UnifySameDomain
+    unify = d_(Bool(False))
+
+    @observe('shape1', 'shape2', 'unify')
     def _update_proxy(self, change):
         super(BooleanOperation, self)._update_proxy(change)
 
@@ -351,7 +367,6 @@ class Intersection(BooleanOperation):
     """
     #: Reference to the implementation control
     proxy = Typed(ProxyIntersection)
-
 
 
 class Fillet(Operation):
@@ -794,3 +809,13 @@ class Transform(Operation):
     @observe('operations')
     def _update_proxy(self, change):
         super(Transform, self)._update_proxy(change)
+
+
+class Sew(Operation):
+    #: Reference to the implementation control
+    proxy = Typed(ProxySew)
+
+
+class Glue(Operation):
+    #: Reference to the implementation control
+    proxy = Typed(ProxyGlue)
