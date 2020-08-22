@@ -196,6 +196,9 @@ class ProxySvg(ProxyWire):
     def set_source(self, source):
         raise NotImplementedError
 
+    def set_mirror(self, mirror):
+        raise NotImplementedError
+
 
 class Plane(Shape):
     """ A Point at a specific position.
@@ -809,6 +812,9 @@ class Svg(Wire):
 
     #: Source file or text
     source = d_(Str())
+
+    #: Mirror y
+    mirror = d_(Bool(True))
 
     @observe('source')
     def _update_proxy(self, change):

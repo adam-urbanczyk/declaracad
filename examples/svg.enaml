@@ -2,10 +2,13 @@ import os
 from enaml.core.api import Looper
 from enaml.colors import SVG_COLORS
 from declaracad.occ.api import *
+from declaracad.parts.display import Axis
 
 SVG_COLOR_NAMES = list(SVG_COLORS.keys())
 
 enamldef Assembly(Part):
+    Axis:
+        color = 'black' # Show axis
     Looper:
         iterable << [
             # Line
@@ -51,5 +54,5 @@ enamldef Assembly(Part):
             os.path.join(os.path.dirname(__file__), 'models', 'sailboat.svg'),
         ]
         Svg:
-            color = SVG_COLOR_NAMES[loop_index]
+            color = SVG_COLOR_NAMES[5+loop_index]
             source = loop_item

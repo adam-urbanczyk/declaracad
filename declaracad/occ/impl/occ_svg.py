@@ -536,6 +536,9 @@ class OccSvg(OccShape, ProxySvg):
     #: Make wire
     shape = Instance(TopoDS_Shape)
 
+    #: The document
+    doc = Instance(OccSvgDoc)
+
     def create_shape(self):
         d = self.declaration
         if not d.source:
@@ -544,7 +547,16 @@ class OccSvg(OccShape, ProxySvg):
             svg = etree.parse(os.path.expanduser(d.source)).getroot()
         else:
             svg = etree.fromstring(d.source)
-        node = OccSvgDoc(element=svg)
+        node = self.doc = OccSvgDoc(element=svg)
+        viewbox = svg.attrib.get('viewBox')
+        x, y = (0, 0)
+        sx, sy = (1, 1)
+        if viewbox:
+            ow = parse_unit(svg.attrib.get('width'))
+            oh = parse_unit(svg.attrib.get('height'))
+            x, y, iw, ih = map(parse_unit, viewbox.split())
+            sx = ow/iw
+            sy = oh/ih
 
         builder = BRep_Builder()
         shape = TopoDS_Compound()
@@ -555,17 +567,26 @@ class OccSvg(OccShape, ProxySvg):
             builder.Add(shape, s)
 
         bbox = self.get_bounding_box(shape)
-        cx, cy = bbox.dx / 2, bbox.dy / 2
 
         # Move to position and align along direction axis
-        t = gp_Trsf()
-        axis = gp_Ax3()
-        axis.SetDirection(d.direction.proxy)
-        t.SetTransformation(axis)
-        pos = d.position-(cx, cy, 0)
-        t.SetTranslationPart(gp_Vec(*pos))
+        t = self.get_transform()
+        if d.mirror:
+            m = gp_Trsf()
+            m.SetMirror(gp_Ax2(gp_Pnt(*bbox.center), gp_Dir(0, 1, 0)))
+            t.PreMultiply(m)
+
+        s = gp_Trsf()
+        s.SetValues(sx, 0, 0, x,
+                    0, sy, 0, y,
+                    0, 0, 1, 0)
+        t.PreMultiply(s)
+
+
 
         self.shape = BRepBuilderAPI_Transform(shape, t, False).Shape()
 
     def set_source(self, source):
+        self.create_shape()
+
+    def set_mirror(self, mirror):
         self.create_shape()
