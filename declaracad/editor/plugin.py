@@ -150,7 +150,7 @@ class EditorPlugin(Plugin):
 
     def start(self):
         """ Make sure the documents all open on startup """
-        super(EditorPlugin, self).start()
+        super().start()
         self.workbench.application.deferred_call(
             self._update_area_layout, {'type': 'load'})
 

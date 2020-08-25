@@ -13,24 +13,14 @@ import sys
 from enaml.workbench.api import Extension, PluginManifest
 from enaml.workbench.ui.api import ActionItem, MenuItem, ItemGroup, Autostart
 
+from .app import Application
+
 
 def application_factory():
     """ A factory function which creates the default Application
-    and installs twisted support.
+    and installs asyncio support.
     """
-    from enaml.qt.qt_application import QtApplication
-    app = QtApplication()
-
-    #: Set event loop policy for windows
-    if sys.platform == 'win32':
-        import asyncio
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
-    #: Install twisted support into the Qt event loop
-    import qreactor
-    qreactor.install()
-
-    return app
+    return Application()
 
 
 def window_factory(workbench):

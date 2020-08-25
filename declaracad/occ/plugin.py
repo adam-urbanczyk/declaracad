@@ -16,6 +16,7 @@ import json
 import time
 import enaml
 import atexit
+import asyncio
 import jsonpickle
 from types import ModuleType
 from atom.api import (
@@ -23,7 +24,7 @@ from atom.api import (
     ForwardInstance, Constant, observe, set_default
 )
 from declaracad.core.api import Plugin, Model, log
-from declaracad.core.utils import ProcessLineReceiver, Deferred
+from declaracad.core.utils import ProcessLineReceiver
 
 from enaml.application import timed_call, deferred_call
 from enaml.core.parser import parse
@@ -204,22 +205,18 @@ class ViewerProcess(ProcessLineReceiver):
             request['id'] = _id
         if not _silent:
             log.debug(f'renderer | sent | {request}')
-        self.transport.write(jsonpickle.dumps(request).encode()+b'\r\n')
+        encoded_msg = jsonpickle.dumps(request).encode() + b'\r\n'
+        deferred_call(self.transport.write, encoded_msg)
 
-    def _default_process(self):
-        from twisted.internet import reactor
+    async def start(self):
         atexit.register(self.terminate)
         cmd = [sys.executable]
         if not sys.executable.endswith('declaracad'):
             cmd.extend(['-m', 'declaracad'])
         cmd.extend(['view', '-', '-f'])
-        return reactor.spawnProcess(
-            self, sys.executable, args=cmd, env=os.environ)
-
-    def _default_window_id(self):
-        # Spawn the process
-        timed_call(0, lambda: self.process)
-        return 0
+        loop = asyncio.get_event_loop()
+        self.process = await loop.subprocess_exec(lambda: self, *cmd)
+        return self.process
 
     def restart(self):
         self.window_id = 0
@@ -235,26 +232,27 @@ class ViewerProcess(ProcessLineReceiver):
             raise RuntimeError(
                 "renderer | Failed to successfully start renderer aborting!")
 
-        self.process = self._default_process()
+        log.debug(f"Attempting to restart viewer {self.process}")
+        deferred_call(self.start)
 
-    def connectionMade(self):
-        super(ViewerProcess, self).connectionMade()
+    def connection_made(self, transport):
+        super().connection_made(transport)
         self.schedule_ping()
         self.terminated = False
 
-    def lineReceived(self, line):
+    def data_received(self, data):
+        line = data.decode()
         try:
-            line = line.decode()
             response = jsonpickle.loads(line)
-            #log.debug(f"viewer | resp | {response}")
+            # log.debug(f"viewer | resp | {response}")
         except Exception as e:
-            log.debug(f"viewer | out | {line}")
+            log.debug(f"viewer | out | {line.rstrip()}")
             response = {}
 
         doc = self.document
 
         if not isinstance(response, dict):
-            log.debug(f"viewer | out | {response}")
+            log.debug(f"viewer | out | {response.rstrip()}")
             return
 
         #: Special case for startup
@@ -265,6 +263,11 @@ class ViewerProcess(ProcessLineReceiver):
             return
         elif response_id == 'keep_alive':
             return
+        elif response_id == 'invoke_command':
+            command_id = response.get('command_id')
+            parameters = response.get('parameters', {})
+            log.debug(f"viewer | out | {command_id}({parameters})")
+            self.plugin.workbench.invoke_command(command_id, parameters)
         elif response_id == 'render_error':
             if doc:
                 doc.errors.extend(response['error']['message'].split("\n"))
@@ -295,9 +298,9 @@ class ViewerProcess(ProcessLineReceiver):
                     if error is not None:
                         if doc:
                             doc.errors.extend(error.get('message', '').split("\n"))
-                        d.errback(error)
+                        d.add_done_callback(error)
                     else:
-                        d.callback(response.get('result'))
+                        d.add_done_callback(response.get('result'))
                     return
                 except Exception as e:
                     log.warning("RPC response not properly handled!")
@@ -345,13 +348,12 @@ class ViewerProcess(ProcessLineReceiver):
     def errConnectionLost(self):
         log.warning("renderer | stderr closed")
 
-    def processEnded(self, reason):
-        super(ViewerProcess, self).processEnded(reason)
+    def process_ended(self, reason):
         log.warning(f"renderer | process ended: {reason}")
 
     def terminate(self):
         super(ViewerProcess, self).terminate()
-        self.terminated = True
+        terminated = True
 
     def schedule_ping(self):
         """ Ping perioidcally so the process stays awake """
@@ -368,14 +370,16 @@ class ViewerProcess(ProcessLineReceiver):
         remote viewer.
 
         """
-        def remote_viewer_call(*args, **kwargs):
-            d = Deferred()
-            self._id += 1
-            kwargs['_id'] = self._id
-            self._responses[self._id] = d
-            self.send_message(name, *args, **kwargs)
-            return d
-        return remote_viewer_call
+        if name.startswith('set_'):
+            def remote_viewer_call(*args, **kwargs):
+                d = asyncio.Future()
+                self._id += 1
+                kwargs['_id'] = self._id
+                self._responses[self._id] = d
+                self.send_message(name, *args, **kwargs)
+                return d
+            return remote_viewer_call
+        raise AttributeError("No attribute %s" % name)
 
 
 class ViewerPlugin(Plugin):
@@ -462,7 +466,6 @@ class ViewerPlugin(Plugin):
 
     def export(self, event):
         """ Export the current model to stl """
-        from twisted.internet import reactor
         options = event.parameters.get('options')
         if not options:
             raise ValueError("An export `options` parameter is required")
@@ -475,11 +478,10 @@ class ViewerPlugin(Plugin):
         data = jsonpickle.dumps(options)
         assert data != 'null', f"Exporter failed to serialize: {options}"
         cmd.extend(['export', data])
-
         log.debug(" ".join(cmd))
         protocol = ProcessLineReceiver()
-        reactor.spawnProcess(
-            protocol, sys.executable, args=cmd, env=os.environ)
+        loop = asyncio.get_event_loop()
+        deferred_call(loop.subprocess_exec, lambda: protocol, *cmd)
         return protocol
 
     def screenshot(self, event):

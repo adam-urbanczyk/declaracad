@@ -1,0 +1,30 @@
+from declaracad.occ.api import Part, Line, Box, Topology
+
+
+enamldef Axis(Part): part:
+    """ Displays an XYZ lines """
+    Line: xaxis:
+        color := part.color
+        position := part.position
+        direction = (1, 0)
+    Line: yaxis:
+        color := part.color
+        position := part.position
+        direction = (0, 1)
+    Line:
+        color := part.color
+        position := part.position
+        direction = (0, 0, 1)
+
+
+enamldef BoundingBox(Box):
+    """ Displays a bounding box of the shape
+
+    """
+    attr shapes
+    attr bounding_box << Topology.bbox(shapes, tolerance=self.tolerance)
+    position << bounding_box.min
+    transparency = 0.9
+    dx << bounding_box.dx
+    dy << bounding_box.dy
+    dz << bounding_box.dz

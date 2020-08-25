@@ -9,12 +9,13 @@ Created on Jul 12, 2015
 
 @author: jrm
 """
+import io
 import os
 import sys
+import asyncio
 import logging
 import traceback
 import jsonpickle
-from io import StringIO
 from contextlib import contextmanager
 from logging.handlers import RotatingFileHandler
 
@@ -24,9 +25,6 @@ from enaml.image import Image
 from enaml.icon import Icon, IconImage
 from enaml.application import timed_call
 
-from twisted.internet.defer import Deferred as TwistedDeferred
-from twisted.internet.protocol import ProcessProtocol
-from twisted.protocols.basic import LineReceiver
 
 # -----------------------------------------------------------------------------
 # Logger
@@ -38,7 +36,7 @@ def clip(s, n=1000):
     """ Shorten the name of a large value when logging"""
     v = str(s)
     if len(v) > n:
-        v[:n]+"..."
+        v[:n] + "..."
     return v
 
 # -----------------------------------------------------------------------------
@@ -121,40 +119,51 @@ def format_title(docs, doc, path, unsaved):
         name += "*"
     return name
 
+
 @contextmanager
 def capture_output():
     _stdout = sys.stdout
     try:
-        capture = StringIO()
+        capture = io.StringIO()
         sys.stdout = capture
         yield capture
     finally:
         sys.stdout = _stdout
 
-# ==============================================================================
-# Twisted protocols
-# ==============================================================================
-class Deferred(Atom, TwistedDeferred):
-    """ An observable deferred """
-    #: Watch this to see when the deferred is complete
-    called = Bool()
 
-    #: Result when deferred completes
-    result = Value()
+class JSONRRCProtocol(Atom, asyncio.Protocol):
+    #: Process transport
+    transport = Value()
+    #buffer = Instance(io.BytesIO(), ())
 
-    #: Pass
-    callbacks = Value()
-
-
-class JSONRRCProtocol(Atom, LineReceiver):
     def send_message(self, message):
         response = {'jsonrpc': '2.0'}
         response.update(message)
-        self.transport.write(jsonpickle.dumps(response).encode()+b'\r\n')
+        encoded_msg = jsonpickle.dumps(response).encode()+b'\r\n'
+        self.transport.write(encoded_msg)
 
-    def lineReceived(self, line):
-        """ Process stdin as json-rpc request """
-        response = {}
+    def data_received(self, data):
+        """ Process stdin as json-rpc request
+
+        Parameters
+        ----------
+        data: Bytes
+            The data received from stdin.
+
+        """
+        # TODO: Handle partial reads
+        for line in data.split(b'\n'):
+            self.line_received(line.decode())
+
+    def line_received(self, line):
+        """ Called when a newline is received
+
+        Parameters
+        ----------
+        line: String
+            The data
+
+        """
         try:
             request = jsonpickle.loads(line)
         except Exception as e:
@@ -192,14 +201,13 @@ class JSONRRCProtocol(Atom, LineReceiver):
                                          'message': traceback.format_exc()}})
 
 
-
-class ProcessLineReceiver(Atom, ProcessProtocol, LineReceiver):
+class ProcessLineReceiver(Atom, asyncio.SubprocessProtocol):
     """ A process protocol that pushes output into a list of each line.
     Observe the `output` member in a view to have it update with live output.
-
     """
 
     #: Process transport
+    process_transport = Value()
     transport = Value()
 
     #: Status code
@@ -214,33 +222,48 @@ class ProcessLineReceiver(Atom, ProcessProtocol, LineReceiver):
     #: Split on each line
     delimiter = Bytes(b'\n')
 
-    def connectionMade(self):
-        self.transport.disconnecting = 0
+    def connection_made(self, transport):
+        """ Save a reference to the transports
 
-    def outReceived(self, data):
-        # Forward to line receiver protocol handler
-        self.dataReceived(data)
+        Parameters
+        ----------
+        transport: asyncio.SubprocessTransport
+            The transport for stdin, stdout, and stderr pipes
 
-    def errReceived(self, data):
-        # Forward to line receiver protocol handler
-        if self.err_to_out:
-            self.dataReceived(data)
+        """
+        self.process_transport = transport
+        self.transport = transport.get_pipe_transport(0)
 
-    def lineReceived(self, line):
-        self.output.append(line)
+    def pipe_data_received(self, fd, data):
+        """ Forward calls to data_received or err_received based one the fd
 
-    def processExited(self, reason):
-        code = reason.value.exitCode
-        if code is not None:
-            self.exit_code = code
+        Parameters
+        ----------
+        fd: Int
+            The fd of the pipe
+        data: Bytes
+            The data received
 
-    def processEnded(self, reason):
-        code = reason.value.exitCode
-        if code is not None:
-            self.exit_code = code
+        """
+        if fd == 1:
+            self.data_received(data)
+        elif fd == 2:
+            if self.err_to_out:
+                self.data_received(data)
+            else:
+                self.err_received(data)
+
+    def err_received(self, data):
+        """ Called for stderr data if err_to_out is set to False
+
+        Parameters
+        ----------
+        data: Bytes
+            The data received
+
+        """
+        pass
 
     def terminate(self):
-        try:
-            self.transport.signalProcess('KILL')
-        except:
-            pass
+        if self.process_transport:
+            self.process_transport.terminate()

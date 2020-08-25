@@ -11,7 +11,7 @@ from setuptools import setup, find_packages
 
 
 requirements = [
-    'twisted',
+    #'twisted',
     'enaml>=0.10.4',
     'jsonpickle',
     'qtconsole',
@@ -19,7 +19,7 @@ requirements = [
     'numpydoc',
     'markdown',
     'enamlx',
-    'qt-reactor',
+    'asyncqt',  # asyncio + qt
     'pyserial',
     'lxml',
     'PyQt5',

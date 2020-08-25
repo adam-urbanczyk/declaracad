@@ -19,7 +19,9 @@ from enaml.layout.api import InsertItem, RemoveItem
 from enaml.workbench.api import Extension, PluginManifest
 from enaml.workbench.core.api import Command
 from enaml.workbench.ui.api import ActionItem, MenuItem, ItemGroup, Autostart
-from declaracad.ui.extensions import DOCK_ITEM_POINT, DockItem, SETTINGS_PAGE_POINT, SettingsPage
+from declaracad.ui.extensions import (
+    DOCK_ITEM_POINT, DockItem, SETTINGS_PAGE_POINT, SettingsPage
+)
 
 
 def plugin_command(name, event):
@@ -83,7 +85,7 @@ def new_editor(event):
         if buffer is not None:
             kwargs['buffer'] = buffer
         item = EditorDockItem(dock, **kwargs)
-        dock.update_layout(InsertItem(item=item.name, position=position, 
+        dock.update_layout(InsertItem(item=item.name, position=position,
                                       target=target))
 
 def close_editor(event):
@@ -91,25 +93,25 @@ def close_editor(event):
     dock = plugin.get_dock_area()
     target = event.parameters.get('target')
     doc = event.parameters.get('document') or event.parameters.get('doc')
-    
+
     # Remove it
     dock.update_layout(RemoveItem(item=target))
-    
+
     if doc is not None:
         # If no more editors are open for this document, close the file
-        items = [i for i in plugin.get_editor_items() 
+        items = [i for i in plugin.get_editor_items()
                  if i.doc == doc and i.name != target]
         if not items:
             plugin.close_file(doc.name)
-            
-            
+
+
 def close_all_editors(event):
     plugin = event.workbench.get_plugin('declaracad.editor')
     dock = plugin.get_dock_area()
     ops = [RemoveItem(item=item.name) for item in plugin.get_editor_items()]
     dock.update_layout(ops)
     plugin.documents = []
-    
+
 
 def close_other_editors(event):
     # Close all other editors except the 'editor' parameter given
@@ -118,10 +120,10 @@ def close_other_editors(event):
     editor = event.parameters.get('editor')
     ops = [RemoveItem(item=item.name) for item in plugin.get_editor_items()
            if item.name != editor.name]
-    dock.update_layout(ops) 
+    dock.update_layout(ops)
     plugin.documents = [editor.doc]
-    
-    
+
+
 def find_in_editor(event):
     plugin = event.workbench.get_plugin('declaracad.editor')
     editor = plugin.get_editor()
@@ -132,19 +134,19 @@ def replace_in_editor(event):
     plugin = event.workbench.get_plugin('declaracad.editor')
     editor = plugin.get_editor()
     editor.show_replace_bar = True
-    
-    
+
+
 def goto_in_editor(event):
     plugin = event.workbench.get_plugin('declaracad.editor')
     editor = plugin.get_editor()
     editor.show_goto_bar = True
-    
+
 
 def editor_action(event, action):
     plugin = event.workbench.get_plugin('declaracad.editor')
     editor = plugin.get_editor()
     getattr(editor, action)()
-    
+
 
 def plugin_factory():
     from .plugin import EditorPlugin
@@ -309,7 +311,7 @@ enamldef EditorManifest(PluginManifest):
             Command:
                 id = loop_item
                 handler = lambda e, a=loop_item.split('.')[-1]: editor_action(e, a)
-    
+
     Extension:
         id = 'actions'
         point = 'enaml.workbench.ui.actions'

@@ -485,7 +485,7 @@ class OccSvgPolygon(OccSvgNode):
             x, y = map(float, m.groups())
             shape.Add(gp_Pnt(x, y, 0))
         shape.Close()
-        return shape.Wire()
+        return shape.Face()
 
 
 class OccSvgGroup(OccSvgNode):
@@ -575,13 +575,12 @@ class OccSvg(OccShape, ProxySvg):
             m.SetMirror(gp_Ax2(gp_Pnt(*bbox.center), gp_Dir(0, 1, 0)))
             t.Multiply(m)
 
+        # Apply viewport scale
         s = gp_Trsf()
         s.SetValues(sx, 0, 0, x,
                     0, sy, 0, y,
                     0, 0, 1, 0)
         t.Multiply(s)
-
-
 
         self.shape = BRepBuilderAPI_Transform(shape, t, False).Shape()
 

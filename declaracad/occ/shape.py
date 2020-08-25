@@ -361,6 +361,10 @@ class Point(Atom):
         p = self.__coerce__(other)
         return self.proxy.Distance(p.proxy)
 
+    def distance2d(self, other):
+        p = self.__coerce__(other)
+        return math.sqrt((self.x-p.x)**2 + (self.y-p.y)**2)
+
     @classmethod
     def __coerce__(self, other):
         return coerce_point(other)
@@ -526,6 +530,9 @@ class Shape(ToolkitObject):
     #: Whether the shape should be displayed and exported when in a part
     #: If set to false this shape will be excluded from the rendered part
     display = d_(Bool(True))
+
+    #: Description to display in the tooltip when clicked
+    description = d_(Str())
 
     #: The tolerance to use for operations that may require it.
     tolerance = d_(Float(10**-6, strict=False))

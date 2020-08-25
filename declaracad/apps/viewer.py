@@ -12,23 +12,23 @@ Created on July 28, 2018
 import os
 import sys
 import json
+import enaml
 import traceback
-import qreactor
-
 import faulthandler
 faulthandler.enable()
 
+
+from atom.api import Instance, Bool, Dict, Float
+from enaml.application import timed_call, deferred_call
+
 from declaracad import occ
 occ.install()
+from declaracad.core.app import Application
 from declaracad.core.utils import JSONRRCProtocol
+from declaracad.core.stdio import create_stdio_connection
 
-import enaml
-from enaml.qt.qt_application import QtApplication
-from enaml.application import timed_call, deferred_call
 with enaml.imports():
     from declaracad.occ.view import ViewerWindow
-
-from twisted.internet.stdio import StandardIO
 
 
 class ViewerProtocol(JSONRRCProtocol):
@@ -39,16 +39,12 @@ class ViewerProtocol(JSONRRCProtocol):
     60 sec or it will assume it's owner has left and will exit.
 
     """
-    def __init__(self, view, watch=False):
-        self.view = view
-        self.watch = watch
-        self._watched_files = {}
-        if watch:
-            timed_call(1000, self.check_for_changes)
-        self._exit_in_sec = 60
-        super(ViewerProtocol).__init__()
+    view = Instance(ViewerWindow)
+    watch = Bool()
+    _watched_files = Dict()
+    _exit_in_sec = Float(60, strict=False)
 
-    def connectionMade(self):
+    def connection_made(self, transport):
         self.send_message({'result': self.handle_window_id(),
                            'id': 'window_id'})
         if self.view.frameless:
@@ -132,10 +128,8 @@ class ViewerProtocol(JSONRRCProtocol):
             print(traceback.format_exc())
 
 
-
 def main(**kwargs):
-    app = QtApplication()
-    qreactor.install()
+    app = Application()
 
     filename = kwargs.get('file', '-')
     frameless = kwargs.get('frameless', False)
@@ -145,9 +139,11 @@ def main(**kwargs):
         raise ValueError("File %s does not exist!" % filename)
 
     view = ViewerWindow(filename='-', frameless=frameless)
-    view.protocol = ViewerProtocol(view, watch)
+    view.protocol = ViewerProtocol(view=view, watch=watch)
+    if watch:
+        timed_call(1000, view.check_for_changes)
     view.show()
-    app.deferred_call(lambda: StandardIO(view.protocol))
+    app.deferred_call(create_stdio_connection, app.loop, view.protocol)
     app.deferred_call(view.protocol.handle_filename, filename)
     app.start()
 

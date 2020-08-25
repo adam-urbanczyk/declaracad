@@ -126,7 +126,7 @@ class QtViewer3d(QOpenGLWidget):
         self._rightisdown = False
         self._selection = None
         self._drawtext = True
-        self._select_pen = QtGui.QPen(QtGui.QColor(0, 0, 0), 1)
+        self._select_pen = QtGui.QPen(QtGui.QColor(0, 0, 0), 2)
         self._callbacks = {
             'key_pressed': [],
             'mouse_dragged': [],
@@ -187,15 +187,10 @@ class QtViewer3d(QOpenGLWidget):
         self.proxy.ais_context.UpdateCurrentViewer()
         # important to allow overpainting of the OCC OpenGL context in Qt
 
-    def drawBox(self):
         if self._drawbox:
-            self.makeCurrent()
             painter = QPainter(self)
             painter.setPen(self._select_pen)
             painter.drawRect(QRect(*self._drawbox))
-            painter.end()
-            self.doneCurrent()
-        #return super().paintEvent(event)
 
     def wheelEvent(self, event):
         if self._fire_event('mouse_scrolled', event):
@@ -235,7 +230,6 @@ class QtViewer3d(QOpenGLWidget):
             return
         self.proxy.v3d_view.StartRotation(pos.x(), pos.y())
 
-
     def mouseReleaseEvent(self, event):
         if self._fire_event('mouse_released', event):
             return
@@ -268,7 +262,7 @@ class QtViewer3d(QOpenGLWidget):
         if abs(dx) <= tolerance and abs(dy) <= tolerance:
             return
         self._drawbox = (self.dragStartPos.x(), self.dragStartPos.y(), dx, dy)
-        self.update()
+        #self.update()
 
     def mouseMoveEvent(self, event):
         if self._fire_event('mouse_moved', event):
@@ -394,7 +388,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             viewer.SetDefaultLights()
 
         #viewer.DisplayPrivilegedPlane(True, 1)
-        view.SetShadingModel(Graphic3d_TypeOfShadingModel.V3d_PHONG)
+        #view.SetShadingModel(Graphic3d_TypeOfShadingModel.V3d_PHONG)
 
         # background gradient
         self.set_background_gradient(d.background_gradient)
@@ -452,11 +446,11 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
     def init_signals(self):
         d = self.declaration
-        widget = self.widget
-        for name in widget._callbacks.keys():
-            if hasattr(d, name):
-                cb = getattr(d, name)
-                widget._callbacks[name].append(cb)
+        callbacks = self.widget._callbacks
+        for name in callbacks.keys():
+            cb = getattr(d, name, None)
+            if cb is not None:
+                callbacks[name].append(cb)
 
     def init_layout(self):
         super().init_layout()

@@ -118,18 +118,18 @@ class DeclaracadPlugin(Plugin):
         dock_items = []
         for extension in sorted(point.extensions, key=lambda ext: ext.rank):
             for declaration in extension.get_children(extensions.DockItem):
-                #: Create the item
+                # Create the item
                 DockItem = declaration.factory()
                 plugin = workbench.get_plugin(declaration.plugin_id)
                 item = DockItem(plugin=plugin)
 
-                #: Add to our layout
+                # Add to our layout
                 layout[declaration.layout].append(item.name)
 
-                #: Save it
+                # Save it
                 dock_items.append(item)
 
-        #: Update items
+        # Update items
         log.debug("Updating dock items: {}".format(dock_items))
         self.dock_items = dock_items
         self._refresh_layout(layout)

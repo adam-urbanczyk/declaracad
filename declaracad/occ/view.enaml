@@ -29,12 +29,15 @@ from declaracad.core.api import DockItem, EmbeddedWindow
 from declaracad.core.utils import log, load_icon, capture_output, format_title
 
 
-from .widgets.api import OccViewer, OccViewerClippedPlane
-from .dimension import (
+from declaracad.occ.widgets.api import OccViewer, OccViewerClippedPlane
+from declaracad.occ.dimension import (
     AngleDimension, LengthDimension, RadiusDimension, DiameterDimension
 )
-from .plugin import ViewerPlugin, ViewerProcess, load_model, EmptyFileError
+from declaracad.occ.plugin import (
+    ViewerPlugin, ViewerProcess, load_model, EmptyFileError
+)
 
+from declaracad.occ.api import Topology, Point
 
 def expand_dict(p):
     for k, v in p.items():
@@ -61,10 +64,7 @@ enamldef ActionPopup(PopupView): popup:
     attr on_action_clicked = lambda popup, action: popup.close()
 
     func is_match(text, name):
-        n = name.lower()
-        if text in n:
-            return True
-        return False
+        return text.lower() in name.lower()
 
     func get_actions(action, search_text):
         if not search_text:
@@ -112,38 +112,38 @@ enamldef ModelViewer(OccViewer): viewer:
     attr show_console: bool = False
     attr notification = None
     attr action_search: str = ""
+    attr default_actions: list = [
+        ViewerAction(name="View iso", action=keymap['v']['i']),
+        ViewerAction(name="View top", action=keymap['v']['t']),
+        ViewerAction(name="View bottom", action=keymap['v']['b']),
+        ViewerAction(name="View left", action=keymap['v']['l']),
+        ViewerAction(name="View front", action=keymap['v']['f']),
+        ViewerAction(name="View right", action=lambda: set_view_mode('right')),
+        ViewerAction(name="View rear", action=lambda: set_view_mode('rear')),
+        ViewerAction(name="Fit all", action=self.fit_all),
+        ViewerAction(name="Fit selection", action=self.fit_selection),
+        ViewerAction(name="Reset view", action=self.reset_view),
+        ViewerAction(name="Rotate X -90", action=keymap['l']['x']),
+        ViewerAction(name="Rotate Y -90", action=keymap['l']['y']),
+        ViewerAction(name="Rotate Z -90", action=keymap['l']['z']),
+        ViewerAction(name="Rotate X 90", action=keymap['r']['x']),
+        ViewerAction(name="Rotate Y 90", action=keymap['r']['y']),
+        ViewerAction(name="Rotate Z 90", action=keymap['r']['z']),
+        ViewerAction(name="Select anything", action=keymap['s']['a']),
+        ViewerAction(name="Select shape", action=lambda: set_selection_mode('shape')),
+        ViewerAction(name="Select shell", action=lambda: set_selection_mode('shell')),
+        ViewerAction(name="Select face", action=keymap['s']['f']),
+        ViewerAction(name="Select edge", action=keymap['s']['e']),
+        ViewerAction(name="Select wire", action=keymap['s']['w']),
+        ViewerAction(name="Select vertex", action=keymap['s']['v']),
+    ]
     attr actions: list = get_actions()
 
     func get_actions():
-        actions = [
-            ViewerAction(name="View iso", action=keymap['v']['i']),
-            ViewerAction(name="View top", action=keymap['v']['t']),
-            ViewerAction(name="View bottom", action=keymap['v']['b']),
-            ViewerAction(name="View left", action=keymap['v']['l']),
-            ViewerAction(name="View front", action=keymap['v']['f']),
-            ViewerAction(name="View right", action=lambda: set_view_mode('right')),
-            ViewerAction(name="View rear", action=lambda: set_view_mode('rear')),
-            ViewerAction(name="Fit all", action=self.fit_all),
-            ViewerAction(name="Fit selection", action=self.fit_selection),
-            ViewerAction(name="Reset view", action=self.reset_view),
-            ViewerAction(name="Rotate X -90", action=keymap['l']['x']),
-            ViewerAction(name="Rotate Y -90", action=keymap['l']['y']),
-            ViewerAction(name="Rotate Z -90", action=keymap['l']['z']),
-            ViewerAction(name="Rotate X 90", action=keymap['r']['x']),
-            ViewerAction(name="Rotate Y 90", action=keymap['r']['y']),
-            ViewerAction(name="Rotate Z 90", action=keymap['r']['z']),
-            ViewerAction(name="Select anything", action=keymap['s']['a']),
-            ViewerAction(name="Select shape", action=lambda: set_selection_mode('shape')),
-            ViewerAction(name="Select shell", action=lambda: set_selection_mode('shell')),
-            ViewerAction(name="Select face", action=keymap['s']['f']),
-            ViewerAction(name="Select edge", action=keymap['s']['e']),
-            ViewerAction(name="Select wire", action=keymap['s']['w']),
-            ViewerAction(name="Select vertex", action=keymap['s']['v']),
-        ]
-        return actions
+        return default_actions
 
     # Last key event
-    attr keymap = {
+    attr default_keymap = {
         '': {
             ' ': show_action_popup,
         },
@@ -161,6 +161,12 @@ enamldef ModelViewer(OccViewer): viewer:
             'z': lambda: viewer.rotate_view(z=math.radians(90)),
         },
     }
+
+    func get_keymap():
+        return default_keymap
+
+    attr keymap = get_keymap()
+
     attr last_key: str = ""
     attr last_key_count: int = 0
     attr keypress_timeout: int = 2000
@@ -235,13 +241,11 @@ enamldef ModelViewer(OccViewer): viewer:
             return 'Nothing selected'
         desc = []
         for d, items in selection.selection.items():
-            if not d:
-                continue
             if desc:
                 desc.append("")
 
             desc.append(f"{d.__class__.__name__}:")
-            if d.name:
+            if d and d.name:
                 desc.append(f"  Name: {d.name}")
             #pos = d.position
             #desc.append(f"  Position: {pos.x}, {pos.y}, {pos.z}")
@@ -252,6 +256,9 @@ enamldef ModelViewer(OccViewer): viewer:
                     shape_type = shape_type[:-1]
                 desc.append(f"  Topoolgy: {n} {shape_type}")
                 desc.append(f"  Indices: {keys}")
+            if d and d.description:
+                desc.append(f"  {d.description}")
+
         return "\n".join(desc)
 
     selection ::
@@ -593,14 +600,46 @@ enamldef ViewerWindow(Window): window:
             viewer.take_screenshot(filename)
         return filename
 
+    func send_move_to():
+        """ Remotely invoke a move to command if a vertex is selected
+
+        """
+        if not viewer.selection:
+            log.debug("No selection")
+            return
+
+        for d, items in viewer.selection.selection.items():
+            mapping = items.get('vertexs')
+            if not mapping:
+                continue
+            for index, shape in mapping.items():
+                point = Point(Topology.cast_shape(shape))
+                return send_message(
+                    id='invoke_command',
+                    command_id='declaracad.cnc.rapid_move_to',
+                    parameters={'point': point})
+        log.debug("No point found")
+
+    func send_message(**params):
+        """ Send a message to the application over the IPC interface
+        if this view is being used remotely
+
+        Parameters
+        ----------
+        params: Dict
+            Items to send in the message. Must be json serailizable.
+
+        """
+        if protocol and protocol.transport:
+            protocol.send_message(params)
+
     func load_source():
         if filename != "-":
             with capture_output() as stdout:
                 try:
                     # Load the models from source code or disk
                     result = load_model(filename, source)
-                    if protocol and protocol.transport:
-                        protocol.send_message({'id': 'render_success'})
+                    send_message(id='render_success')
                     # Clear clipped planes
                     viewer.clipped_planes = {}
                     viewer.dimensions = []
@@ -608,22 +647,17 @@ enamldef ViewerWindow(Window): window:
                 except EmptyFileError as e:
                     # When opening an empty / unsaved file, clear the display
                     viewer.clear_display()
-                    if protocol and protocol.transport:
-                        protocol.send_message({'id': 'render_success'})
+                    send_message(id='render_success')
                 except Exception as e:
                     # Notify the client that we got an error
-                    if protocol and protocol.transport:
-                        protocol.send_message({
-                            'error':{
-                                'message':traceback.format_exc()
-                            },
-                            'id': 'render_error'
-                        })
+                    send_message(
+                        id='render_error',
+                        error={'message':traceback.format_exc()})
                     traceback.print_exc()
                 finally:
-                    if protocol and protocol.transport:
-                        protocol.send_message({'id': 'capture_output',
-                                               'result': stdout.getvalue()})
+                    if protocol:
+                        send_message(id='capture_output',
+                                          result=stdout.getvalue())
                     else:
                         log.info(stdout.getvalue())
         return []
@@ -632,17 +666,31 @@ enamldef ViewerWindow(Window): window:
         ModelViewer: viewer:
             selection ::
                 e = change['value']
-                if protocol and protocol.transport:
-                    protocol.send_message({
-                        'result': str(e.selection),
-                        'id': 'shape_selection'
-                    })
+                send_message(id='shape_selection', result=str(e.selection))
             # Load the 3d models and include them in the viewer
             shapes << load_source() if filename and version else []
+
+
+            get_actions => ():
+                return viewer.default_actions + [
+                    ViewerAction(name="Rapid move to", action=keymap['m']['t']),
+                ]
+
+            get_keymap => ():
+                km = viewer.default_keymap
+                km.update({
+                    'm': {
+                        't': window.send_move_to,
+                    }
+                })
+                return km
+
         Conditional:
             condition << viewer.show_console
             IPythonConsole:
-                initial_ns = {'viewer': viewer}
+                initial_ns = {
+                    'viewer': viewer,
+                }
                 minimum_size = (640, 240)
         Conditional:
             condition << viewer.loading
@@ -668,6 +716,9 @@ enamldef RemoteViewer(Container): remote_viewer:
 
     #: Process handle for communication with the child viewer
     attr renderer: ViewerProcess = ViewerProcess(plugin=plugin)
+
+    #: Restart it on initial launch
+    activated :: renderer.restart()
 
     func update_background(change):
         """ Updates the background color on the viewer """

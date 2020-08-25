@@ -10,11 +10,14 @@ Created on Dec 6, 2017
 @author: jrm
 """
 import enaml
+from enaml.application import deferred_call
 from enaml.workbench.api import Extension, PluginManifest
 from enaml.workbench.ui.api import ActionItem
 from enaml.workbench.core.api import Command
 from enaml.layout.api import RemoveItem, InsertDockBarItem
-from declaracad.ui.extensions import DOCK_ITEM_POINT, DockItem
+from declaracad.ui.extensions import (
+    DOCK_ITEM_POINT, DockItem, SETTINGS_PAGE_POINT, SettingsPage
+)
 
 
 def plugin_factory():
@@ -34,6 +37,26 @@ def com_channel_factory():
     return ComChannelDockItem
 
 
+def send_file(event):
+    plugin = event.workbench.get_plugin('declaracad.cnc')
+    plugin.send_file(**event.parameters)
+
+
+def rapid_move_to(event):
+    plugin = event.workbench.get_plugin('declaracad.cnc')
+    deferred_call(plugin.rapid_move_to, **event.parameters)
+
+
+def connect_channel(event):
+    plugin = event.workbench.get_plugin('declaracad.cnc')
+    deferred_call(plugin.connect)
+
+
+def disconnect_channel(event):
+    plugin = event.workbench.get_plugin('declaracad.cnc')
+    deferred_call(plugin.disconnect)
+
+
 def create_new_com_channel(event):
     plugin = event.workbench.get_plugin('declaracad.ui')
     dock = plugin.get_dock_area()
@@ -41,8 +64,8 @@ def create_new_com_channel(event):
     plugin = event.workbench.get_plugin('declaracad.cnc')
     item = ControlPanelDockItem(dock, plugin=plugin)
     dock.update_layout(InsertDockBarItem(item=item.name, position='left'))
-    
-    
+
+
 def close_com_channel(event):
     plugin = event.workbench.get_plugin('declaracad.ui')
     target = event.parameters.get('target')
@@ -50,10 +73,16 @@ def close_com_channel(event):
     item = dock.find(target)
     if item is not None:
         dock.update_layout(RemoveItem(item=item.name))
-    
+
+
+def settings_page_factory():
+    with enaml.imports():
+        from .settings import CncSettingsPage
+    return CncSettingsPage
+
 
 enamldef CncManifest(PluginManifest):
-    """ Adds an IPython console to the workbench and commands to open and close 
+    """ Adds an IPython console to the workbench and commands to open and close
     new consoles.
 
     """
@@ -75,6 +104,13 @@ enamldef CncManifest(PluginManifest):
             #label = 'Open control panel'
             #command = 'declaracad.cnc.open_com_channel'
     Extension:
+        id = 'settings'
+        point = SETTINGS_PAGE_POINT
+        SettingsPage:
+            name = "Editor"
+            plugin_id = 'declaracad.cnc'
+            factory = settings_page_factory
+    Extension:
         id = 'commands'
         point = 'enaml.workbench.core.commands'
         Command:
@@ -83,3 +119,15 @@ enamldef CncManifest(PluginManifest):
         Command:
             id = 'declaracad.cnc.close_com_channel'
             handler = close_com_channel
+        Command:
+            id = 'declaracad.cnc.connect'
+            handler = connect_channel
+        Command:
+            id = 'declaracad.cnc.disconnect'
+            handler = disconnect_channel
+        Command:
+            id = 'declaracad.cnc.rapid_move_to'
+            handler = rapid_move_to
+        Command:
+            id = 'declaracad.cnc.send_file'
+            handler = rapid_move_to
