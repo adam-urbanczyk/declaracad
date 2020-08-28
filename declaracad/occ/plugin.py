@@ -51,8 +51,8 @@ class EmptyFileError(Exception):
 
 
 def load_model(filename, source=None):
-    """ Load a DeclaraCAD model from an enaml file. Ideally this should be
-    used in a separate process but it's not required.
+    """ Load a DeclaraCAD model from an enaml file, source, or a shape
+    supported by the LoadShape node.
 
     Parameters
     ----------
@@ -69,23 +69,26 @@ def load_model(filename, source=None):
     """
 
     # Parse the enaml file or load from source code
-    if not source and os.path.exists(filename):
+    if source or filename.endswith('.enaml'):
+        # Parse and compile the code
         with open(filename, 'r') as f:
             source = f.read()
-    if not source:
-        raise EmptyFileError(
-            f"No source code given or '{filename}' does not exist")
-
-    # Parse and compile the code
-    ast = parse(source)
-    code = EnamlCompiler.compile(ast, filename)
-    module = ModuleType(filename.rsplit('.', 1)[0])
-    module.__file__ = filename
-    namespace = module.__dict__
-    with enaml.imports():
-        exec(code, namespace)
-    Assembly = namespace['Assembly']
-    return [Assembly()]
+        ast = parse(source)
+        code = EnamlCompiler.compile(ast, filename)
+        module = ModuleType(filename.rsplit('.', 1)[0])
+        module.__file__ = filename
+        namespace = module.__dict__
+        with enaml.imports():
+            exec(code, namespace)
+        Assembly = namespace['Assembly']
+        return [Assembly()]
+    elif os.path.exists(filename):
+        # Try to load from filename
+        with enaml.imports():
+            from .loader import FileLoader
+        return [FileLoader(filename=filename)]
+    else:
+        return []
 
 
 class ModelExporter(Atom):
@@ -318,7 +321,7 @@ class ViewerProcess(ProcessLineReceiver):
             # Append to output
             doc.output.extend(line.split("\n"))
 
-    def errReceived(self, data):
+    def err_received(self, data):
         """ Catch and log error output attempting to decode it
 
         """
@@ -335,21 +338,13 @@ class ViewerProcess(ProcessLineReceiver):
             except Exception as e:
                 log.debug(f"render | err | {line}")
 
-    def inConnectionLost(self):
-        log.warning("renderer | stdio closed (we probably did it)")
-
-    def outConnectionLost(self):
+    def process_ended(self, reason):
+        log.warning(f"renderer | process ended: {reason}")
         if not self.terminated:
             # Clear the filename on crash so it works when reset
             #self.document = None
             self.restart()
         log.warning("renderer | stdout closed")
-
-    def errConnectionLost(self):
-        log.warning("renderer | stderr closed")
-
-    def process_ended(self, reason):
-        log.warning(f"renderer | process ended: {reason}")
 
     def terminate(self):
         super(ViewerProcess, self).terminate()

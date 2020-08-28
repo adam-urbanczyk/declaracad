@@ -1,0 +1,7 @@
+from declaracad.occ.api import Part, LoadShape
+
+
+enamldef FileLoader(Part):
+    attr filename: str
+    LoadShape:
+        path = filename
