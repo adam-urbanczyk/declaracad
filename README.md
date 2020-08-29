@@ -141,10 +141,25 @@ cd declaracad
 #: Install declaracad
 pip install -e .
 
-#: Now just run "declaracad" to start it
-declaracad
-
 ```
+
+See running section.
+
+## Running
+
+To run the full application just run `declaracad`.
+
+```bash
+declaracad
+```
+
+If you want to use your own editor you can run only a view using
+
+```bash
+declaracad view <path/to/model.enaml>
+```
+
+Use `declaracad -h` and `declaracad <cmd> -h` to see more cli options.
 
 
 ## License

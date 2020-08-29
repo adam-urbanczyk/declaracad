@@ -104,16 +104,51 @@ enamldef DeviceConfigView(Container):
     Form:
         Label:
             text = "Scale"
-        DoubleSpinBox:
-            value := config.scale
+        Container:
+            constraints = [
+                hbox(label_sx, sx, label_sy, sy, label_sz, sz),
+                align('v_center', label_sx, sx, label_sy, sy, label_sz, sz)
+            ]
             tool_tip = "G-Code output values will be scaled by this value"
-            minimum = 0.000000001
-            maximum = 99999999999
+            Label: label_sx:
+                text = "X"
+            DoubleSpinBox: sx:
+                value := config.scale_x
+                minimum = 0.000000001
+                maximum = 99999999999
+            Label: label_sy:
+                text = "Y"
+            DoubleSpinBox: sy:
+                value := config.scale_y
+                minimum = 0.000000001
+                maximum = 99999999999
+            Label: label_sz:
+                text = "Z"
+            DoubleSpinBox: sz:
+                value := config.scale_z
+                minimum = 0.000000001
+                maximum = 99999999999
         Label:
-            text = "Mirror Z"
-        CheckBox:
-            checked := config.mirror_z
-            tool_tip = "G-Code output will mirror Z values"
+            text = "Mirror"
+        Container:
+            constraints = [
+                hbox(label_mx, mx, label_my, my, label_mz, mz, spacer),
+                align('v_center', label_mx, mx, label_my, my, label_mz, mz)
+            ]
+            tool_tip = "G-Code output will be mirrored relative to the origin"
+            Label: label_mx:
+                text = "X"
+            CheckBox: mx:
+                checked := config.mirror_x
+            Label: label_my:
+                text = "Y"
+            CheckBox: my:
+                checked := config.mirror_y
+            Label: label_mz:
+                text = "Z"
+            CheckBox: mz:
+                checked := config.mirror_z
+
         Label:
             text = "Swap XY"
         CheckBox:

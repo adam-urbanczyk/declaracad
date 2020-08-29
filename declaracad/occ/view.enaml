@@ -685,7 +685,7 @@ enamldef ViewerWindow(Window): window:
 
             get_actions => ():
                 return viewer.default_actions + [
-                    ViewerAction(name="Rapid move to", action=keymap['m']['t']),
+                    ViewerAction(name="Rapid move to (mt)", action=keymap['m']['t']),
                 ]
 
             get_keymap => ():

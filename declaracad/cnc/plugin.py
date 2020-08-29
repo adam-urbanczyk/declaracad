@@ -128,7 +128,9 @@ class SerialConnection(Connection):
 
 class DeviceConfig(Model):
     #: Output scale
-    scale = Float(1.0, strict=False).tag(config=True)
+    scale_x = Float(1.0, strict=False).tag(config=True)
+    scale_y = Float(1.0, strict=False).tag(config=True)
+    scale_z = Float(1.0, strict=False).tag(config=True)
 
     #: Mirror Z output
     mirror_x = Bool().tag(config=True)
@@ -245,9 +247,9 @@ class Device(Model, asyncio.Protocol):
         x = o.x - point.x if config.mirror_x else point.x - o.x
         y = o.y - point.y if config.mirror_y else point.y - o.y
         z = o.z - point.z if config.mirror_z else point.z - o.z
-        x = gcode.convert(x, config.scale, precision)
-        y = gcode.convert(y, config.scale, precision)
-        z = gcode.convert(z, config.scale, precision)
+        x = gcode.convert(x, config.scale_x, precision)
+        y = gcode.convert(y, config.scale_y, precision)
+        z = gcode.convert(z, config.scale_z, precision)
         if config.swap_xy:
             x, y = y, x
         await self.write(f'G0 X{x} Y{y} Z{z}\n')

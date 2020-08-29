@@ -176,16 +176,3 @@ enamldef ComChannelDockItem(DockItem): dock_item:
         padding = 0
         plugin << dock_item.plugin
 
-    Menu: menu:
-        Action:
-            text = "New com channel view"
-            triggered ::
-                core = plugin.workbench.get_plugin("enaml.workbench.core")
-                core.invoke_command('declaracad.cnc.open_com_channel')
-        Action:
-            text = "Close com channel view"
-            triggered ::
-                core = plugin.workbench.get_plugin("enaml.workbench.core")
-                core.invoke_command('declaracad.cnc.close_com_channel',
-                                    {'target': dock_item.name})
-
