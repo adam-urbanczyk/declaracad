@@ -141,9 +141,9 @@ enamldef UIManifest(PluginManifest):
 #            label = 'Preferences'
 #            command = 'declaracad.ui.open_preferences'
         ActionItem:
-            path = '/settings/editor'
-            label = 'Editor...'
-            shortcut = 'Ctrl+Alt+S'
+            path = '/settings/settings'
+            label = 'Application...'
+            shortcut = 'Ctrl+Shift+,'
             command = 'declaracad.ui.open_settings'
         ActionItem:
             path = '/help/issues'

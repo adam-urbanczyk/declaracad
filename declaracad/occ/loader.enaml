@@ -5,3 +5,4 @@ enamldef FileLoader(Part):
     attr filename: str
     LoadShape:
         path = filename
+        description = filename[0:100]

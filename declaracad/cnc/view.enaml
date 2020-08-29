@@ -21,22 +21,22 @@ from declaracad.core.api import DockItem, log
 from declaracad.core.utils import load_icon
 
 
-from .plugin import CncPlugin, Connection
+from .plugin import CncPlugin, Device
 
 
 enamldef CommView(Container): view:
     attr plugin: CncPlugin
-    attr connection := plugin.connection
+    attr device: Device := plugin.device
     attr history_index: int = -1
     attr history_limit: int = 40
     initialized ::
-        # On startup observe the device connection's last output
-        if connection:
-            connection.observe('last_read', watch_output)
-            connection.observe('last_write', watch_input)
+        # On startup observe the device's last output
+        if device:
+            device.observe('last_read', watch_output)
+            device.observe('last_write', watch_input)
 
-    connection ::
-        # When the device connection changes, cleanup, and observe the new last output
+    device ::
+        # When the device device changes, cleanup, and observe the new last output
         old = change['oldvalue']
         new = change['value']
         if old:
@@ -81,12 +81,12 @@ enamldef CommView(Container): view:
         scroll_bar.setValue(scroll_bar.maximum())
 
     func send_text():
-        if connection and connection.connected:
+        if device and device.connected:
             text = to_send.text
             # Add to history
             add_to_history(text)
             msg = text+"\r\n" if plugin.add_newline else text
-            deferred_call(connection.write, msg)
+            deferred_call(device.write, msg)
             to_send.text = ""
 
     func add_to_history(text):
@@ -112,18 +112,18 @@ enamldef CommView(Container): view:
         ]
 
         ObjectCombo: cmb_conn:
-            items << [None] + plugin.available_connections
+            items << [None] + plugin.devices
             to_string = lambda d: d.name if d else ""
-            selected := view.connection
+            selected := view.device
         PushButton: btn_open:
             #text << "Close" if opened else "Open"
-            icon << load_icon("disconnect" if connection and connection.connected else "connect")
-            tool_tip << "Connected. Click to disconnect" if connection and connection.connected else "Disconnected. Click to Connect"
+            icon << load_icon("disconnect" if device and device.connected else "connect")
+            tool_tip << "Connected. Click to disconnect" if device and device.connected else "Disconnected. Click to Connect"
             clicked ::
-                if connection and connection.connected:
-                    deferred_call(connection.disconnect)
+                if device and device.connected:
+                    deferred_call(device.disconnect)
                 else:
-                    deferred_call(connection.connect)
+                    deferred_call(device.connect)
         PushButton: btn_clear:
             icon = load_icon("bin")
             tool_tip = "Clear console"
@@ -139,7 +139,7 @@ enamldef CommView(Container): view:
                 widget.setReadOnly(True)
                 widget.document().setMaximumBlockCount(5000)
         Field: to_send:
-            enabled << bool(connection and connection.connected)
+            enabled << bool(device and device.connected)
             placeholder << "Enter a command.." if enabled else "Disconnected... reconnect first."
             tool_tip = "Press enter to send"
             KeyEvent:
@@ -162,7 +162,7 @@ enamldef CommView(Container): view:
 
         PushButton: btn_send:
             text = "Send"
-            enabled << bool(connection and connection.connected)
+            enabled << bool(device and device.connected)
             clicked :: send_text()
 
 

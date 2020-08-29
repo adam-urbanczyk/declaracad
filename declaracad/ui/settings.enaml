@@ -50,6 +50,7 @@ enamldef SettingsDialog(Dialog): dialog:
     title = 'Settings'
     initial_size = (720, 480)
     attr plugin
+    attr model
     attr event
     TaskDialogStyleSheet:
             pass
@@ -88,6 +89,7 @@ enamldef SettingsDialog(Dialog): dialog:
                         func get_settings_page(d):
                             """ Create the settings view for the current page """
                             model = plugin.workbench.get_plugin(d.plugin_id)
+                            dialog.model = model
                             SettingsView = d.factory()
                             return [SettingsView(model=model)]
                         objects << get_settings_page(plugin.settings_page)
@@ -99,7 +101,10 @@ enamldef SettingsDialog(Dialog): dialog:
             ]
             PushButton: btn_ok:
                 text = "Ok"
-                clicked :: dialog.close()
+                clicked ::
+                    if model:
+                        model.save()
+                    dialog.close()
             PushButton: btn_no:
                 text = "Cancel"
                 clicked :: dialog.close()

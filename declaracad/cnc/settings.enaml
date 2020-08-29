@@ -1,25 +1,31 @@
-# -*- coding: utf-8 -*-
 """
-Copyright (c) 2017, Jairus Martin.
+Copyright (c) 2020, Jairus Martin.
 
 Distributed under the terms of the GPL v3 License.
 
 The full license is in the file LICENSE, distributed with this software.
 
-Created on Jul 12, 2015
+Created on Aug 28, 2020
 
 @author: jrm
 """
 import textwrap
-from declaracad.core.utils import load_icon
 from enaml.layout.api import hbox, align, spacer
+from enaml.core.api import Looper, Conditional, Include
 from enaml.widgets.api import (
-    Container, Form, Label, ObjectCombo, SpinBox, CheckBox, PushButton
+    Container, Form, Label, Field, ObjectCombo, SpinBox, CheckBox, PushButton,
+    Splitter, SplitItem, Menu, Action, Notebook, Page
+)
+from enamlx.widgets.api import TreeView, TreeViewItem, DoubleSpinBox
+from declaracad.core.utils import load_icon
+
+from .plugin import (
+    CncPlugin, Device, SerialConnection, SerialConfig, DeviceConfig
 )
 
 
 enamldef SerialPortSettings(Container):
-    attr model
+    attr config: SerialConfig
 
     func selected_port(port, ports):
         matches = [p for p in ports if p.device == port]
@@ -35,42 +41,42 @@ enamldef SerialPortSettings(Container):
                 align('v_center', cb, pb)
             ]
             ObjectCombo: cb:
-                items << model.ports
-                selected << selected_port(model.port, model.ports)
+                items << config.ports
+                selected << selected_port(config.port, config.ports)
                 selected ::
                     port = change['value']
                     if port:
-                        model.port = port.device
+                        config.port = port.device
                 tool_tip = textwrap.dedent("""
-                List of serial ports detected by the system. If nothing is here you
-                must install the device driver for your machine.
-                """).strip()
+                    List of serial ports detected by the system. If nothing is
+                    here you must install the device driver for your machine.
+                    """).strip()
             PushButton: pb:
                 text = "Refresh"
-                icon = load_icon("arrow_refresh"
-                clicked :: model.refresh()
+                icon = load_icon("arrow_refresh")
+                clicked :: config.refresh()
         Label:
             text = "Baudrate"
         SpinBox:
-            value := model.baudrate
+            value := config.baudrate
             maximum = 999999999
             #step_size = 4800
             minimum = 1
         Label:
             text = "Bytesize"
         ObjectCombo:
-            items = list(model.get_member('bytesize').items)
-            selected := model.bytesize
+            items = list(config.get_member('bytesize').items)
+            selected := config.bytesize
         Label:
             text = "Parity"
         ObjectCombo:
-            items = list(model.get_member('parity').items)
-            selected := model.parity
+            items = list(config.get_member('parity').items)
+            selected := config.parity
         Label:
             text = "Stopbits"
         ObjectCombo:
-            items = list(model.get_member('stopbits').items)
-            selected := model.stopbits
+            items = list(config.get_member('stopbits').items)
+            selected := config.stopbits
         Label:
             text = "Flow control"
         Container:
@@ -80,20 +86,140 @@ enamldef SerialPortSettings(Container):
             ]
             CheckBox: rtscts:
                 text = "RTS/CTS"
-                checked := model.rtscts
+                checked := config.rtscts
                 tool_tip = "Enable hardware (RTS/CTS) flow control"
             CheckBox: dsrdtr:
                 text = "DSR/DTR"
-                checked := model.dsrdtr
+                checked := config.dsrdtr
                 tool_tip = "Enable hardware (DSR/DTR) flow control"
             CheckBox: xonxoff:
                 text = "XON/XOFF"
-                checked := model.xonxoff
+                checked := config.xonxoff
                 tool_tip = "Enable software flow control"
 
 
-enamldef CncSettingsPage(Container):
-    attr model
+
+enamldef DeviceConfigView(Container):
+    attr config: DeviceConfig
     Form:
         Label:
-            text = "Test"
+            text = "Scale"
+        DoubleSpinBox:
+            value := config.scale
+            tool_tip = "G-Code output values will be scaled by this value"
+            minimum = 0.000000001
+            maximum = 99999999999
+        Label:
+            text = "Mirror Z"
+        CheckBox:
+            checked := config.mirror_z
+            tool_tip = "G-Code output will mirror Z values"
+        Label:
+            text = "Swap XY"
+        CheckBox:
+            checked := config.swap_xy
+            tool_tip = "G-Code output will swap X and Y values"
+        Label:
+            text = "Precision"
+        ObjectCombo:
+            items = list(DeviceConfig.precision.items)
+            selected := config.precision
+            tool_tip = "Precision used for rounding position values"
+        Label:
+            text = "Origin"
+        Container:
+            constraints = [
+                hbox(label_x, pos_x, label_y, pos_y, label_z, pos_z),
+                align('v_center', label_x, pos_x, label_y, pos_y, label_z, pos_z)
+            ]
+            tool_tip = "All points will be made relative to this location " \
+                       "(eg each point is subtracted by these values)"
+            Label: label_x:
+                text = "X"
+            DoubleSpinBox: pos_x:
+                value := config.origin.x
+                minimum = 0.000000001
+                maximum = 99999999999
+            Label: label_y:
+                text = "Y"
+            DoubleSpinBox: pos_y:
+                value := config.origin.y
+                minimum = 0.000000001
+                maximum = 99999999999
+            Label: label_z:
+                text = "Z"
+            DoubleSpinBox: pos_z:
+                value := config.origin.z
+                minimum = 0.000000001
+                maximum = 99999999999
+
+
+enamldef DeviceConfigView(Container):
+    attr device: Device
+    Notebook:
+        tab_style = 'document'
+        Page:
+            title = "Details"
+            closable = False
+            Form:
+                Label:
+                    text = "Display Name"
+                Field:
+                    text := device.name
+        Page:
+            title = "G-Code"
+            closable = False
+            DeviceConfigView:
+                config := device.config
+        Page:
+            title = "Connection"
+            closable = False
+            Container:
+                Include:
+                    func get_config_page(*args):
+                        if isinstance(device.connection, SerialConnection):
+                            return [SerialPortSettings(config=device.connection.config)]
+                        return []
+                    objects << get_config_page(device.connection)
+
+
+enamldef CncSettingsPage(Container): page:
+    attr model: CncPlugin
+    attr plugin << model
+    padding = 0
+
+    Splitter:
+        SplitItem:
+            Container:
+                padding = 0
+                TreeView: tree:
+                    horizontal_headers = ['Connection']
+                    horizontal_stretch = True
+                    show_root = False
+                    show_vertical_header = False
+                    items << plugin.devices
+                    Menu:
+                        Action:
+                            text = 'Add'
+                            triggered :: plugin.add_device()
+                    Looper:
+                        iterable << plugin.devices
+                        TreeViewItem:
+                            selected << loop_item == plugin.device
+                            text << loop_item.name
+                            clicked :: plugin.device = loop_item
+                            Menu:
+                                Action:
+                                    text = 'Remove'
+                                    triggered :: plugin.remove_device(loop_item)
+                PushButton:
+                    icon = load_icon('add')
+                    text = 'Add'
+                    clicked :: plugin.add_device()
+        SplitItem:
+            stretch = 5
+            Conditional:
+                condition << plugin.device is not None
+                DeviceConfigView:
+                    padding = 0
+                    device := plugin.device

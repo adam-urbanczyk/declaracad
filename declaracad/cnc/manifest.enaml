@@ -57,24 +57,6 @@ def disconnect_channel(event):
     deferred_call(plugin.disconnect)
 
 
-def create_new_com_channel(event):
-    plugin = event.workbench.get_plugin('declaracad.ui')
-    dock = plugin.get_dock_area()
-    ControlPanelDockItem = control_panel_factory()
-    plugin = event.workbench.get_plugin('declaracad.cnc')
-    item = ControlPanelDockItem(dock, plugin=plugin)
-    dock.update_layout(InsertDockBarItem(item=item.name, position='left'))
-
-
-def close_com_channel(event):
-    plugin = event.workbench.get_plugin('declaracad.ui')
-    target = event.parameters.get('target')
-    dock = plugin.get_dock_area()
-    item = dock.find(target)
-    if item is not None:
-        dock.update_layout(RemoveItem(item=item.name))
-
-
 def settings_page_factory():
     with enaml.imports():
         from .settings import CncSettingsPage
@@ -107,18 +89,12 @@ enamldef CncManifest(PluginManifest):
         id = 'settings'
         point = SETTINGS_PAGE_POINT
         SettingsPage:
-            name = "Editor"
+            name = "CNC"
             plugin_id = 'declaracad.cnc'
             factory = settings_page_factory
     Extension:
         id = 'commands'
         point = 'enaml.workbench.core.commands'
-        Command:
-            id = 'declaracad.cnc.open_com_channel'
-            handler = create_new_com_channel
-        Command:
-            id = 'declaracad.cnc.close_com_channel'
-            handler = close_com_channel
         Command:
             id = 'declaracad.cnc.connect'
             handler = connect_channel

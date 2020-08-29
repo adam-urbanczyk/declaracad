@@ -47,7 +47,7 @@ def expand_dict(p):
 
 class ViewerAction(Atom):
     name = Str()
-    key_sequence = Tuple(str)
+    key = Str()
     action = Callable()
 
 
@@ -113,29 +113,33 @@ enamldef ModelViewer(OccViewer): viewer:
     attr notification = None
     attr action_search: str = ""
     attr default_actions: list = [
-        ViewerAction(name="View iso", action=keymap['v']['i']),
-        ViewerAction(name="View top", action=keymap['v']['t']),
-        ViewerAction(name="View bottom", action=keymap['v']['b']),
-        ViewerAction(name="View left", action=keymap['v']['l']),
-        ViewerAction(name="View front", action=keymap['v']['f']),
+        ViewerAction(name="View iso (vi)", action=keymap['v']['i']),
+        ViewerAction(name="View top (vt)", action=keymap['v']['t']),
+        ViewerAction(name="View bottom (vb)", action=keymap['v']['b']),
+        ViewerAction(name="View left (vl)", action=keymap['v']['l']),
+        ViewerAction(name="View front (vf)", action=keymap['v']['f']),
         ViewerAction(name="View right", action=lambda: set_view_mode('right')),
-        ViewerAction(name="View rear", action=lambda: set_view_mode('rear')),
-        ViewerAction(name="Fit all", action=self.fit_all),
-        ViewerAction(name="Fit selection", action=self.fit_selection),
-        ViewerAction(name="Reset view", action=self.reset_view),
-        ViewerAction(name="Rotate X -90", action=keymap['l']['x']),
-        ViewerAction(name="Rotate Y -90", action=keymap['l']['y']),
-        ViewerAction(name="Rotate Z -90", action=keymap['l']['z']),
-        ViewerAction(name="Rotate X 90", action=keymap['r']['x']),
-        ViewerAction(name="Rotate Y 90", action=keymap['r']['y']),
-        ViewerAction(name="Rotate Z 90", action=keymap['r']['z']),
-        ViewerAction(name="Select anything", action=keymap['s']['a']),
+        ViewerAction(name="View rear (vr)", action=lambda: set_view_mode('rear')),
+        ViewerAction(name="Fit all (fa)", action=self.fit_all),
+        ViewerAction(name="Fit selection (fs)", action=self.fit_selection),
+        ViewerAction(name="Reset view (v0)", action=self.reset_view),
+        ViewerAction(name="Rotate X -90 (lz)", action=keymap['l']['x']),
+        ViewerAction(name="Rotate Y -90 (ly)", action=keymap['l']['y']),
+        ViewerAction(name="Rotate Z -90 (lz)", action=keymap['l']['z']),
+        ViewerAction(name="Rotate X 90 (rx)", action=keymap['r']['x']),
+        ViewerAction(name="Rotate Y 90 (ry)", action=keymap['r']['y']),
+        ViewerAction(name="Rotate Z 90 (rz)", action=keymap['r']['z']),
+        ViewerAction(name="Select anything (sa)", action=keymap['s']['a']),
         ViewerAction(name="Select shape", action=lambda: set_selection_mode('shape')),
         ViewerAction(name="Select shell", action=lambda: set_selection_mode('shell')),
-        ViewerAction(name="Select face", action=keymap['s']['f']),
-        ViewerAction(name="Select edge", action=keymap['s']['e']),
-        ViewerAction(name="Select wire", action=keymap['s']['w']),
-        ViewerAction(name="Select vertex", action=keymap['s']['v']),
+        ViewerAction(name="Select face (sf)", action=keymap['s']['f']),
+        ViewerAction(name="Select edge (se)", action=keymap['s']['e']),
+        ViewerAction(name="Select wire (sw)", action=keymap['s']['w']),
+        ViewerAction(name="Select vertex (sv)", action=keymap['s']['v']),
+        ViewerAction(name="Display length dimension (dl)", action=keymap['d']['l']),
+        ViewerAction(name="Display radius dimension (dr)", action=keymap['d']['r']),
+        ViewerAction(name="Display diameter dimension (dd)", action=keymap['d']['d']),
+        ViewerAction(name="Display angle dimension (da)", action=keymap['d']['a']),
     ]
     attr actions: list = get_actions()
 
@@ -261,13 +265,21 @@ enamldef ModelViewer(OccViewer): viewer:
 
         return "\n".join(desc)
 
-    selection ::
+    func hide_notification():
         if self.notification:
             self.notification.close()
+
+    func show_notification(message):
+        self.hide_notification()
+        popup = NotificationPopup(self, message=message)
+        popup.show()
+        self.notification = popup
+
+    selection ::
         if selection and selection.selection:
-            popup = NotificationPopup(self, message=describe_selection(selection))
-            popup.show()
-            self.notification = popup
+            self.show_notification(message=describe_selection(selection))
+        else:
+            self.hide_notification()
 
     Menu:
         context_menu = True

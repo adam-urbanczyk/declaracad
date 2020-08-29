@@ -164,12 +164,14 @@ class JSONRRCProtocol(Atom, asyncio.Protocol):
             The data
 
         """
+        if not line:
+            return
         try:
             request = jsonpickle.loads(line)
         except Exception as e:
             self.send_message({"id": None,
                                'error': {'code': -32700,
-                                         'message': 'Parse error'}})
+                                         'message': f'Parse error: "{line}"'}})
             return
 
         request_id = request.get('id')
@@ -253,6 +255,17 @@ class ProcessLineReceiver(Atom, asyncio.SubprocessProtocol):
             else:
                 self.err_received(data)
 
+    def data_received(self, data):
+        """ Called for stdout data and stderr data if err_to_out is True
+
+        Parameters
+        ----------
+        data: Bytes
+            The data received
+
+        """
+        pass
+
     def err_received(self, data):
         """ Called for stderr data if err_to_out is set to False
 
@@ -266,4 +279,7 @@ class ProcessLineReceiver(Atom, asyncio.SubprocessProtocol):
 
     def terminate(self):
         if self.process_transport:
-            self.process_transport.terminate()
+            try:
+                self.process_transport.terminate()
+            except ProcessLookupError as e:
+                pass

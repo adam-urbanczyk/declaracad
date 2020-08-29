@@ -365,6 +365,9 @@ class Point(Atom):
         p = self.__coerce__(other)
         return math.sqrt((self.x-p.x)**2 + (self.y-p.y)**2)
 
+    def __hash__(self):
+        return hash(self[:])
+
     @classmethod
     def __coerce__(self, other):
         return coerce_point(other)

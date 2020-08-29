@@ -27,6 +27,28 @@ except ImportError:
 __version__ = '0.4'
 
 
+def patch_pyserial_if_needed():
+    """ A workaround for
+    https://github.com/pyserial/pyserial/issues/286
+    """
+    try:
+        from serial.tools.list_ports_common import ListPortInfo
+    except ImportError:
+        return
+    from declaracad.core.utils import log
+    try:
+        dummy = ListPortInfo()
+        dummy == None
+        log.debug("pyserial patch not needed")
+    except AttributeError:
+        def __eq__(self, other):
+            return isinstance(other, ListPortInfo) \
+                and self.device == other.device
+        ListPortInfo.__eq__ = __eq__
+        log.debug("pyserial patched")
+patch_pyserial_if_needed()
+
+
 class SerialTransport(asyncio.Transport):
     """An asyncio transport model of a serial communication channel.
 
