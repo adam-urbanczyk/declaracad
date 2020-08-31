@@ -107,11 +107,6 @@ def occ_line_factory():
     return OccLine
 
 
-def occ_load_part_factory():
-    from .occ_part import OccLoadPart
-    return OccLoadPart
-
-
 def occ_load_shape_factory():
     from .occ_shape import OccLoadShape
     return OccLoadShape
@@ -289,7 +284,6 @@ OCC_FACTORIES = {
     'RawShape': occ_raw_shape_factory,
     'LoadShape': occ_load_shape_factory,
     'RawPart': occ_raw_part_factory,
-    'LoadPart': occ_load_part_factory,
 
     #: Solids
     'Box': occ_box_factory,

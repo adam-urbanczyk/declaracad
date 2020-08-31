@@ -2,10 +2,10 @@
 from declaracad.occ.api import *
 
 enamldef Assembly(Part):
-    LoadShape: dxf:
+    LoadedPart: dxf:
         attr outside_wire = self.topology.wires[5]
         attr inside_wires = [w for w in self.topology.wires if w != outside_wire]
-        path = 'examples/models/25-5050.dxf'
+        filename = 'examples/models/25-5050.dxf'
         display = False
     Extrude:
         material = 'aluminium'

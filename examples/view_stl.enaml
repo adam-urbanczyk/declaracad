@@ -3,6 +3,4 @@ from declaracad.occ.api import *
 
 enamldef Assembly(Part):
     LoadedPart:
-        filename = 'examples/models/five_spoke_wheel.stl'
-        material = 'chrome'
-        
+        filename = 'examples/vacuum_nozzle.stl'

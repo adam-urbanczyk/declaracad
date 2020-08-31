@@ -1,0 +1,11 @@
+# Created in DeclaraCAD
+from declaracad.occ.api import *
+
+enamldef Assembly(Part):
+    #Fillet:
+    #    radius = 2
+    Segment: s1:
+        points = [(0, 0), (10, 10)]
+    Segment:
+        attr p = s1.points[-1]
+        points = [p,  p + (0, 10)]

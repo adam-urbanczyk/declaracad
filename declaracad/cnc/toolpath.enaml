@@ -40,7 +40,6 @@ def get_device():
     return plugin.device
 
 
-
 def optimize_toolpath(wires, start_point, reverse=False, optimizer_timeout=30):
     """  Use Dijkstra's algorithm to find the shortest path between
     a set of wires. Ported from Inkcut
@@ -97,20 +96,15 @@ def optimize_toolpath(wires, start_point, reverse=False, optimizer_timeout=30):
     return [sp.Wire() for sp in result]
 
 
-def send_it(path, sleep=0.3):
-    with open(path) as f:
-        lines = f.read().split("\n")
-    s.write(b'IN\n')
-    s.write(b'SE\n')
-
-    for line in lines:
-        time.sleep(0.1)
-        print(line)
-        s.write(line.encode() + b'\n')
-    s.write(b'SD\n')
-
-
 enamldef Toolpath(Part): toolpath:
+    """ Renders a toolpath for a list of wires using G0 and G1 discretization
+    with maximum deflection given by the deflection attribute.
+
+    If filename is set, it writes G-Code to that file.
+
+
+    """
+
     #: List of wires to create the toolpath for
     attr wires: list = []
 
@@ -221,3 +215,5 @@ enamldef Toolpath(Part): toolpath:
             transparency = 0.5
             color = get_path_color(movement)
             points = movement.points
+
+

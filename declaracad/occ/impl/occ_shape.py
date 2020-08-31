@@ -18,7 +18,6 @@ from atom.api import (
 from OCCT import GeomAbs
 from OCCT.AIS import AIS_Shape
 from OCCT.Bnd import Bnd_Box
-from OCCT.BRep import BRep_Builder, BRep_Tool
 from OCCT.BRepAdaptor import (
     BRepAdaptor_Curve, BRepAdaptor_CompCurve, BRepAdaptor_Surface
 )
@@ -33,7 +32,7 @@ from OCCT.BRepPrimAPI import (
     BRepPrimAPI_MakeSphere, BRepPrimAPI_MakeWedge, BRepPrimAPI_MakeTorus,
     BRepPrimAPI_MakeRevol,
 )
-from OCCT.BRepTools import BRepTools, BRepTools_WireExplorer
+from OCCT.BRepTools import BRepTools_WireExplorer
 from OCCT.BRepGProp import BRepGProp
 from OCCT.GCPnts import (
     GCPnts_UniformDeflection, GCPnts_QuasiUniformDeflection,
@@ -67,11 +66,6 @@ from OCCT.TopTools import (
     TopTools_ListIteratorOfListOfShape,
     TopTools_IndexedDataMapOfShapeListOfShape
 )
-
-from OCCT.IGESControl import IGESControl_Reader
-from OCCT.IFSelect import IFSelect_RetDone, IFSelect_ItemsByEntity
-from OCCT.STEPControl import STEPControl_Reader
-from OCCT.RWStl import RWStl
 
 from ..shape import (
     ProxyShape, ProxyFace, ProxyBox, ProxyCone, ProxyCylinder,
@@ -1420,88 +1414,3 @@ class OccRawShape(OccShape, ProxyRawShape):
         """ Retrieve the underlying toolkit shape.
         """
         return self.shape
-
-
-class OccLoadShape(OccShape, ProxyLoadShape):
-    #: Update the class reference
-    reference = set_default('https://dev.opencascade.org/doc/refman/html/'
-                            'class_topo_d_s___shape.html')
-
-    def create_shape(self):
-        """ Create the shape by loading it from the given path. """
-        shape = self.load_shape()
-        t = self.get_transform()
-        loaded_shape = BRepBuilderAPI_Transform(shape, t, False)
-        self.shape = loaded_shape.Shape()
-
-    def get_transform(self):
-        d = self.declaration
-        t = gp_Trsf()
-        t.SetTransformation(gp_Ax3(coerce_axis(d.axis)))
-        return t
-
-    def load_shape(self):
-        d = self.declaration
-        if not os.path.exists(d.path):
-            raise ValueError("Can't load shape from `{}`, "
-                             "the path does not exist".format(d.path))
-        path, ext = os.path.splitext(d.path)
-        name = ext[1:] if d.loader == 'auto' else d.loader
-        loader = getattr(self, 'load_{}'.format(name.lower()))
-        return loader(d.path)
-
-    def load_brep(self, path):
-        """ Load a brep model """
-        shape = TopoDS_Shape()
-        builder = BRep_Builder()
-        BRepTools.Read_(shape, path, builder, None)
-        return shape
-
-    def load_iges(self, path):
-        """ Load an iges model """
-        reader = IGESControl_Reader()
-        status = reader.ReadFile(path)
-        if status != IFSelect_RetDone:
-            raise ValueError("Failed to load: {}".format(path))
-        reader.PrintCheckLoad(False, IFSelect_ItemsByEntity)
-        reader.PrintCheckTransfer(False, IFSelect_ItemsByEntity)
-        ok = reader.TransferRoots()
-        return reader.Shape(1)
-
-    def load_step(self, path):
-        """ Alias for stp """
-        return self.load_stp(path)
-
-    def load_stp(self, path):
-        """ Load a stp model """
-        reader = STEPControl_Reader()
-        status = reader.ReadFile(path)
-        if status != IFSelect_RetDone:
-            raise ValueError("Failed to load: {}".format(path))
-        reader.PrintCheckLoad(False, IFSelect_ItemsByEntity)
-        reader.PrintCheckTransfer(False, IFSelect_ItemsByEntity)
-        ok = reader.TransferRoot()
-        return reader.Shape(1)
-
-    def load_stl(self, path):
-        """ Load a stl model """
-        builder = BRep_Builder()
-        shape = TopoDS_Face()
-        builder.MakeFace(shape)
-        poly = RWStl.ReadFile_(path, None)
-        builder.UpdateFace(shape, poly)
-        return shape
-
-    def load_dxf(self, path):
-        """ Load a dxf model """
-        from declaracad.occ.importers import dxf
-        return dxf.load(path)
-
-    # -------------------------------------------------------------------------
-    # ProxyLoadShape API
-    # -------------------------------------------------------------------------
-    def set_path(self, path):
-        self.create_shape()
-
-    def set_loader(self, loader):
-        self.create_shape()

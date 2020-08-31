@@ -9,6 +9,7 @@ Created on Sept 28, 2016
 
 @author: jrm
 """
+import enaml
 from atom.api import Typed, ForwardTyped, Str, Enum, observe
 from enaml.core.declarative import d_
 
@@ -134,37 +135,5 @@ class RawPart(Shape):
             return self.proxy.get_shapes()
 
 
-class LoadPart(Part):
-    """ Load a shape from the given path. Unlike LoadShape this will create
-    a separate (colored and named) child shape for each item in the file.
-
-    Attributes
-    ----------
-
-    path: String
-        The path of the 3D model to load. Supported types are, .stl, .stp,
-        .igs, and .brep
-
-
-    Examples
-    --------
-
-    LoadPart:
-        path = "examples/models/fan.stl"
-        position = (10, 100, 0)
-
-    """
-    #: Proxy shape
-    proxy = Typed(ProxyLoadPart)
-
-    #: Path of the shape to load
-    path = d_(Str())
-
-    #: Loader to use
-    loader = d_(Enum('auto', 'stl', 'stp', 'caf', 'iges', 'brep'))
-
-    @observe('path', 'type')
-    def _update_proxy(self, change):
-        """ Base class implementation is sufficient"""
-        super()._update_proxy(change)
-
+with enaml.imports():
+    from .loader import LoadedPart

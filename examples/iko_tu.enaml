@@ -231,7 +231,6 @@ enamldef CarriageProfile(Cut):
 enamldef CarriageMount(Transform): part:
     attr length = 42.8
     attr offset = 25
-    operations = [Translate(*self.position)]
     Cut:
         Prism:
             vector = (0, 0, length)
@@ -251,16 +250,17 @@ enamldef CarriageMount(Transform): part:
                 shape = h1
 
 enamldef Carriage(Part): part:
-    position = (0, 0, 50)
     attr length = 70
+    attr offset = 10 # Shift for bump stop
     Box:
-        position = (-dx / 2, 6.25, 0)
+        position = (-dx / 2, 6.25, part.offset)
         dz = length
         dy = 13.75
         dx = 30
+        color = '#222'
 
     CarriageMount:
-        position = (0, 0, (part.length-self.length)/2)
+        position = (0, 0, (part.length-self.length)/2+part.offset)
         color = '#222'
 
 enamldef BumpStop(Transform):
@@ -494,11 +494,11 @@ enamldef RailCap(Transform):
             CapProfile:
                 pass
 
-enamldef BallScrew(Part): part:
+enamldef BallScrew(Transform): part:
     attr length = 700
     attr radius = 5
+    material = 'chrome'
     Cut:
-        material = 'chrome'
         Cylinder:
             radius = part.radius
             height = length
@@ -506,14 +506,14 @@ enamldef BallScrew(Part): part:
             radius = part.radius
             radius2 = part.radius / 3
 
-
-enamldef Assembly(Part):
+enamldef LinearActuator(Part):
+    alias carriage
     TU50: guide:
         color = '#8e8e8e'
         #transparency = 0.5
         length = 700
 
-    Carriage:
+    Carriage: carriage:
         pass
 
     Looper:
@@ -572,3 +572,8 @@ enamldef Assembly(Part):
         color = "#bbb"
         length = guide.length  - start_mount.start # + end_mount.length/2
         position = (0, 50, start_mount.start)
+
+enamldef Assembly(Part):
+    
+    LinearActuator:
+        pass

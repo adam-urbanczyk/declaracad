@@ -85,8 +85,8 @@ def load_model(filename, source=None):
     elif os.path.exists(filename):
         # Try to load from filename
         with enaml.imports():
-            from .loader import FileLoader
-        return [FileLoader(filename=filename)]
+            from .loader import LoadedPart
+        return [LoadedPart(filename=filename)]
     else:
         return []
 

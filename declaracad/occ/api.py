@@ -36,10 +36,8 @@ from .draw import (
     Wire
 )
 
-from .part import Part, RawPart, LoadPart
-
 from .shape import (
-    Point, Direction, BBox, Shape, RawShape, LoadShape, Face, Texture, Material,
+    Point, Direction, BBox, Shape, RawShape, Face, Texture, Material,
     Box, Cylinder, Sphere, Cone, Wedge, Torus,
     HalfSpace, Prism, Revol, TopoShape
 )
@@ -50,3 +48,6 @@ Extrude = Prism
 from enaml.core.api import Looper, Conditional, Include
 
 from .impl.occ_shape import Topology
+
+from .part import Part, RawPart
+from .loaders import LoadedPart

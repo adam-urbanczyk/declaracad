@@ -2,7 +2,7 @@ from declaracad.occ.api import *
 
 enamldef Assembly(Part):
     #: Load stl
-    LoadShape:
+    LoadedPart:
         material = 'steel'
-        path = "examples/models/fan.stl"
+        filename = "examples/models/fan.stl"
       

@@ -12,7 +12,7 @@ Created on May 16, 2020
 import ezdxf
 from math import radians
 from declaracad.core.utils import log
-from declaracad.occ.api import *
+from declaracad.occ.api import Segment, Arc, Circle, TopoShape
 
 from OCCT.BRep import BRep_Builder
 from OCCT.TopoDS import TopoDS_Compound
@@ -20,15 +20,8 @@ from OCCT.TopTools import TopTools_HSequenceOfShape
 from OCCT.ShapeAnalysis import ShapeAnalysis_FreeBounds
 
 
-def importer(path, output_path):
-    """ Attempt to import a dxf file into DeclaraCAD code
-
-    """
-    pass
-
-
-def load(path):
-    doc = ezdxf.readfile(path)
+def load_dxf(filename):
+    doc = ezdxf.readfile(filename)
     edges = TopTools_HSequenceOfShape()
 
     for element in doc.modelspace():
@@ -58,4 +51,4 @@ def load(path):
     for i in range(1, wires.Size() + 1):
         builder.Add(shape, wires.Value(i))
 
-    return shape
+    return [TopoShape(shape=shape)]

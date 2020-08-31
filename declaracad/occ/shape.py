@@ -336,7 +336,7 @@ class Point(Atom):
 
     def __eq__(self, other):
         p = self.__coerce__(other)
-        return self.proxy.IsEqual(p.proxy, 10e-6)
+        return self.proxy.IsEqual(p.proxy, 1e-6)
 
     def __mul__(self, other):
         return self.__class__(self.x * other, self.y * other, self.z * other)
@@ -364,6 +364,15 @@ class Point(Atom):
     def distance2d(self, other):
         p = self.__coerce__(other)
         return math.sqrt((self.x-p.x)**2 + (self.y-p.y)**2)
+
+    def replace(self, **kwargs):
+        """ Create a copy with the value replaced with the given parameters.
+
+        """
+        p = Point(*self[:])
+        for k, v in kwargs:
+            setattr(k, v)
+        return p
 
     def __hash__(self):
         return hash(self[:])
@@ -1152,43 +1161,9 @@ class RawShape(Shape):
             return self.proxy.get_shape()
 
 
-class LoadShape(Shape):
-    """ Load a single shape from the given path. Shapes can be repositioned and
-    but can only be a single color.
-
-    Attributes
-    ----------
-
-    path: String
-        The path of the 3D model to load. Supported types are, .stl, .stp,
-        .igs, and .brep
-
-
-    Examples
-    --------
-
-    LoadShape:
-        path = "examples/models/fan.stl"
-        position = (10, 100, 0)
-
-    """
-    #: Proxy shape
-    proxy = Typed(ProxyLoadShape)
-
-    #: Path of the shape to load
-    path = d_(Str())
-
-    #: Loader to use
-    loader = d_(Enum('auto', 'stl', 'stp', 'caf', 'iges', 'brep', 'dxf'))
-
-    @observe('path', 'type')
-    def _update_proxy(self, change):
-        """ Base class implementation is sufficient"""
-        super(LoadShape, self)._update_proxy(change)
-
-
 class TopoShape(RawShape):
-    """ A shape loaded
+    """ A declaration for inserting an existing TopoDS_Shape somewhere into a
+    DeclaraCAD tree.
 
     """
     shape = d_(Instance(TopoDS_Shape))

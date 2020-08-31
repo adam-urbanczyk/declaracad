@@ -9,11 +9,12 @@ Created on Dec 10, 2015
 
 @author: jrm
 """
+import enaml
 import inspect
 import textwrap
 import markdown
 from atom.api import Enum
-from enaml.core.api import Looper, Conditional
+from enaml.core.api import Looper, Conditional, DynamicTemplate
 from enaml.widgets.api import  Container, Menu, Action
 from enamlx.widgets.api import TreeView, TreeViewItem, TreeViewColumn
 from declaracad.core.api import DockItem
@@ -47,12 +48,19 @@ def format_docs(src):
     ])
 
 
+def get_source(obj):
+    try:
+        return inspect.getsource(obj)
+    except OSError:
+        pass # Cant find if defined in enaml
+
+
 def get_declared_members(cls):
     inherited = get_inherited_members(cls)
     members = [m for n, m in cls.members().items()
               if not n.startswith("_") and not m in inherited]
     members.sort(key=lambda m:m.name)
-    return members
+    return members + [inherited]
 
 
 def get_inherited_members(cls):
@@ -77,13 +85,55 @@ enamldef TreeMemberItem(TreeViewItem):
                               if isinstance(member, Enum) else "")
 
 
+template TreeItemLoop(items):
+    """ A templated loop which maps a template over a sequence."""
+    TreeItemLoop(tuple(items[:-1])):
+        pass
+    AutoTreeItem:
+        item = items[-1]
+
+template TreeItemLoop(items: ()):
+    """ The terminating condition for the templated loop."""
+    pass
+
+template AutoTreeItemNode(item):
+    """ Template for tree item nodes. This defines
+        the columns and how the tree will be walked.
+    """
+    TreeViewColumn:
+        text << str(item)
+    TreeItemLoop(tuple([c for c in item.children if isinstance(c,Shape)])):
+        pass
+
+enamldef AutoTreeItem(TreeViewItem):
+    attr item
+    text = str(item)
+    items << [c for c in item.children if isinstance(c,Shape)]
+    DynamicTemplate:
+        base = AutoTreeItemNode
+        args = (item,)
+
+enamldef InheritanceTree(Looper):
+    Conditional:
+        condition = not isinstance(loop_item, list)
+        TreeMemberItem:
+            member = loop_item
+    Conditional:
+        condition = isinstance(loop_item, list)
+        TreeViewItem:
+            text = 'inherited'
+            items << loop_item
+            Looper:
+                iterable << parent.items
+                TreeMemberItem:
+                    member = loop_item
+
+
 enamldef ToolboxDockItem(DockItem):
     title = 'Toolbox'
     name = 'toolbox-item'
     icon = load_icon('box')
     closable = False
-
-
 
     Container:
         padding = 0
@@ -97,7 +147,7 @@ enamldef ToolboxDockItem(DockItem):
                     attr cls << loop_item.declaration
                     text = cls.__name__
                     tool_tip = format_docs(loop_item.doc)
-                    items << get_declared_members(cls) + ['Inherited']
+                    items << get_declared_members(cls)
                     Menu:
                         Action:
                             text = "Show reference docs"
@@ -111,7 +161,7 @@ enamldef ToolboxDockItem(DockItem):
                             separator = True
                         Action:
                             text = "Show proxy class"
-                            attr src = inspect.getsource(loop_item.proxy)
+                            attr src = get_source(loop_item.proxy)
                             visible << bool(src)
                             triggered ::
                                 docs = plugin.workbench.get_plugin("declaracad.docs")
@@ -126,7 +176,8 @@ enamldef ToolboxDockItem(DockItem):
                                     docs.set_source(f.read())
                         Action:
                             text = "Show declaration class"
-                            attr src = inspect.getsource(loop_item.declaration)
+
+                            attr src = get_source(loop_item.declaration)
                             visible << bool(src)
                             triggered ::
                                 docs = plugin.workbench.get_plugin("declaracad.docs")
@@ -135,14 +186,5 @@ enamldef ToolboxDockItem(DockItem):
                         attr base = cls.__bases__[0]
                         text = base.__name__
                         tool_tip = format_docs(inspect.getdoc(base))
-                    Looper:
-                        iterable << parent.items[:-1]
-                        TreeMemberItem:
-                            member = loop_item
-                    TreeViewItem:
-                        text = 'inherited'
-                        items << get_inherited_members(cls)
-                        Looper:
-                            iterable << parent.items
-                            TreeMemberItem:
-                                member = loop_item
+                    InheritanceTree:
+                        iterable << parent.items
