@@ -39,7 +39,11 @@ def com_channel_factory():
 
 def send_file(event):
     plugin = event.workbench.get_plugin('declaracad.cnc')
-    plugin.send_file(**event.parameters)
+    filename = event.parameters.get('filename')
+    if filename is None:
+        editor = event.workbench.get_plugin('declaracad.editor')
+        filename = editor.active_document.name
+    deferred_call(plugin.send_file, filename)
 
 
 def rapid_move_to(event):
@@ -78,13 +82,13 @@ enamldef CncManifest(PluginManifest):
             plugin_id = 'declaracad.cnc'
             factory = com_channel_factory
             layout = 'left'
-    #Extension:
-        #id = 'actions'
-        #point = 'enaml.workbench.ui.actions'
-        #ActionItem:
-            #path = '/view/control-panel'
-            #label = 'Open control panel'
-            #command = 'declaracad.cnc.open_com_channel'
+    Extension:
+        id = 'actions'
+        point = 'enaml.workbench.ui.actions'
+        ActionItem:
+            path = '/file/send-to-device'
+            label = 'Send to device'
+            command = 'declaracad.cnc.send_file'
     Extension:
         id = 'settings'
         point = SETTINGS_PAGE_POINT
@@ -106,4 +110,4 @@ enamldef CncManifest(PluginManifest):
             handler = rapid_move_to
         Command:
             id = 'declaracad.cnc.send_file'
-            handler = rapid_move_to
+            handler = send_file

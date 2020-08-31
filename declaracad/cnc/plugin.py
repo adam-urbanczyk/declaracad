@@ -9,6 +9,7 @@ Created on Aug 8, 2018
 
 @author: jrm
 """
+import time
 import uuid
 import serial
 import asyncio
@@ -23,6 +24,10 @@ from declaracad.core.api import Plugin, Model, log
 from declaracad.core.serial import SerialTransport, create_serial_connection
 from declaracad.occ.api import Point
 from . import gcode
+
+
+class TimeoutError(Exception):
+    pass
 
 
 class Connection(Model):
@@ -127,6 +132,10 @@ class SerialConnection(Connection):
 
 
 class DeviceConfig(Model):
+
+    #: Send rate
+    send_rate = Float(strict=False).tag(config=True)
+
     #: Output scale
     scale_x = Float(1.0, strict=False).tag(config=True)
     scale_y = Float(1.0, strict=False).tag(config=True)
@@ -156,6 +165,12 @@ class DeviceConfig(Model):
     #: Origin position relative to model origin
     origin = Instance(Point, ()).tag(config=True)
 
+    #: Commands sent before a job
+    init_commands = Str().tag(config=True)
+
+    #: Commands sent after a job
+    finalize_commands = Str().tag(config=True)
+
 
 class Device(Model, asyncio.Protocol):
     #: Name
@@ -163,6 +178,9 @@ class Device(Model, asyncio.Protocol):
 
     #: UUID
     uuid = Str().tag(config=True)
+
+    #: Default
+    default = Bool().tag(config=True)
 
     #: Device state
     connected = Bool()
@@ -203,42 +221,97 @@ class Device(Model, asyncio.Protocol):
         self.last_read = data
 
     def pause_writing(self):
-        print('pause writing')
-        print(self.connection.transport.get_write_buffer_size())
+        #print(self.connection.transport.get_write_buffer_size())
+        pass
 
     def resume_writing(self):
-        print(self.connection.transport.get_write_buffer_size())
-        print('resume writing')
+        #print(self.connection.transport.get_write_buffer_size())
+        pass
+
+    async def wait_until(self, fn, timeout=30, message="Timeout hit", rate=0.1):
+        """ Wait for the fn to return true or until the timeout hits
+
+        Parameters
+        ----------
+        fn: Callable
+            A function that returns a boolean when ready
+        timeout: Float or None
+            Time in seconds to wait before giving an error or None
+            to block forever
+        message: Str
+            Message to set on the error if a timeout occurs
+        rate: Float
+            Time in seconds to wait before checking the fn again
+
+        """
+        start = time.time()
+        while not fn():
+            await asyncio.sleep(rate)
+            if timeout is not None and (time.time() - start) > timeout:
+                raise TimeoutError(message)
 
     # -------------------------------------------------------------------------
     # Device API
     # -------------------------------------------------------------------------
     async def connect(self):
-        """ Make the connection. This will call connection_made when it is
-        actually connected.
+        """ Make the connection and wait until connection_made is called.
 
         """
-        return await self.connection.connect(self)
+        if self.connected:
+            return
+        await self.connection.connect(self)
 
-    async def write(self, message):
+        # Wait for it to connect
+        await self.wait_until(lambda: self.connected, 30,
+                              message="Connection timeout")
+
+    async def write(self, data):
+        """ Write the data and wait until the write buffer is empty.
+
+        Parameters
+        ----------
+        data: Bytes or Str
+            Data to write to the device
+
+        """
         if not self.connected:
             return IOError("Not connected")
-        if not isinstance(message, bytes):
-            message = message.encode()
-        self.last_write = message
+        if not isinstance(data, bytes):
+            data = data.encode()
+        self.last_write = data
 
-        # This just puts it into the write buffer
-        self.connection.transport.write(message)
+        # Write just puts it into the write buffer
+        # So wait until the buffer is empty (all written)
+        # or the connection drops
+        self.connection.transport.write(data)
+        get_buffer_size = self.connection.transport.get_write_buffer_size
+        await self.wait_until(
+            lambda: not self.connected or get_buffer_size() == 0,
+            timeout=None)
+        if not self.connected:
+            raise IOError("Connection dropped")
 
     async def disconnect(self):
         """ Drop the connection. This will call connection_lost when it is
         actually closed.
 
         """
+        if not self.connected:
+            return
         await self.connection.disconnect()
 
-    async def rapid_move_to(self, point):
-        """ Send a G0 to the point
+    def convert(self, point):
+        """ Convert a point based on this device's configuration
+
+        Parameters
+        ----------
+        point: declaracad.occ.shape.Point
+            The point to convert
+
+        Returns
+        -------
+        converted_point: Tuple
+            Tuple of converted values
 
         """
         config = self.config
@@ -252,6 +325,13 @@ class Device(Model, asyncio.Protocol):
         z = gcode.convert(z, config.scale_z, precision)
         if config.swap_xy:
             x, y = y, x
+        return (x, y, z)
+
+    async def rapid_move_to(self, point):
+        """ Send a G0 to the point
+
+        """
+        x, y, z = self.convert(point)
         await self.write(f'G0 X{x} Y{y} Z{z}\n')
 
 
@@ -276,8 +356,14 @@ class CncPlugin(Plugin):
 
     def _default_device(self):
         if not self.devices:
-            dev = Device(name="New device", connection=SerialConnection())
+            dev = Device(name="New device", connection=SerialConnection(),
+                         default=True)
             self.devices = [dev]
+        # Try to get the first default device (ideally only one should exist)
+        for d in self.devices:
+            if d.default:
+                return d
+        # If no default is set fallback to the first device
         return self.devices[0]
 
     def add_device(self):
@@ -296,6 +382,10 @@ class CncPlugin(Plugin):
             devices.remove(device)
             self.device = devices[0]
             self.devices = devices
+
+    def set_default_device(self, device):
+        for d in self.devices:
+            d.default = d == device
 
     # -------------------------------------------------------------------------
     # Commands
@@ -331,16 +421,21 @@ class CncPlugin(Plugin):
         ----------
         filename: Str
             The path to the file
-
-
         """
         device = self.device
         if not device or device.busy:
             return
         device.busy = True
+        rate = device.config.send_rate
         try:
             with open(filename, 'rb') as f:
+                await device.connect()
                 for line in f:
+                    if not device.connected:
+                        raise IOError("Device disconnected")
+                    if rate:
+                        await asyncio.sleep(rate)
                     await device.write(line)
+
         finally:
             device.busy = False

@@ -525,6 +525,14 @@ enamldef EditorDockItem(DockItem): view:
     title_bar_right_clicked :: menu.popup()
     Menu: menu:
         Action:
+            text = "Reload from disk"
+            triggered ::
+                core = plugin.workbench.get_plugin("enaml.workbench.core")
+                core.invoke_command('declaracad.editor.reload_document',
+                                    {'document':doc})
+        Action:
+            separator = True
+        Action:
             text = "Split vertically"
             triggered ::
                 core = plugin.workbench.get_plugin("enaml.workbench.core")

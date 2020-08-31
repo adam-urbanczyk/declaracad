@@ -403,6 +403,22 @@ class EditorPlugin(Plugin):
         with open(path, 'w') as f:
             f.write(doc.source)
 
+    def reload_document(self, document):
+        """ Reload the source from disk
+
+        Parameters
+        ----------
+        document: Document
+            The document to reload
+
+        """
+        with open(document.name) as f:
+            document.source = f.read()
+        # Update the editor
+        for item in self.get_editor_items():
+            if item.doc == document:
+                item.editor.set_text(document.source)
+
     # -------------------------------------------------------------------------
     # Code inspection API
     # -------------------------------------------------------------------------

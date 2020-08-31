@@ -52,6 +52,11 @@ def new_file(event):
     NewFileDialog(ui.window, plugin=plugin, event=event).exec_()
 
 
+def reload_document(event):
+    plugin = event.workbench.get_plugin('declaracad.editor')
+    plugin.reload_document(**event.parameters)
+
+
 def save_file(event):
     ui = event.workbench.get_plugin('enaml.workbench.ui')
     plugin = event.workbench.get_plugin('declaracad.editor')
@@ -285,6 +290,9 @@ enamldef EditorManifest(PluginManifest):
         Command:
             id = 'declaracad.editor.open_file'
             handler = open_file
+        Command:
+            id = 'declaracad.editor.reload_document'
+            handler = reload_document
         Command:
             id = 'declaracad.editor.new_editor'
             handler = new_editor

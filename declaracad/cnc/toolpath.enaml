@@ -16,11 +16,32 @@ from declaracad.occ.api import Part, Polyline, Topology, Point, Looper
 from declaracad.core.utils import log
 from declaracad.cnc.gcode import Movement, save_to_file
 
+
 from OCCT.BRepAdaptor import BRepAdaptor_CompCurve
 
 
+def get_device():
+    """ Get the default device
 
-def optimize_toolpath(wires, start_point, optimizer_timeout=30):
+    """
+    from declaracad.core.workbench import DeclaracadWorkbench
+    workbench = DeclaracadWorkbench.instance()
+    if workbench is None:
+        import enaml
+        with enaml.imports():
+            from declaracad.cnc.manifest import CncManifest
+
+        workbench = DeclaracadWorkbench()
+        workbench.register(CncManifest())
+        plugin = workbench.get_plugin('declaracad.cnc')
+    else:
+        plugin = workbench.get_plugin('declaracad.cnc')
+        plugin.restore() # Force reload
+    return plugin.device
+
+
+
+def optimize_toolpath(wires, start_point, reverse=False, optimizer_timeout=30):
     """  Use Dijkstra's algorithm to find the shortest path between
     a set of wires. Ported from Inkcut
 
@@ -30,7 +51,8 @@ def optimize_toolpath(wires, start_point, optimizer_timeout=30):
         Unordered set of wires
     start_point: Point
         Starting point
-
+    reverse: Bool
+        Revers the point order
     Returns
     -------
     wires: List[TopoDS_Wires]
@@ -51,13 +73,15 @@ def optimize_toolpath(wires, start_point, optimizer_timeout=30):
         best = sys.maxsize
         shortest = None
         for sp in subpaths:
-            start_point = sp.Value(sp.FirstParameter())
+            t = sp.LastParameter() if reverse else sp.FirstParameter()
+            start_point = sp.Value(t)
             d = p.Distance(start_point)
             if d < best:
                 best = d
                 shortest = sp
 
-        p = shortest.Value(shortest.LastParameter())
+        t = shortest.FirstParameter() if reverse else shortest.LastParameter()
+        p = shortest.Value(t)
         result.append(shortest)
         subpaths.remove(shortest)
 
@@ -90,6 +114,9 @@ enamldef Toolpath(Part): toolpath:
     #: List of wires to create the toolpath for
     attr wires: list = []
 
+    #: Reverse the points
+    attr reverse: bool = False
+
     #: Distance the head must lift when moving
     attr clearance = 3
 
@@ -118,19 +145,20 @@ enamldef Toolpath(Part): toolpath:
 
     #: If set, write to filename
     attr filename: str = ""
-    attr options: dict = {}
 
     func generate_toolpath(wires):
         """ A very simple toolpath generator
 
         """
         if self.optimize:
-            wires = optimize_toolpath(wires, start_point)
+            wires = optimize_toolpath(wires, start_point, reverse)
         pos = start_point
         cmds = []
         lift = (0, 0, self.clearance)
         for i, wire in enumerate(wires):
             points = Topology.discretize(wire, self.deflection)
+            if reverse:
+                points = [p for p in reversed(points)]
             next_point = points[0]
             cmds.append(Movement(
                 rapid=True,
@@ -150,7 +178,8 @@ enamldef Toolpath(Part): toolpath:
 
         # Save
         if self.filename:
-            save_to_file(self.filename, cmds, **self.options)
+            device = get_device()
+            save_to_file(self.filename, cmds, device)
 
         return cmds
 

@@ -14,7 +14,7 @@ from enaml.layout.api import hbox, align, spacer
 from enaml.core.api import Looper, Conditional, Include
 from enaml.widgets.api import (
     Container, Form, Label, Field, ObjectCombo, SpinBox, CheckBox, PushButton,
-    Splitter, SplitItem, Menu, Action, Notebook, Page
+    Splitter, SplitItem, Menu, Action, Notebook, Page, MultilineField
 )
 from enamlx.widgets.api import TreeView, TreeViewItem, DoubleSpinBox
 from declaracad.core.utils import load_icon
@@ -103,6 +103,17 @@ enamldef DeviceConfigView(Container):
     attr config: DeviceConfig
     Form:
         Label:
+            text = "Swap XY"
+        CheckBox:
+            checked := config.swap_xy
+            tool_tip = "G-Code output will swap X and Y values"
+        Label:
+            text = "Precision"
+        ObjectCombo:
+            items = list(DeviceConfig.precision.items)
+            selected := config.precision
+            tool_tip = "Precision used for rounding position values"
+        Label:
             text = "Scale"
         Container:
             constraints = [
@@ -116,18 +127,51 @@ enamldef DeviceConfigView(Container):
                 value := config.scale_x
                 minimum = 0.000000001
                 maximum = 99999999999
+                decimals = 5
             Label: label_sy:
                 text = "Y"
             DoubleSpinBox: sy:
                 value := config.scale_y
                 minimum = 0.000000001
                 maximum = 99999999999
+                decimals = 5
             Label: label_sz:
                 text = "Z"
             DoubleSpinBox: sz:
                 value := config.scale_z
                 minimum = 0.000000001
                 maximum = 99999999999
+                decimals = 5
+        Label:
+            text = "Origin"
+        Container:
+            constraints = [
+                hbox(label_x, pos_x, label_y, pos_y, label_z, pos_z),
+                align('v_center', label_x, pos_x, label_y, pos_y, label_z, pos_z)
+            ]
+            tool_tip = "All points will be made relative to this location " \
+                       "(eg each point is subtracted by these values)"
+            Label: label_x:
+                text = "X"
+            DoubleSpinBox: pos_x:
+                value := config.origin.x
+                minimum = 0.000000001
+                maximum = 99999999999
+                decimals = 5
+            Label: label_y:
+                text = "Y"
+            DoubleSpinBox: pos_y:
+                value := config.origin.y
+                minimum = 0.000000001
+                maximum = 99999999999
+                decimals = 5
+            Label: label_z:
+                text = "Z"
+            DoubleSpinBox: pos_z:
+                value := config.origin.z
+                minimum = 0.000000001
+                maximum = 99999999999
+                decimals = 5
         Label:
             text = "Mirror"
         Container:
@@ -149,47 +193,32 @@ enamldef DeviceConfigView(Container):
             CheckBox: mz:
                 checked := config.mirror_z
 
+enamldef JobConfigView(Container):
+    attr config: DeviceConfig
+    Form:
         Label:
-            text = "Swap XY"
-        CheckBox:
-            checked := config.swap_xy
-            tool_tip = "G-Code output will swap X and Y values"
+            text = "Send rate"
+        DoubleSpinBox:
+            value := config.send_rate
+            minimum = 0
+            maximum = 10
+            single_step = 0.001
+            decimals = 5
+            tool_tip = "Delay in seconds before sending each line of G-Code"
         Label:
-            text = "Precision"
-        ObjectCombo:
-            items = list(DeviceConfig.precision.items)
-            selected := config.precision
-            tool_tip = "Precision used for rounding position values"
+            text = "Init Commands"
+        MultilineField:
+            tool_tip = "G-Code commands sent before any moves are started"
+            text := config.init_commands
         Label:
-            text = "Origin"
-        Container:
-            constraints = [
-                hbox(label_x, pos_x, label_y, pos_y, label_z, pos_z),
-                align('v_center', label_x, pos_x, label_y, pos_y, label_z, pos_z)
-            ]
-            tool_tip = "All points will be made relative to this location " \
-                       "(eg each point is subtracted by these values)"
-            Label: label_x:
-                text = "X"
-            DoubleSpinBox: pos_x:
-                value := config.origin.x
-                minimum = 0.000000001
-                maximum = 99999999999
-            Label: label_y:
-                text = "Y"
-            DoubleSpinBox: pos_y:
-                value := config.origin.y
-                minimum = 0.000000001
-                maximum = 99999999999
-            Label: label_z:
-                text = "Z"
-            DoubleSpinBox: pos_z:
-                value := config.origin.z
-                minimum = 0.000000001
-                maximum = 99999999999
+            text = "Finalize Commands"
+        MultilineField:
+            tool_tip = "G-Code commands sent after all moves are finished"
+            text := config.finalize_commands
 
 
 enamldef DeviceConfigView(Container):
+    attr plugin: CncPlugin
     attr device: Device
     Notebook:
         tab_style = 'document'
@@ -201,10 +230,21 @@ enamldef DeviceConfigView(Container):
                     text = "Display Name"
                 Field:
                     text := device.name
+                Label:
+                    text = "Default"
+                CheckBox:
+                    checked << device.default
+                    checked :: plugin.set_default_device(device)
+
         Page:
             title = "G-Code"
             closable = False
             DeviceConfigView:
+                config := device.config
+        Page:
+            title = "Job"
+            closable = False
+            JobConfigView:
                 config := device.config
         Page:
             title = "Connection"
@@ -257,4 +297,5 @@ enamldef CncSettingsPage(Container): page:
                 condition << plugin.device is not None
                 DeviceConfigView:
                     padding = 0
+                    plugin << page.plugin
                     device := plugin.device

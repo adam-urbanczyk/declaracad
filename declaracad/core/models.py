@@ -96,6 +96,11 @@ class Plugin(EnamlPlugin):
         """ Manually trigger a save """
         self._save_state({'type': 'request'})
 
+    def restore(self):
+        """ Force restore from config """
+        self._unbind_observers()
+        self._bind_observers()
+
     def _default__state_file(self):
         return os.path.expanduser(
             "~/.config/declaracad/{}.json".format(self.manifest.id))
@@ -115,8 +120,8 @@ class Plugin(EnamlPlugin):
                     with open(self._state_file, 'r') as f:
                         state = pickle.loads(f.read())
                 self.__setstate__(state)
-                log.warning("Plugin {} state restored from: {}".format(
-                    self.manifest.id, self._state_file))
+                #log.debug("Plugin {} state restored from: {}".format(
+                #    self.manifest.id, self._state_file))
         except Exception as e:
             log.warning("Plugin {} failed to load state: {}".format(
                 self.manifest.id, traceback.format_exc()))

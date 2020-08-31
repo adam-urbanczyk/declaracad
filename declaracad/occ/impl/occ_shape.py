@@ -34,6 +34,7 @@ from OCCT.BRepPrimAPI import (
     BRepPrimAPI_MakeRevol,
 )
 from OCCT.BRepTools import BRepTools, BRepTools_WireExplorer
+from OCCT.BRepGProp import BRepGProp
 from OCCT.GCPnts import (
     GCPnts_UniformDeflection, GCPnts_QuasiUniformDeflection,
 )
@@ -45,7 +46,7 @@ from OCCT.GeomAbs import (
     GeomAbs_Parabola, GeomAbs_BezierCurve, GeomAbs_BSplineCurve,
     GeomAbs_OffsetCurve, GeomAbs_OtherCurve,
 )
-
+from OCCT.GProp import GProp_GProps
 from OCCT.gp import (
     gp, gp_Pnt, gp_Dir, gp_Vec, gp_Ax1, gp_Ax2, gp_Ax3, gp_Trsf, gp_Pln
 )
@@ -891,6 +892,15 @@ class Topology(Atom):
         pmin, pmax = bbox.CornerMin(), bbox.CornerMax()
         return BBox(*(pmin.X(), pmin.Y(), pmin.Z(),
                       pmax.X(), pmax.Y(), pmax.Z()))
+
+    # -------------------------------------------------------------------------
+    # Properties
+    # -------------------------------------------------------------------------
+    @classmethod
+    def length(cls, shape):
+        props = GProp_GProps()
+        BRepGProp.LinearProperties_(shape, props, True)
+        return props.Mass() # Don't ask
 
 
 class OccShape(ProxyShape):
