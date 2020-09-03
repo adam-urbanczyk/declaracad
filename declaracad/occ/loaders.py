@@ -11,6 +11,12 @@ Created on Aug 31, 2020
 """
 import enaml
 
+
+def load_brep():
+    from declaracad.occ.importers.brep import load_brep
+    return load_brep
+
+
 def load_gcode():
     from declaracad.occ.importers.gcode import load_gcode
     return load_gcode
@@ -47,8 +53,11 @@ def load_dxf():
 # which improves startup time.
 # Case is forced to lower before checking the mapping.
 LOADER_REGISTRY = {
+    '.brep': load_brep,
     '.dxf': load_dxf,
     '.iges': load_iges,
+    '.igs': load_iges,
+    '.gcode': load_gcode,
     '.ncc': load_gcode,
     '.nc': load_gcode,
     '.tap': load_gcode,
