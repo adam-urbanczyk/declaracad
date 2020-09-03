@@ -14,7 +14,7 @@ from enaml.core.api import Include
 from declaracad.occ.part import Part
 
 
-def load_filename(filename):
+def load_filename(filename, options):
     """ Load shapes in the file by looking up the extension from the loader
     registry.
 
@@ -35,7 +35,7 @@ def load_filename(filename):
     if hook is None:
         return []
     loader = hook()
-    return loader(filename=filename)
+    return loader(filename=filename, **options)
 
 
 enamldef LoadedPart(Part):
@@ -44,6 +44,7 @@ enamldef LoadedPart(Part):
 
     """
     attr filename: str
+    attr options: dict = {}
     description << filename[0:100]
     Include:
-        objects << load_filename(filename)
+        objects << load_filename(filename, options)

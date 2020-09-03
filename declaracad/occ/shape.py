@@ -398,25 +398,30 @@ class Direction(Point):
     def __repr__(self):
         return "<Direction: x=%s y=%s z=%s>" % self[:]
 
+    def reversed(self):
+        """ Return a reversed copy """
+        v = self.proxy.Reversed()
+        return Direction(v.X(), v.Y(), v.Z())
+
     @classmethod
     def XY(cls, x, y):
         # Create a direction in the 2d XY plane with Z normal
-        dir = gp.DZ_().Rotated(gp.OZ_(), math.atan2(y, x))
-        return Direction(dir.X(), dir.Y(), dir.Z())
+        v = gp.DZ_().Rotated(gp.OZ_(), math.atan2(y, x))
+        return Direction(v.X(), v.Y(), v.Z())
 
     @classmethod
     def XZ(cls, x, y):
         # Create a direction in the XY plane
-        dir = gp_Dir()
-        dir.Rotate(gp.OY_(), math.atan2(y, x))
-        return Direction(dir.X(), dir.Y(), dir.Z())
+        v = gp_Dir()
+        v.Rotate(gp.OY_(), math.atan2(y, x))
+        return Direction(v.X(), v.Y(), v.Z())
 
     @classmethod
     def YZ(cls, x, y):
         # Create a direction in the XY plane
-        dir = gp_Dir()
-        dir.Rotate(gp.OX_(), math.atan2(y, x))
-        return Direction(dir.X(), dir.Y(), dir.Z())
+        v = gp_Dir()
+        v.Rotate(gp.OX_(), math.atan2(y, x))
+        return Direction(v.X(), v.Y(), v.Z())
 
     def angle(self, other):
         p = self.__coerce__(other)
@@ -564,20 +569,26 @@ class Shape(ToolkitObject):
     #: Position alias
     def _get_x(self):
         return self.position.x
+
     def _set_x(self, v):
         self.position.x = v
+
     x = d_(Property(_get_x, _set_x))
 
     def _get_y(self):
         return self.position.y
+
     def _set_y(self, v):
         self.position.y = v
+
     y = d_(Property(_get_y, _set_y))
 
     def _get_z(self):
         return self.position.z
+
     def _set_z(self, v):
         self.position.z = v
+
     z = d_(Property(_get_z, _set_z))
 
     #: A tuple or list of the (x, y, z) position of this shape. This is

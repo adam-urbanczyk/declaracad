@@ -17,38 +17,69 @@ from atom.api import (
 )
 from OCCT.BRep import BRep_Builder
 from OCCT.TopoDS import TopoDS_Compound
-from declaracad.occ.api import *
+from declaracad.occ.api import Point
+
+
+def normalize(k, v):
+    """ Normalize an ID command
+
+    """
+    vi = int(v)
+    if v == vi:
+        v = vi  # Clip off .0
+    return '{}{}'.format(k, v)
+
 
 
 class Command(Atom):
     data = Instance(OrderedDict)
+    id = Str()
     comment = Str()
     source = Str()
     line = Int()
 
-    def _get_id(self):
-        if not self.data:
-            return
-        for k, v in self.data.items():
-            vi = int(v)
-            if v == vi:
-                v = vi # Clip off .0
-            return '{}{}'.format(k, v)
-
-    id = Property(_get_id, cached=True)
+    def _default_id(self):
+        if self.data:
+            for k, v in self.data.items():
+                if k in GCode.ID_CODES:
+                    return normalize(k, v)
+        return ''
 
     def _get_waypoint(self):
         d = self.data
         if not d:
             return
         axis = {}
-        for k in GCode.AXIS:
+        for k in GCode.AXIS_CODES:
             if k in d:
                 axis[k] = d[k]
         if axis:
             return Waypoint(**axis)
 
     waypoint = Property(_get_waypoint, cached=True)
+
+    def position(self, last):
+        """ Get the 3D-position of this cmd's XYZ coordinates.
+
+        Parameters
+        ----------
+        last: Point
+            The previous position.
+
+        Returns
+        -------
+        point: Point
+            The position of this command
+
+        """
+        data = self.data
+        x = data.get('X')
+        y = data.get('Y')
+        z = data.get('Z')
+        return Point(
+                last.x if x is None else x,
+                last.y if y is None else y,
+                last.z if z is None else z)
 
     def _get_feedrate(self):
         if not self.data:
@@ -57,15 +88,24 @@ class Command(Atom):
 
     feedrate = Property(_get_feedrate, cached=True)
 
+    def _get_is_move(self):
+        return self.id in GCode.MOVE_CODES
+
+    is_move = Property(_get_is_move, cached=True)
+
     def __repr__(self):
-        return "Command<'{}' at line {}>".format(self.source, self.line)
+        return "Command<{} from '{}' at line {}>".format(
+            self.id, self.source, self.line)
 
 
 class GCode(Atom):
     path = Str()
     commands = List(Command)
 
-    AXIS = ('X', 'Y' 'Z' 'A' 'B' 'C' 'U' 'V' 'W')
+    AXIS_CODES = 'XYZABCUVW'
+    ID_CODES = 'GMTS'
+    MOVE_CODES = ('G0', 'G1', 'G2', 'G3', 'G5', 'G5.1')
+
     COLORMAP = {
         'G0': 'green',
         'G1': 'blue',
@@ -75,7 +115,7 @@ class GCode(Atom):
 
     def __repr__(self):
         return "GCode<file='{} cmds=[\n    {}\n]>".format(
-            self.path, ",\n    ".join(map(str, self.commands)))
+            self.path, ",\n    ".join(map(str, self.commands[0:100])))
 
     def max(self):
         """ Return max value of each axis """
@@ -171,6 +211,20 @@ def parse(path):
 
     """
     cmds = []
+
+    def set_id(cmd):
+        if not cmd.id:
+            # If command is not specified use the last move
+            for c in reversed(cmds):
+                if c.is_move:
+                    cmd.id = c.id
+                    break
+        return cmd.id
+
+    def finish(cmd):
+        set_id(cmd)
+        cmds.append(cmd)
+
     with open(path) as f:
         for i, line in enumerate(f):
             line = line.strip()
@@ -184,19 +238,54 @@ def parse(path):
             if not data and not comment:
                 continue
 
-            cmd = Command(comment=comment, source=line, line=i)
-            if data:
-                try:
-                    d = OrderedDict()
-                    for c in re.findall(r'[A-z][\d.]+ *', data):
-                        d[c[0].upper()] = float(c[1:])
-                    cmd.data = d
-                except ValueError as e:
-                    filepath, filename = os.path.split(path)
-                    msg = "Failed to parse '%s' at line %s: %s" % (
-                        filename, i, e)
-                    raise ValueError(msg)
-            cmds.append(cmd)
+            cmd = Command(comment=comment, source=line, line=i+1)
+            if not data:
+                cmds.append(cmd)  # Comment
+                continue
+
+            try:
+                # Parse args
+                args = []
+                for c in re.findall(r'[A-z] *-?[\d.]+ *', data):
+                    args.append((c[0].upper(), float(c[1:])))
+
+                keys = set((it[0] for it in args))
+
+                # Since some files put mode changes on the same line
+                # split them into separate commands
+                cmd.data = d = OrderedDict()
+                for k, v in args:
+                    if k in d:
+                        # HACK: Split out to a new command
+                        # when duplicate keys are given in the same line, eg:
+                        #     N40 G90 G00 X0 Y0
+                        # is split into a G90 and G0
+                        finish(cmd)
+                        cmd = Command(comment=comment,
+                                      source=line,
+                                      line=i+1)
+                        cmd.data = d = OrderedDict()
+                    elif k in GCode.AXIS_CODES:
+                        # HACK: If we get move arguments for a non-move split
+                        # the command, eg a
+                        #    N100 G01 X30 Y50
+                        #    N110 G91 X10.1 Y-10.1
+                        # should be split into a G1, G91, G1
+                        cmd_id = set_id(cmd)
+                        if cmd_id not in GCode.MOVE_CODES:
+                            finish(cmd)
+                            cmd = Command(comment=comment,
+                                          source=line,
+                                          line=i+1)
+                            cmd.data = d = OrderedDict()
+                    d[k] = v
+                finish(cmd)
+            except ValueError as e:
+                filepath, filename = os.path.split(path)
+                msg = "Failed to parse '%s' at line %s: %s" % (
+                    filename, i, e)
+                raise ValueError(msg)
+
     return GCode(path=path, commands=cmds)
 
 
@@ -210,172 +299,5 @@ class Waypoint(Atom):
     U = Float()
     V = Float()
     W = Float()
-
-
-class CNC(Atom):
-    """ A simulator
-
-    """
-    position = Instance(Waypoint, ())
-    origin = Instance(Waypoint, ())
-    stored_positions = Dict(int, Waypoint)
-
-    rapid_feedrate = Float()
-    move_feedrate = Float()
-
-    cutter_compensation = Float()
-
-    lathe_mode = Enum('radius', 'diameter')
-    units = Enum('in', 'mm')
-    plane = Enum('XY', 'ZX', 'YZ', 'UV', 'WU', 'VW')
-    command = Instance(Command)
-    last_command = Instance(Command)
-
-    # Actions that ocurred
-    actions = List()
-
-    @observe('command', 'units', 'plane', 'position', 'origin',
-             'stored_positions')
-    def _update_action(self, change):
-        """ Save what happens """
-        self.actions.append(change)
-
-    def rapid_to(self, pos):
-        if not isinstance(pos, Waypoint):
-            raise TypeError("Expected waypoint, got: %s" % pos)
-        self.position = pos
-
-    def move_to(self, pos):
-        if not isinstance(pos, Waypoint):
-            raise TypeError("Expected waypoint, got: %s" % pos)
-        self.position = pos
-
-    def dwell(self, P, **kwargs):
-        # Dwell for P seconds
-        if P is None or P < 0:
-            msg = "Invalid dwell time %s" % P
-            raise ValueError(msg)
-
-    def cubic_to(self, **kwargs):
-        pass
-
-    def quad_to(self, **kwargs):
-        pass
-
-
-def load(path):
-    """ Load GCode based on
-    http://www.linuxcnc.org/docs/html/gcode/g-code.html#cha:g-codes
-
-    """
-    gcode = parse(path)
-
-    # Split into separate wires
-    wires = []
-
-    cnc = State()
-    toolpath = Part()
-    for cmd in gcode.commands:
-        cnc.command = cmd
-        if not cmd.data:
-            continue  # Comment
-
-        pos = cnc.position
-        d = cmd.data
-
-        # Rapid move
-        if cmd.id == 'G0':
-            cnc.rapid_to(**cmd.data)
-
-        # Linear move
-        elif cmd.id == 'G1':
-            cnc.move_to(**cmd.data)
-
-        # Arc
-        elif cmd.id in ('G2', 'G3'):
-            cnc.arc_to(**cmd.data)
-
-        # Dwell
-        elif cmd.id == 'G4':
-            cnc.dwell(**cmd.data)
-
-        # Cubic spline
-        elif cmd.id == 'G5':
-            cnc.cubic_to(**cmd.data)
-
-        # Quadratic spline
-        elif cmd.id == 'G5.1':
-            cnc.quad_to(**cmd.data)
-
-        # Nurbs block
-        elif cmd.id in ('G5.2', 'G5.3'):
-            raise NotImplementedError
-
-        # Lathe mode
-        elif cmd.id == 'G7':
-            cnc.lathe_mode = 'diameter'
-        elif cmd.id == 'G8':
-            cnc.lathe_mode = 'radius'
-
-        # Set...
-        elif cmd.id == 'G10':
-            raise NotImplementedError
-
-        # Plane select
-        elif cmd.id == 'G17':
-            cnc.plane = 'XY'
-        elif cmd.id == 'G17.1':
-            cnc.plane = 'UV'
-        elif cmd.id == 'G18':
-            cnc.plane = 'ZX'
-        elif cmd.id == 'G18.1':
-            cnc.plane = 'WU'
-        elif cmd.id == 'G19':
-            cnc.plane = 'YZ'
-        elif cmd.id == 'G19.1':
-            cnc.plane = 'VW'
-
-        # Units
-        elif cmd.id == 'G20':
-            cnc.units = 'in'
-        elif cmd.id == 'G21':
-            cnc.units = 'mm'
-
-        # Go/Set Predefined Position
-        elif cmd.id == 'G28':
-            if cmd.waypoint:
-                cnc.rapid_to(cmd.waypoint)
-            if cnc.stored_positions.get(0) is None:
-                msg = "Attempted to restore unsaved position at %s" % cmd
-                print(msg)
-            cnc.rapid_to(cnc.stored_positions.get(0, cnc.origin_position))
-        elif cmd.id == 'G28.1':
-            cnc.stored_positions[0] = cnc.position
-        elif cmd.id == 'G30':
-            if cmd.waypoint:
-                cnc.rapid_to(cmd.waypoint)
-            if cnc.stored_positions.get(1) is None:
-                msg = "Attempted to restore unsaved position at %s" % cmd
-                print(msg)
-            cnc.rapid_to(cnc.stored_positions.get(1, cnc.origin_position))
-        elif cmd.id == 'G30.1':
-            cnc.stored_positions[1] = cnc.position
-
-        # Spindle Synchronized Motion
-        elif cmd.id == 'G33':
-            raise NotImplementedError
-
-        # Rigid Tapping
-        elif cmd.id == 'G33.1':
-            raise NotImplementedError
-
-        elif cmd.id in ('G33.2', 'G33.3', 'G33.4', 'G33.5'):
-            raise NotImplementedError
-
-        # Compensation Off
-        elif cmd.id == 'G40':
-            cnc.cutter_compensation = False
-        cnc.last_command = cmd
-    return toolpath
 
 

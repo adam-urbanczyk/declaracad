@@ -71,6 +71,12 @@ class ProxyArc(ProxyEdge):
     def set_alpha2(self, a):
         raise NotImplementedError
 
+    def set_reverse(self, reverse):
+        raise NotImplementedError
+
+    def set_clockwise(self, clockwise):
+        raise NotImplementedError
+
 
 class ProxyCircle(ProxyEdge):
     #: A reference to the shape declaration.
@@ -321,6 +327,8 @@ class Arc(Line):
         The starting angle of the arc.
     alpha2: Float, optional
         The ending angle of the arc.
+    clockwise: Bool
+        If using two points this gives the interpolation direction
 
     Notes
     ------
@@ -359,6 +367,12 @@ class Arc(Line):
 
     #: 2nd Angle circle (optional)
     alpha2 = d_(Float(0, strict=False)).tag(view=True)
+
+    #: Reverse
+    reverse = d_(Bool()).tag(view=True)
+
+    #: Clockwise (sweep direction, when using two points)
+    clockwise = d_(Bool()).tag(view=True)
 
 
 class Circle(Edge):

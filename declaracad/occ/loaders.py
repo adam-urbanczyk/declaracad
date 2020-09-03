@@ -51,7 +51,7 @@ LOADER_REGISTRY = {
     '.iges': load_iges,
     '.ncc': load_gcode,
     '.nc': load_gcode,
-    '.top': load_gcode,
+    '.tap': load_gcode,
     '.svg': load_svg,
     '.stp': load_step,
     '.step': load_step,

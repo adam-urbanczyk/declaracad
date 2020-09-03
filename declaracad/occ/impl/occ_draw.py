@@ -92,14 +92,9 @@ class OccVertex(OccShape, ProxyVertex):
     reference = set_default('https://dev.opencascade.org/doc/refman/html/'
                             'class_b_rep_builder_a_p_i___make_vertex.html')
 
-    def set_x(self, x):
-        self.create_shape()
-
-    def set_y(self, y):
-        self.create_shape()
-
-    def set_z(self, z):
-        self.create_shape()
+    def create_shape(self):
+        pt = self.declaration.position.proxy
+        self.shape = BRepBuilderAPI_MakeVertex(pt).Vertex()
 
 
 class OccEdge(OccShape, ProxyEdge):
@@ -180,33 +175,32 @@ class OccArc(OccLine, ProxyArc):
         d = self.declaration
         n = len(d.points)
         if d.radius:
-            sense = True
-            points = [p.proxy for p in d.points] # Do not trasnform these
+            points = [p.proxy for p in d.points]  # Do not trasnform these
             #if d.radius2:
             #    g = gp_Elips(coerce_axis(d.axis), d.radius, d.radius2)
             #    factory = GC_MakeArcOfEllipse
             #else:
-            g = gp_Circ(coerce_axis(d.axis), d.radius)
-            factory = GC_MakeArcOfCircle
+            v = d.direction.proxy
+            # TODO: This technially isn't correct because the z axis could
+            # already be flipped
+            if d.clockwise:
+                v = v.Reversed()
+            axis = gp_Ax2(d.position.proxy, v)
+            c = gp_Circ(axis, d.radius)
 
             if n == 2:
-                arc = factory(g, points[0], points[1], sense).Value()
+                arc = GC_MakeArcOfCircle(c, points[0], points[1], True).Value()
             elif n == 1:
-                arc = factory(g, d.alpha1, points[0], sense).Value()
+                arc = GC_MakeArcOfCircle(c, d.alpha1, points[0], True).Value()
             else:
-                arc = factory(g, d.alpha1, d.alpha2, sense).Value()
-            self.curve = arc
-            self.shape = self.make_edge(arc)
-        elif n == 2:
-            points = self.get_transformed_points()
-            arc = GC_MakeArcOfEllipse(points[0], points[1]).Value()
-            self.curve = arc
-            self.shape = self.make_edge(arc)
+                arc = GC_MakeArcOfCircle(c, d.alpha1, d.alpha2, True).Value()
+        #elif n == 2:
+        #    # TODO: This doesn't work
+        #    points = self.get_transformed_points()
+        #    arc = GC_MakeArcOfEllipse(points[0], points[1]).Value()
         elif n == 3:
             points = self.get_transformed_points()
             arc = GC_MakeArcOfCircle(points[0], points[1], points[2]).Value()
-            self.curve = arc
-            self.shape = self.make_edge(arc)
         else:
             raise ValueError("Could not create an Arc with the given children "
                              "and parameters. Must be given one of:\n\t"
@@ -214,6 +208,10 @@ class OccArc(OccLine, ProxyArc):
                              "- radius and 2 points\n\t"
                              "- radius, alpha1 and one point\n\t"
                              "- radius, alpha1 and alpha2")
+        if d.reverse:
+            arc = arc.Reversed()
+        self.curve = arc
+        self.shape = self.make_edge(arc)
 
     def set_radius(self, r):
         self.create_shape()
@@ -225,6 +223,12 @@ class OccArc(OccLine, ProxyArc):
         self.create_shape()
 
     def set_alpha2(self, a):
+        self.create_shape()
+
+    def set_reverse(self, reverse):
+        self.create_shape()
+
+    def set_clockwise(self, clockwise):
         self.create_shape()
 
 
