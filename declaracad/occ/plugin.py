@@ -164,7 +164,7 @@ class ViewerProcess(ProcessLineReceiver):
     restarts = Int()
 
     #: Max number it will attempt to restart
-    max_retries = Int(20)
+    max_retries = Int(10)
 
     #: ID count
     _id = Int()
@@ -338,17 +338,16 @@ class ViewerProcess(ProcessLineReceiver):
             except Exception as e:
                 log.debug(f"render | err | {line}")
 
-    def process_ended(self, reason):
+    def process_exited(self, reason=None):
         log.warning(f"renderer | process ended: {reason}")
         if not self.terminated:
             # Clear the filename on crash so it works when reset
-            #self.document = None
             self.restart()
         log.warning("renderer | stdout closed")
 
     def terminate(self):
         super(ViewerProcess, self).terminate()
-        terminated = True
+        self.terminated = True
 
     def schedule_ping(self):
         """ Ping perioidcally so the process stays awake """
