@@ -52,8 +52,11 @@ enamldef SettingsDialog(Dialog): dialog:
     attr plugin
     attr model
     attr event
-    TaskDialogStyleSheet:
-            pass
+    Conditional:
+        # Only use this if not using the system theme
+        condition << plugin.dock_style != 'system'
+        TaskDialogStyleSheet:
+                pass
     TaskDialogBody:
         TaskDialogInstructionArea:
             Label:
