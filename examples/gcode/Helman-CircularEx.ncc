@@ -1,0 +1,15 @@
+(https://www.helmancnc.com/cnc-mill-g02-g03-circular-interpolation-programming-example/)
+G90 G01 X0 Y0
+X30
+G03 X54 R12
+G01 X82
+G02 X108 R13
+G01 X123
+X80 Y45
+X40
+Y75
+G03 X35 Y80 R5
+G01 X20
+G03 X0 Y80 R10
+G01 Y0
+M30

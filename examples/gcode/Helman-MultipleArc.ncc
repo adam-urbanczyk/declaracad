@@ -1,0 +1,11 @@
+(https://www.helmancnc.com/multiple-arc-cnc-mill-program-g2-g3-i-j/)
+N10 M6 T1 G43 H1 M3
+N15 S500 F120
+N20 G0 X0 Y0              (P1)
+N25 G1 Y20                (P2)
+N30 G3 X-15 Y35 I-15 J0   (P3)
+N35 G2 X-45 Y35 I-15 J0   (P4)
+N40 G3 X-60 Y20 I0 J-15   (P5)
+N45 G1 Y0                 (P6)
+N50 G1 X0                 (P1)
+N55 M30

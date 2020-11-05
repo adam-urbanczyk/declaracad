@@ -46,7 +46,7 @@ enamldef Assembly(Part): part:
 
     # File to load
     attr gcode_file = os.path.join(
-        os.path.dirname(__file__), 'data',
+        os.path.dirname(__file__), 'gcode',
         #'boomerangv4.ncc'
         'Griffin Relief.ncc'
     )
