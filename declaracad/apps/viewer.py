@@ -141,7 +141,7 @@ def main(**kwargs):
     view = ViewerWindow(filename='-', frameless=frameless)
     view.protocol = ViewerProtocol(view=view, watch=watch)
     if watch:
-        timed_call(1000, view.check_for_changes)
+        timed_call(1000, view.protocol.check_for_changes)
     view.show()
     app.deferred_call(create_stdio_connection, app.loop, view.protocol)
     app.deferred_call(view.protocol.handle_filename, filename)
