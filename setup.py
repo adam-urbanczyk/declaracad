@@ -20,7 +20,7 @@ requirements = [
     'markdown',
     'enamlx',
     'asyncqt',  # asyncio + qt
-    'pyserial',
+    'pyserial>=3.5',
     'lxml',
     'PyQt5',
     'PyQtWebEngine',
