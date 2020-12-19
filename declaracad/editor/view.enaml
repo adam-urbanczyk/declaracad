@@ -277,13 +277,14 @@ enamldef Editor(Scintilla): editor:
     syntax << detect_syntax(plugin, doc.name)
     attr doc: Document = Document()
     attr editor_font: str << f'{plugin.font_size}pt "{plugin.font_family}"'
+    editor_font :: style_timer.start()
     attr error_popup = None
 
     func update_font(theme, font):
         theme['settings']['font'] = font
-        return theme
-    theme  << update_font(THEMES[plugin.theme] if plugin else THEMES['tango'],
-                            editor_font)
+        return theme.copy()
+    theme  << update_font(
+        THEMES[plugin.theme] if plugin else THEMES['tango'], editor_font)
     theme :: set_margin_colors()
     settings << {
         "tab_width": 4,
@@ -471,7 +472,7 @@ enamldef Editor(Scintilla): editor:
                     image=load_image("exclamation" if i.color=="#FF0000"
                                         else "error"))
                     for i in indicators]
-    #warnings
+
     Timer: timer:
         interval = 500
         single_shot = True
@@ -479,7 +480,10 @@ enamldef Editor(Scintilla): editor:
             doc.cursor = editor.cursor_position
             doc.source = editor.get_text()
             editor.autocompletions = doc.suggestions
-
+    Timer: style_timer:
+        interval = 100
+        single_shot = True
+        timeout :: editor.proxy.refresh_style()
 
 
 enamldef EditorDockItem(DockItem): view:
