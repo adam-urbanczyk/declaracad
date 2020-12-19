@@ -50,19 +50,14 @@ def find_data_files(*modules):
 def find_occt_libs():
     """ Find all the libTK*.so files """
     import OCCT
-    print(OCCT.__path__[0])
-    root = dirname(dirname(OCCT.__path__[0]))
+    root = dirname(dirname(dirname(OCCT.__path__[0])))
+    print(f'root={root} occt={OCCT.__path__[0]}')
     if sys.platform == 'win32':
-        ext = 'TK*.lib'
-        # lib/site-packages/OCCT
+        libs = 'TK*.lib'
     elif sys.platform == 'darwin':
-        ext = 'libTK*.dylib'
+        libs = 'libTK*.dylib'
     else:
-        # lib/python3.8/site-packages/OCCT
-        root = dirname(root)
         libs = 'libTK*.so'
-    assert root.lower().endswith('lib') and exists(root), \
-        "Couldn't find the folder where occt libraries are"
     print(os.listdir(root))
 
     results = []

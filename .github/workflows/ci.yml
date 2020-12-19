@@ -32,8 +32,8 @@ jobs:
         run: |
             conda install -c trelau -c conda-forge pyocct
             conda update -y python
-            pip install -e .
-            pip install cx-freeze
+            python -m pip install -e .
+            python -m pip install cx-freeze
       - name: "Build"
         shell: bash -l {0}
         run: |
