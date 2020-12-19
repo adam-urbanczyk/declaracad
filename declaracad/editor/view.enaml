@@ -276,7 +276,7 @@ enamldef Editor(Scintilla): editor:
     hug_width = 'ignore'
     syntax << detect_syntax(plugin, doc.name)
     attr doc: Document = Document()
-    attr editor_font: str << f"{plugin.font_size}pt {plugin.font_family}"
+    attr editor_font: str << f'{plugin.font_size}pt "{plugin.font_family}"'
     attr error_popup = None
 
     func update_font(theme, font):
