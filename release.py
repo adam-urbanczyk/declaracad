@@ -53,18 +53,20 @@ def find_occt_libs():
     print(OCCT.__path__[0])
     root = dirname(dirname(OCCT.__path__[0]))
     if sys.platform == 'win32':
-        ext = '.pyd'
+        ext = 'TK*.lib'
         # lib/site-packages/OCCT
     elif sys.platform == 'darwin':
-        ext = '.dylib'
+        ext = 'libTK*.dylib'
     else:
         # lib/python3.8/site-packages/OCCT
         root = dirname(root)
-        ext = '.so'
+        libs = 'libTK*.so'
     assert root.lower().endswith('lib') and exists(root), \
         "Couldn't find the folder where occt libraries are"
+    print(os.listdir(root))
+
     results = []
-    pattern = os.path.join(root, f'libTK*{ext}')
+    pattern = os.path.join(root, libs)
     for filename in glob(pattern):
         dest = os.path.join('..', os.path.split(filename)[-1])
         results.append((filename, dest))
