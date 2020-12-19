@@ -53,6 +53,7 @@ def find_occt_libs():
     root = dirname(dirname(dirname(OCCT.__path__[0])))
     print(f'root={root} occt={OCCT.__path__[0]}')
     if sys.platform == 'win32':
+        root = os.path.join(root, 'Library', 'lib')
         libs = 'TK*.lib'
     elif sys.platform == 'darwin':
         libs = 'libTK*.dylib'
