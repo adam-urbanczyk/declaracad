@@ -64,9 +64,13 @@ def find_occt_libs():
     results = []
     pattern = os.path.join(root, libs)
     for filename in glob(pattern):
-        dest = os.path.join('..', os.path.split(filename)[-1])
+        lib = os.path.split(filename)[-1]
+        if sys.platform == 'win32':
+            dest = lib
+        else:
+            dest = os.path.join('..', lib)
         results.append((filename, dest))
-
+    print(results)
     assert results, "No occt libraries found!"
     return results
 
