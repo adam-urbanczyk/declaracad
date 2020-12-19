@@ -22,10 +22,15 @@ version = '0.4.0dev'
 LOG_FORMAT = '%(asctime)-15s | %(levelname)-7s | %(name)s | %(message)s'
 
 
-def get_log_filename():
+def get_log_dir():
     log_dir = os.path.expanduser('~/.config/declaracad/logs')
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
+    return log_dir
+
+
+def get_log_filename():
+    log_dir = get_log_dir()
     return os.path.join(log_dir, 'declaracad.txt')
 
 
@@ -37,10 +42,16 @@ def init_logging(log_format=LOG_FORMAT):
     log.setLevel(logging.DEBUG)
     formatter = logging.Formatter(log_format)
 
-    #: Log to stdout
-    stream = logging.StreamHandler(sys.stdout)
-    stream.setLevel(logging.DEBUG)
-    stream.setFormatter(formatter)
+    is_frozen = getattr(sys, "frozen", False)
+    if is_frozen:
+        # Redirect stderr and stdout to a file on windows
+        log_dir = get_log_dir()
+        sys.stdout = open(os.path.join(log_dir, 'stdout.txt'), 'a')
+        sys.stderr = open(os.path.join(log_dir, 'stderr.txt'), 'a')
+    else:
+        stream = logging.StreamHandler(sys.stdout)
+        stream.setLevel(logging.DEBUG)
+        stream.setFormatter(formatter)
 
     #: Log to rotating handler
     disk = RotatingFileHandler(
@@ -52,7 +63,8 @@ def init_logging(log_format=LOG_FORMAT):
     disk.setFormatter(formatter)
 
     log.addHandler(disk)
-    log.addHandler(stream)
+    if not is_frozen:
+        log.addHandler(stream)
 
     #: Set ipython logging to warning
     for name in ('ipykernel.inprocess.ipkernel', 'traitlets',
