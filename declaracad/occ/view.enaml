@@ -240,28 +240,59 @@ enamldef ModelViewer(OccViewer): viewer:
             return
         self.last_key = ''
 
+    func describe_shape(shape_type, topods_shape):
+        if shape_type == 'vertex':
+            v = Point(Topology.cast_shape(topods_shape))
+            return [f"  Vertex: {v[:]}"]
+        elif shape_type == 'edge':
+            topology = Topology(shape=topods_shape)
+            verticies = topology.number_of_vertices()
+            length = topology.length(topods_shape)
+            desc = [
+                f"  Edge: {verticies} vertices",
+                f"  Length: {length}"
+            ]
+
+            return desc
+
     func describe_selection(selection):
         if not selection or not selection.selection:
             return 'Nothing selected'
         desc = []
-        for d, items in selection.selection.items():
-            if desc:
-                desc.append("")
+        try:
+            for d, items in selection.selection.items():
+                if desc:
+                    desc.append("")
 
-            desc.append(f"{d.__class__.__name__}:")
-            if d and d.name:
-                desc.append(f"  Name: {d.name}")
-            #pos = d.position
-            #desc.append(f"  Position: {pos.x}, {pos.y}, {pos.z}")
-            for shape_type, mapping in items.items():
-                n = len(mapping)
-                keys = ', '.join(map(str, sorted(mapping.keys())))
-                if n == 1:
-                    shape_type = shape_type[:-1]
-                desc.append(f"  Topoolgy: {n} {shape_type}")
-                desc.append(f"  Indices: {keys}")
-            if d and d.description:
-                desc.append(f"  {d.description}")
+                if d is not None:
+                    desc.append(f"{d.__class__.__name__}:")
+                elif len(items) == 1:
+                    for shape_type, mapping in items.items():
+                        shape_type = shape_type[:-1]
+                        desc.append(f"{shape_type.title()}:")
+                else:
+                    desc.append(f"Unknown:")
+                if d and d.name:
+                    desc.append(f"  Name: {d.name}")
+                #pos = d.position
+                #desc.append(f"  Position: {pos.x}, {pos.y}, {pos.z}")
+                for shape_type, mapping in items.items():
+                    n = len(mapping)
+                    keys = ', '.join(map(str, sorted(mapping.keys())))
+                    if n == 1:
+                        shape_type = shape_type[:-1]
+                    desc.append(f"  Topoolgy: {n} {shape_type}")
+                    desc.append(f"  Indices: {keys}")
+                    if n == 1:
+                        for k, v in mapping.items():
+                            shape_desc = describe_shape(shape_type, v)
+                            if shape_desc:
+                                desc.extend(shape_desc)
+
+                if d and d.description:
+                    desc.append(f"  {d.description}")
+        except Exception as e:
+            log.exception(e)
 
         return "\n".join(desc)
 
