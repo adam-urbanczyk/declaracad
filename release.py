@@ -13,21 +13,8 @@ import os
 import sys
 import importlib
 from glob import glob
-from os.path import dirname, split
+from os.path import dirname, split, exists
 from cx_Freeze import setup, Executable
-
-
-# Dependencies are automatically detected, but it might need
-# fine tuning.
-def patch():
-    #: Patch zope to include an __init__.py file
-    #: idk what person thought leaving it out was a good idea
-    mod = importlib.import_module('zope')
-    zope_dir = dirname(mod.__file__)
-    __init__py = os.path.join(zope_dir, '__init__.py')
-    if not os.path.exists(__init__py):
-        with open(__init__py, 'w') as f:
-            pass
 
 
 def find_enaml_files(*modules):
@@ -60,9 +47,29 @@ def find_data_files(*modules):
     return files.items()
 
 
-patch()
+def find_occt_libs():
+    """ Find all the libTK*.so files """
+    if sys.platform == 'win32':
+        ext = '.pyd'
+    elif sys.platform == 'darwin':
+        ext = '.dylib'
+    else:
+        ext = '.so'
+    import OCCT
+    root = dirname(dirname(dirname(OCCT.__path__[0])))
+    assert exists(root), "Couldn't find the folder where occt libraries are"
+    results = []
+    pattern = os.path.join(root, f'libTK*{ext}')
+    for filename in glob(pattern):
+        dest = os.path.join('..', os.path.split(filename)[-1])
+        results.append((filename, dest))
+
+    assert results, "No occt libraries found!"
+    return results
+
+
 setup(
-  name='dceclaracad',
+  name='declaracad',
   author="CodeLV",
   author_email="frmdstryr@gmail.com",
   license='GPLv3',
@@ -74,51 +81,47 @@ setup(
       build_exe=dict(
           packages=[
               'declaracad',
-              'enaml',
-              'enamlx',
-              'qt5reactor',
+              'enaml.core.compiler_helpers',
+              'enaml.core.template_',
+              'enaml.scintilla.api',
+              'enaml.workbench.core.api',
+              'enaml.workbench.ui.ui_plugin',
+              'enamlx.widgets.api',
+              'markdown',
               'pygments',
               'ipykernel',
-              'zmq'
+              'zmq.utils.garbage',
           ],
           zip_include_packages=[
-              'atom',
-              'asn1crypto', 'asyncio', 'attr', 'autobahn', 'automat',
-              'collections', 'concurrent', 'constantly', 'ctypes', 'curses',
-              'cffi', 'cryptography',
-              'dateutil', 'dbm', 'distutils',
-              'email', 'enaml', 'enamlx', 'encodings',
-              'future',
-              'html', 'http',
-              'idna', 'importlib', 'incremental', 'ipykernel', 'IPython',
-              'ipython_genutils',
-              'jedi', 'json', 'jsonpickle', 'jupyter_client', 'jupyter_core',
-              #'lib2to3',
-              'logging', 'libfuturize',
-              #'micropyde',
-              'multiprocessing',
-              'OpenSSL',
-              'parso', 'past', 'pexpect', 'pkg_resources', 'ply',
-              'prompt_toolkit', 'ptyprocess', 'pydoc_data', 'pyflakes',
-              'pygments', 'pycparser',
-              'qtconsole', 'qt5reactor', 'qtpy',
-              'sqlite3', 'setuptools', 'serial',
-              'traitlets', 'twisted', 'traitlets', 'txaio', 'tornado',
-              'tkinter', 'test',
-              'unittest', 'urllib',
-              'wcwidth',
-              'xml', 'xmlrpc',
-              'zope',
-              #'zmq',
+            'asyncqt',
+            'alablaster',
+            'curses',
+            'dateutil', 'distutils', 'docutils',
+            'email',
+            'enamlx',
+            'encodings',
+            'ezdxf',
+            'IPython',
+            'http',
+            'json', 'jsonpickle', 'jupyter_client', 'jupyter_core',
+            'logging',
+            'numpydoc',
+            'parso', 'pygments',  'pytest', 'pluggy', 'ply', 'prompt_toolkit',
+            'pytz', 'pydoc_data', 'pycparsre', 'ptyprocess',
+            'qtpy', 'qtconsole',
+            'sqlite3', 'sphinx', 'serial', 'scipy',
+            'traitlets', 'tornado', 'toml', 'test',
+            'unittest', 'urllib',
+            'wcwidth',
+            'xml', 'xmlrpc',
           ],
-          zip_includes=find_enaml_files(
-              #'micropyde',
-              'enaml',
-          ),
+          zip_includes=find_enaml_files('enaml'),
+          include_files=find_occt_libs(),
           excludes=[
-              'enaml.core.byteplay.byteplay2',
+              'wx',
+              'tkinter',
               'enamlx.qt.qt_occ_viewer',
-              #'lib2to3',
+              'zmq.eventloop.minitornado',
           ],
       )
   ),
