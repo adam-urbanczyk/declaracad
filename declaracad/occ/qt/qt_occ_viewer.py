@@ -824,7 +824,10 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             ma = material_to_material_aspect(material)
             ais_shape.SetMaterial(ma)
 
-        self.ais_context.Display(ais_shape, update)
+        try:
+            self.ais_context.Display(ais_shape, update)
+        except RuntimeError as e:
+            log.exception(e)
         return ais_shape
 
     def display_geom(self, geom, color=None, transparency=None,
