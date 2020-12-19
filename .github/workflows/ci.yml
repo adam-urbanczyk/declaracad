@@ -34,10 +34,16 @@ jobs:
             conda update -y python
             python -m pip install -e .
             python -m pip install cx-freeze
-      - name: "Build"
+      - name: "Build dist"
+        if: ${{ matrix.os == 'ubuntu-latest' }}
         shell: bash -l {0}
         run: |
             python release.py bdist
+      - name: "Build msi"
+        if: ${{ matrix.os == 'windows-latest' }}
+        shell: bash -l {0}
+        run: |
+            python release.py bdist_msi
       - name: "Upload package"
         uses: actions/upload-artifact@v1
         with:
