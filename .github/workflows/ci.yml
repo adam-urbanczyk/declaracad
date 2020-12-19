@@ -1,0 +1,44 @@
+name: Workflow
+on:
+  push:
+    branches:
+    - '*'
+  #pull_request:
+  #  branches:
+  #  - '*'
+jobs:
+  build:
+    name: Build (${{ matrix.python-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ['ubuntu-latest', 'windows-latest']
+        python-version: ['3.8']
+    steps:
+      - name: "Download"
+        uses: actions/checkout@v2
+      - name: "Install miniconda"
+        uses: goanpeca/setup-miniconda@v1
+        with:
+          auto-update-conda: true
+          python-version: ${{ matrix.python-version }}
+      - name: "Configure conda"
+        run: |
+            conda info
+            conda config --add channels conda-forge
+      - name: "Install"
+        shell: bash -l {0}
+        run: |
+            conda install -c trelau -c conda-forge pyocct
+            pip install -e .
+            pip install cx-freeze
+      - name: "Build"
+        shell: bash -l {0}
+        run: |
+            python release.py bdist
+      - name: "Upload package"
+        uses: actions/upload-artifact@v1
+        with:
+            name: declaracad-py${{ matrix.python-version }}-${{ matrix.os }}
+            path: dist
