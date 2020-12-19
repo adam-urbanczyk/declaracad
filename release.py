@@ -54,21 +54,22 @@ def find_occt_libs():
     print(f'root={root} occt={OCCT.__path__[0]}')
     if sys.platform == 'win32':
         root = os.path.join(root, 'Library', 'lib')
+        target = 'lib'
         libs = 'TK*.lib'
     elif sys.platform == 'darwin':
+        target = '..'
         libs = 'libTK*.dylib'
     else:
+        target = '..'
         libs = 'libTK*.so'
     print(os.listdir(root))
 
     results = []
     pattern = os.path.join(root, libs)
+
     for filename in glob(pattern):
         lib = os.path.split(filename)[-1]
-        if sys.platform == 'win32':
-            dest = lib
-        else:
-            dest = os.path.join('..', lib)
+        dest = os.path.join(target, lib)
         results.append((filename, dest))
     print(results)
     assert results, "No occt libraries found!"
