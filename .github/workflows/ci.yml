@@ -49,7 +49,7 @@ jobs:
         run: |
             python release.py bdist_msi
       - name: "Upload package"
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v2
         with:
             name: declaracad-py${{ matrix.python-version }}-${{ matrix.os }}
-            path: dist
+            path: dist/declaracad-*
