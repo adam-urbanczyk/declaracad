@@ -25,7 +25,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: "Configure conda"
         run: |
-            conda update -y python
             conda info
             conda config --add channels conda-forge
       - name: "Install compiler"
@@ -33,12 +32,11 @@ jobs:
         shell: bash -l {0}
         run: |
             conda install gxx_linux-64
-
       - name: "Install"
         shell: bash -l {0}
         run: |
             conda install -c trelau -c conda-forge pyocct
-
+            conda update -y python
             python -m pip install -e .
             python -m pip install cx-freeze
       - name: "Build dist"
