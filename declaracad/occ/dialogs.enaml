@@ -16,6 +16,7 @@ if sys.platform == 'win32':
     from enaml import winutil
 from enaml.image import Image
 from enaml.layout.api import align, hbox, spacer
+from enaml.application import deferred_call
 from enaml.core.api import Conditional, Looper
 from enaml.stdlib.dialog_buttons import DialogButtonBox, DialogButton
 from enaml.stdlib.task_dialog import (
@@ -146,6 +147,13 @@ enamldef ScreenCaptureDialog(Dialog): dialog:
                                  default_dir=plugin.screenshot_dir,
                                  target=event.parameters.get('target', ''))
 
+    async func take_screenshot(options):
+        results = []
+        for f in plugin.screenshot(event):
+            results.append(await f)
+        dialog.show_preview = True
+        dialog.results = results
+
     TaskDialogStyleSheet:
             pass
     TaskDialogBody:
@@ -203,7 +211,7 @@ enamldef ScreenCaptureDialog(Dialog): dialog:
                 Looper:
                     iterable << results
                     Conditional: cond:
-                        condition << image_ready(loop_item.result)
+                        condition << image_ready(loop.item)
                         ImageView:
                             resist_width = 'weak'
                             resist_height = 'weak'
@@ -211,11 +219,11 @@ enamldef ScreenCaptureDialog(Dialog): dialog:
                             allow_upscaling = False
                             preserve_aspect_ratio = True
                             constraints = [(width == 640) | 'weak', (height == 480) | 'weak']
-                            image << load_image(loop_item.result)
+                            image << load_image(loop.item)
                     Conditional:
                         condition << not cond.condition
                         MultilineField:
-                            text << str(loop_item.result) if loop_item.result else "Loading..."
+                            text << str(loop.item) if loop.item else "Loading..."
 
         TaskDialogCommandArea:
             constraints = [
@@ -223,7 +231,7 @@ enamldef ScreenCaptureDialog(Dialog): dialog:
                 align('v_center', btn_yes, btn_no),
             ]
             CheckBox: show_options:
-                text = "Show preview"
+                text = "Show result"
                 checked := dialog.show_preview
             PushButton: btn_no:
                 text << "Close" if results else "Cancel"
@@ -233,6 +241,5 @@ enamldef ScreenCaptureDialog(Dialog): dialog:
                 text = "Export"
                 clicked ::
                     event.parameters['options'] = options
-                    dialog.results = plugin.screenshot(event)
-                    dialog.show_preview = True
+                    deferred_call(take_screenshot, options, async_=True)
 

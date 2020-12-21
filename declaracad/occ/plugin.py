@@ -17,6 +17,7 @@ import time
 import enaml
 import atexit
 import asyncio
+import functools
 import jsonpickle
 from types import ModuleType
 from atom.api import (
@@ -34,10 +35,28 @@ from enaml.colors import ColorMember
 from .part import Part
 
 
+@functools.lru_cache
+def is_remote_attr(name):
+    """ Check if the given attr name is valid on the remote viewer.
+
+    """
+    with enaml.imports():
+        from .view import ViewerWindow, ModelViewer
+    attrs = [name]
+    if name.startswith('set_'):
+        attrs.append(name[4:])
+    for cls in (ViewerWindow, ModelViewer):
+        for attr in attrs:
+            if hasattr(cls, attr):
+                return True
+    return False
+
+
 def viewer_factory():
     with enaml.imports():
         from .view import ViewerDockItem
     return ViewerDockItem
+
 
 def document_type():
     from declaracad.editor.plugin import Document
@@ -257,6 +276,8 @@ class ViewerProcess(ProcessLineReceiver):
         if not isinstance(response, dict):
             log.debug(f"viewer | out | {response.rstrip()}")
             return
+        elif response:
+            log.debug(f"viewer | out | {response}")
 
         #: Special case for startup
         response_id = response.get('id')
@@ -293,17 +314,17 @@ class ViewerProcess(ProcessLineReceiver):
             # Lookup the deferred object that should be stored for this id
             # when it is called and invoke the callback or errback based on the
             # result
-            d = self._responses.get(response_id)
-            if d is not None:
-                del self._responses[response_id]
+            f = self._responses.pop(response_id, None)
+            if f is not None:
                 try:
                     error = response.get('error')
                     if error is not None:
                         if doc:
-                            doc.errors.extend(error.get('message', '').split("\n"))
-                        d.add_done_callback(error)
+                            msgs = error.get('message', '').split("\n")
+                            doc.errors.extend(msgs)
+                        f.set_error(RuntimeError(error))
                     else:
-                        d.add_done_callback(response.get('result'))
+                        f.set_result(response.get('result'))
                     return
                 except Exception as e:
                     log.warning("RPC response not properly handled!")
@@ -364,16 +385,17 @@ class ViewerProcess(ProcessLineReceiver):
         remote viewer.
 
         """
-        if name.startswith('set_'):
-            def remote_viewer_call(*args, **kwargs):
-                d = asyncio.Future()
-                self._id += 1
-                kwargs['_id'] = self._id
-                self._responses[self._id] = d
-                self.send_message(name, *args, **kwargs)
-                return d
-            return remote_viewer_call
-        raise AttributeError("No attribute %s" % name)
+        if not is_remote_attr(name):
+            raise AttributeError(f"Remote viewer has no attribute '{name}'")
+
+        def remote_viewer_call(*args, **kwargs):
+            f = asyncio.Future()
+            self._id += 1
+            kwargs['_id'] = self._id
+            self._responses[self._id] = f
+            self.send_message(name, *args, **kwargs)
+            return f
+        return remote_viewer_call
 
 
 class ViewerPlugin(Plugin):
@@ -438,7 +460,7 @@ class ViewerPlugin(Plugin):
         viewer = self.get_viewer()
         editor = self.workbench.get_plugin('declaracad.editor').get_editor()
         doc = editor.doc
-        viewer.renderer.set_source(editor.get_text())
+        viewer.renderer.source = editor.get_text()
         doc.version += 1
 
     def get_viewer(self, name=None):

@@ -386,7 +386,7 @@ class Topology(Atom):
 
             # return the entity if not in set
             # to assure we're not returning entities several times
-            if not topo_entity in topo_set:
+            if topo_entity not in topo_set:
                 if self.ignore_orientation:
                     unique = True
                     for i in topo_set:

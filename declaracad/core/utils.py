@@ -14,6 +14,7 @@ import os
 import sys
 import asyncio
 import logging
+import functools
 import traceback
 import jsonpickle
 from contextlib import contextmanager
@@ -134,7 +135,6 @@ def capture_output():
 class JSONRRCProtocol(Atom, asyncio.Protocol):
     #: Process transport
     transport = Value()
-    #buffer = Instance(io.BytesIO(), ())
 
     def send_message(self, message):
         response = {'jsonrpc': '2.0'}
@@ -169,25 +169,20 @@ class JSONRRCProtocol(Atom, asyncio.Protocol):
         try:
             request = jsonpickle.loads(line)
         except Exception as e:
-            self.send_message({"id": None,
-                               'error': {'code': -32700,
-                                         'message': f'Parse error: "{line}"'}})
-            return
+            return self.send_message({'id': None, 'error': {
+                'code': -32700, 'message': f'Parse error: "{line}"'}})
 
         request_id = request.get('id')
         method = request.get('method')
         if method is None:
-            self.send_message({"id": request_id,
-                               'error': {'code': -32600,
-                                         'message': "Invalid request"}})
-            return
+            return self.send_message({"id": request_id, "error": {
+                'code': -32600, 'message': "Invalid request"}})
 
         handler = getattr(self, 'handle_{}'.format(method), None)
         if handler is None:
             msg = f"Method '{method}' not found"
-            self.send_message({
-                "id": request_id, 'error': {'code': -32601, 'message': msg}})
-            return
+            return self.send_message({"id": request_id, 'error': {
+                'code': -32601, 'message': msg}})
 
         try:
             params = request.get('params', [])
@@ -195,12 +190,10 @@ class JSONRRCProtocol(Atom, asyncio.Protocol):
                 result = handler(**params)
             else:
                 result = handler(*params)
-            if request_id is not None:
-                self.send_message({'id': request_id, 'result': result})
+            return self.send_message({'id': request_id, 'result': result})
         except Exception as e:
-            self.send_message({"id": request_id,
-                               'error': {'code': -32500,
-                                         'message': traceback.format_exc()}})
+            return self.send_message({"id": request_id, 'error': {
+                'code': -32500, 'message': traceback.format_exc()}})
 
 
 class ProcessLineReceiver(Atom, asyncio.SubprocessProtocol):

@@ -71,7 +71,7 @@ class ViewerProtocol(JSONRRCProtocol):
         """
         if not name.startswith('handle_'):
             raise AttributeError(name)
-        attr = name[len('handle_'):]  # Strip handle_
+        attr = name[7:]  # Strip handle_
 
         # Lookup matching methods on the window and viewer
         for target in (self.view, self.view.viewer):
