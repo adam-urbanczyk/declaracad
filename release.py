@@ -110,7 +110,7 @@ setup(
             'encodings',
             'ezdxf',
             'IPython',
-            'http',
+            'http', 'html',
             'json', 'jsonpickle', 'jupyter_client', 'jupyter_core',
             'logging',
             'numpydoc',
