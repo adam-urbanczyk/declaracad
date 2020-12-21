@@ -42,16 +42,9 @@ def init_logging(log_format=LOG_FORMAT):
     log.setLevel(logging.DEBUG)
     formatter = logging.Formatter(log_format)
 
-    is_frozen = getattr(sys, "frozen", False)
-    if is_frozen:
-        # Redirect stderr and stdout to a file on windows
-        log_dir = get_log_dir()
-        sys.stdout = open(os.path.join(log_dir, 'stdout.txt'), 'a')
-        sys.stderr = open(os.path.join(log_dir, 'stderr.txt'), 'a')
-    else:
-        stream = logging.StreamHandler(sys.stdout)
-        stream.setLevel(logging.DEBUG)
-        stream.setFormatter(formatter)
+    stream = logging.StreamHandler(sys.stdout)
+    stream.setLevel(logging.DEBUG)
+    stream.setFormatter(formatter)
 
     #: Log to rotating handler
     disk = RotatingFileHandler(
@@ -63,14 +56,16 @@ def init_logging(log_format=LOG_FORMAT):
     disk.setFormatter(formatter)
 
     log.addHandler(disk)
-    if not is_frozen:
-        log.addHandler(stream)
+    log.addHandler(stream)
 
     #: Set ipython logging to warning
     for name in ('ipykernel.inprocess.ipkernel', 'traitlets',
                  'parso.python.diff', 'parso.cache'):
         log = logging.getLogger(name)
         log.setLevel(logging.WARNING)
+
+    # Needs to be here to make windows happy
+    faulthandler.enable()
 
 
 def launch_exporter(args):
@@ -95,7 +90,14 @@ def launch_workbench(args):
 
 
 def main():
-    faulthandler.enable()
+    is_frozen = getattr(sys, "frozen", False)
+
+    if is_frozen:
+        # Redirect stderr and stdout to a file on windows
+        log_dir = get_log_dir()
+        sys.stdout = open(os.path.join(log_dir, 'stdout.txt'), 'a')
+        sys.stderr = open(os.path.join(log_dir, 'stderr.txt'), 'a')
+
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='DeclaraCAD subcommands')
     viewer = subparsers.add_parser("view", help="View the given file")
