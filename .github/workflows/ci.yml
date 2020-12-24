@@ -27,6 +27,7 @@ jobs:
         run: |
             conda info
             conda config --add channels conda-forge
+            conda install nomkl
       - name: "Install compiler"
         if: ${{ matrix.os == 'ubuntu-latest' }}
         shell: bash -l {0}
