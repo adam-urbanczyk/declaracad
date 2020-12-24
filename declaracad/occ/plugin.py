@@ -25,7 +25,7 @@ from atom.api import (
     ForwardInstance, Constant, observe, set_default
 )
 from declaracad.core.api import Plugin, Model, log
-from declaracad.core.utils import ProcessLineReceiver
+from declaracad.core.utils import ProcessLineReceiver, get_bootstrap_cmd
 
 from enaml.application import timed_call, deferred_call
 from enaml.core.parser import parse
@@ -232,9 +232,7 @@ class ViewerProcess(ProcessLineReceiver):
 
     async def start(self):
         atexit.register(self.terminate)
-        cmd = [sys.executable]
-        if not sys.executable.endswith('declaracad'):
-            cmd.extend(['-m', 'declaracad'])
+        cmd = get_bootstrap_cmd()
         cmd.extend(['view', '-', '-f'])
         loop = asyncio.get_event_loop()
         self.process = await loop.subprocess_exec(lambda: self, *cmd)
@@ -487,10 +485,7 @@ class ViewerPlugin(Plugin):
             raise ValueError("An export `options` parameter is required")
 
         # Pickle the configured exporter and send it over
-        cmd = [sys.executable]
-        if not sys.executable.endswith('declaracad'):
-            cmd.extend(['-m', 'declaracad'])
-
+        cmd = get_bootstrap_cmd()
         data = jsonpickle.dumps(options)
         assert data != 'null', f"Exporter failed to serialize: {options}"
         cmd.extend(['export', data])

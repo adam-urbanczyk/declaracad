@@ -132,6 +132,21 @@ def capture_output():
         sys.stdout = _stdout
 
 
+def get_bootstrap_cmd():
+    """ Get the command to the main executable depending on how it's run
+
+    Returns
+    -------
+    cmd: List[str]
+        The command to run declaracad
+    """
+    is_frozen = getattr(sys, "frozen", False)
+    cmd = [sys.executable]
+    if not sys.executable.endswith('declaracad') and not is_frozen:
+        cmd.extend(['-m', 'declaracad'])
+    return cmd
+
+
 class JSONRRCProtocol(Atom, asyncio.Protocol):
     #: Process transport
     transport = Value()
