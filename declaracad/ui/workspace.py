@@ -9,14 +9,14 @@ Created on Jul 12, 2015
 
 @author: jrm
 """
-from __future__ import print_function
-
+import os
 import jsonpickle as pickle
 
 from atom.api import Str
-
 from enaml.widgets.api import Container
 from enaml.workbench.ui.api import Workspace
+from declaracad import get_log_dir
+from declaracad.core.utils import log
 
 import enaml
 with enaml.imports():
@@ -29,6 +29,12 @@ class DeclaracadWorkspace(Workspace):
     """
     #: Storage for the plugin manifest's id.
     _manifest_id = Str()
+
+    #: Where the workspace is stored
+    _workspace_file = Str()
+
+    def _default__workspace_file(self):
+        return os.path.join(get_log_dir(), 'declaracad.workspace.db')
 
     def start(self):
         """ Start the workspace instance.
@@ -64,10 +70,10 @@ class DeclaracadWorkspace(Workspace):
         """
         area = self.content.find('dock_area')
         try:
-            with open('declaracad.workspace.db', 'w') as f:
+            with open(self._workspace_file, 'w') as f:
                 f.write(pickle.dumps(area))
         except Exception as e:
-            print("Error saving dock area: {}".format(e))
+            log.debug("Error saving dock area: {}".format(e))
             return e
 
     def load_area(self):
@@ -77,14 +83,13 @@ class DeclaracadWorkspace(Workspace):
         area = None
         plugin = self.workbench.get_plugin("declaracad.ui")
         try:
-            #with open('inkcut.workspace.db', 'r') as f:
-            #    area = pickle.loads(f.read())
-            pass #: TODO:
+            with open(self._workspace_file, 'r') as f:
+                area = pickle.loads(f.read())
         except Exception as e:
-            print(e)
+            log.debug(e)
         if area is None:
-            print("Creating new area")
+            log.debug("Creating new area")
             area = plugin.create_new_area()
         else:
-            print("Loading existing doc area")
+            log.debug("Loading existing doc area")
         area.set_parent(self.content)
