@@ -12,6 +12,7 @@ Created on Dec 5, 2017
 import os
 import sys
 import importlib
+import declaracad
 from glob import glob
 from os.path import dirname, split, exists
 from cx_Freeze import setup, Executable
@@ -75,6 +76,9 @@ def find_occt_libs():
     return results
 
 
+is_windows = sys.platform == 'win32'
+
+
 setup(
   name='declaracad',
   author="CodeLV",
@@ -83,7 +87,7 @@ setup(
   url='https://github.com/codelv/declaracad/',
   description="A declarative parametric 3D modeling application",
   long_description=open("README.md").read(),
-  version='1.0',
+  version=declaracad.version,
   options=dict(
       build_exe=dict(
           packages=[
@@ -95,7 +99,6 @@ setup(
               'enaml.workbench.ui.ui_plugin',
               'enamlx.widgets.api',
               'markdown',
-              'markdown.htmlparser',
               'pygments',
               'ipykernel',
               'zmq.utils.garbage',
@@ -109,7 +112,7 @@ setup(
             'enamlx',
             'encodings',
             'ezdxf',
-            'http', 'html',
+            'http', 'html', 'html.parser',
             'IPython', 'ipython_genutils', 'ipykernel',
             'importlib', 'importlib_metadata',
             'json', 'jsonpickle', 'jupyter_client', 'jupyter_core',
@@ -142,10 +145,12 @@ setup(
   executables=[
       Executable(
           'main.py',
-          icon='declaracad/res/icons/logo.png',
+          icon='declaracad/res/icons/logo.' + ('ico' if is_windows else 'png'),
           targetName='declaracad',
-          shortcutName="DeclaraCAD" if sys.platform == 'win32' else None,
-          shortcutDir="DesktopFolder" if sys.platform == 'win32' else None,
-          base='Win32GUI' if sys.platform == 'win32' else None)
+          shortcutName="DeclaraCAD" if is_windows else None,
+          shortcutDir="DesktopFolder" if is_windows else None,
+          # stdout doesn't
+          # base='Win32GUI' is_windows else None
+    )
   ]
 )

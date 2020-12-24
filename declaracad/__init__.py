@@ -94,9 +94,10 @@ def main():
 
     if is_frozen and sys.platform == 'win32':
         # Redirect stderr and stdout to a file on windows
-        log_dir = get_log_dir()
-        sys.stdout = open(os.path.join(log_dir, 'io.txt'), 'a')
-        sys.stderr = open(os.path.join(log_dir, 'stderr.txt'), 'a')
+        # log_dir = get_log_dir()
+        # sys.stdout = open(os.path.join(log_dir, 'io.txt'), 'a')
+        # sys.stderr = open(os.path.join(log_dir, 'stderr.txt'), 'a')
+        pass  # Doesn't work
 
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='DeclaraCAD subcommands')
