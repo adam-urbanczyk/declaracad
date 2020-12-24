@@ -16,8 +16,9 @@ from declaracad.occ.api import Part, Polyline, Topology, Point, Looper
 from declaracad.core.utils import log
 from declaracad.cnc.gcode import Movement, save_to_file
 
-
+from OCCT.BRep import BRep_Builder
 from OCCT.BRepAdaptor import BRepAdaptor_CompCurve
+from OCCT.TopoDS import TopoDS_Compound
 
 
 def get_device():
@@ -40,7 +41,57 @@ def get_device():
     return plugin.device
 
 
-def optimize_toolpath(wires, start_point, reverse=False, optimizer_timeout=30):
+def optimize_graph(wires, optimizer_timeout=30):
+    """ Try to reduce the number of head lifts by retracing common paths.
+
+    Parameters
+    ----------
+    wires: List[TopoDS_Wire]
+        Unordered set of wires
+    Returns
+    -------
+    wires: List[TopoDS_Wires]
+        Wires in the optimal move order
+
+    """
+    if len(wires) < 2:
+        return wires
+
+    # Dump everything into one compound so it can be used with a single topo
+    builder = BRep_Builder()
+    compound = TopoDS_Compound()
+    builder.MakeCompound(compound)
+    for w in wires:
+        builder.Add(compound, w)
+    topo = Topology(shape=compound)
+
+    # Find all wires that branch off
+    # those with no branches can be ignored
+    standalone = []
+    graph = {}
+    for w in wires:
+        branches = {}
+        for vertex in topo.ordered_vertices_from_wire(w):
+            splits = topo.edges_from_vertex(vertext)
+            if len(splits) > 2:
+                other_wires = []
+                for wire in topo.wires_from_vertex(vertex):
+                    if not wire.IsSame(w):
+                        for it in wires:
+                            if it.IsSame(wire):
+                              vreak
+                branches[vertex] = splits
+
+        if branches:
+            graph[w] = branches
+        else:
+            standalone.append(w)
+
+
+    return standalone + others
+
+
+def optimize_moves(wires, start_point, reverse=False, optimizer_timeout=30):
     """  Use Dijkstra's algorithm to find the shortest path between
     a set of wires. Ported from Inkcut
 
@@ -145,7 +196,7 @@ enamldef Toolpath(Part): toolpath:
 
         """
         if self.optimize:
-            wires = optimize_toolpath(wires, start_point, reverse)
+            wires = optimize_moves(wires, start_point, reverse)
         pos = start_point
         cmds = []
         lift = (0, 0, self.clearance)

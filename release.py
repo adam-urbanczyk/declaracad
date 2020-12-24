@@ -38,8 +38,8 @@ def find_data_files(*modules):
     files = {}
     for name in modules:
         mod = importlib.import_module(name)
-        mod_path = name#mod.__file__# if hasattr(mod, '__file__') else name
-        pkg_root = name#dirname(mod_path)
+        mod_path = name
+        pkg_root = name
 
         for f in glob('{}/**/*.png'.format(mod_path), recursive=True):
             pkg = f.replace(pkg_root+os.path.sep, '')
@@ -51,7 +51,7 @@ def find_occt_libs():
     """ Find all the libTK*.so files """
     import OCCT
     root = dirname(dirname(dirname(OCCT.__path__[0])))
-    print(f'root={root} occt={OCCT.__path__[0]}')
+
     if sys.platform == 'win32':
         root = os.path.join(root, 'Library', 'lib')
         target = 'lib'
@@ -62,7 +62,6 @@ def find_occt_libs():
     else:
         target = '..'
         libs = 'libTK*.so'
-    print(os.listdir(root))
 
     results = []
     pattern = os.path.join(root, libs)
@@ -71,7 +70,7 @@ def find_occt_libs():
         lib = os.path.split(filename)[-1]
         dest = os.path.join(target, lib)
         results.append((filename, dest))
-    print(results)
+
     assert results, "No occt libraries found!"
     return results
 
@@ -96,26 +95,30 @@ setup(
               'enaml.workbench.ui.ui_plugin',
               'enamlx.widgets.api',
               'markdown',
+              'markdown.htmlparser',
               'pygments',
               'ipykernel',
               'zmq.utils.garbage',
           ],
           zip_include_packages=[
-            'asyncqt',
-            'alablaster',
-            'curses',
+            'asyncqt', 'asyncio',
+            'backcall', 'bytecode',
+            'curses', 'chardet', 'collections', 'concurrent',
             'dateutil', 'distutils', 'docutils',
             'email',
             'enamlx',
             'encodings',
             'ezdxf',
-            'IPython',
             'http', 'html',
+            'IPython', 'ipython_genutils', 'ipykernel',
+            'importlib', 'importlib_metadata',
             'json', 'jsonpickle', 'jupyter_client', 'jupyter_core',
+            'jedi', 'jinja2',
             'logging',
             'numpydoc',
+            'multiprocessing',
             'parso', 'pygments',  'pytest', 'pluggy', 'ply', 'prompt_toolkit',
-            'pytz', 'pydoc_data', 'pycparsre', 'ptyprocess',
+            'pytz', 'pydoc_data', 'pycparsre', 'ptyprocess', 'pkg_resources',
             'qtpy', 'qtconsole',
             'sqlite3', 'sphinx', 'serial', 'scipy',
             'traitlets', 'tornado', 'toml', 'test',
@@ -126,16 +129,23 @@ setup(
           zip_includes=find_enaml_files('enaml'),
           include_files=find_occt_libs(),
           excludes=[
+              'alabaster',
+              'babel',
               'wx',
               'tkinter',
+              'matplotlib',
               'enamlx.qt.qt_occ_viewer',
               'zmq.eventloop.minitornado',
           ],
       )
   ),
   executables=[
-      Executable('main.py',
-                 targetName='declaracad',
-                 base='Win32GUI' if sys.platform == 'win32' else None)
+      Executable(
+          'main.py',
+          icon='declaracad/res/icons/logo.png',
+          targetName='declaracad',
+          shortcutName="DeclaraCAD" if sys.platform == 'win32' else None,
+          shortcutDir="DesktopFolder" if sys.platform == 'win32' else None,
+          base='Win32GUI' if sys.platform == 'win32' else None)
   ]
 )
