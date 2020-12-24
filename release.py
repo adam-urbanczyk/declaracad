@@ -96,6 +96,7 @@ setup(
               'enaml.core.template_',
               'enaml.scintilla.api',
               'enaml.workbench.core.api',
+              'enaml.workbench.core.core_plugin',
               'enaml.workbench.ui.ui_plugin',
               'enamlx.widgets.api',
               'markdown',
