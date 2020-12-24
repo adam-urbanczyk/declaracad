@@ -99,20 +99,21 @@ setup(
               'enaml.workbench.ui.ui_plugin',
               'enamlx.widgets.api',
               'markdown',
+              'html.parser',
               'pygments',
               'ipykernel',
               'zmq.utils.garbage',
           ],
           zip_include_packages=[
-            'asyncqt', 'asyncio',
+            'asyncqt', 'asyncio', 'attr',
             'backcall', 'bytecode',
-            'curses', 'chardet', 'collections', 'concurrent',
+            'curses', 'chardet', 'collections', 'concurrent', 'ctypes',
             'dateutil', 'distutils', 'docutils',
             'email',
             'enamlx',
             'encodings',
             'ezdxf',
-            'http', 'html', 'html.parser',
+            'http',
             'IPython', 'ipython_genutils', 'ipykernel',
             'importlib', 'importlib_metadata',
             'json', 'jsonpickle', 'jupyter_client', 'jupyter_core',
@@ -139,6 +140,12 @@ setup(
               'matplotlib',
               'enamlx.qt.qt_occ_viewer',
               'zmq.eventloop.minitornado',
+              'PyQt5.Qt.translations',
+              'PyQt5.Qt.qml',
+              'PyQt5.Qt.plugins.texttospeech',
+              'PyQt5.Qt.plugins.sqldrivers',
+              'PyQt5.Qt.plugins.geoservices',
+              'PyQt5.Qt.plugins.geometryloaders',
           ],
       )
   ),
@@ -151,6 +158,6 @@ setup(
           shortcutDir="DesktopFolder" if is_windows else None,
           # stdout doesn't
           # base='Win32GUI' is_windows else None
-    )
+      )
   ]
 )
