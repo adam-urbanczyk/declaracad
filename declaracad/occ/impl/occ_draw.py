@@ -472,15 +472,24 @@ class OccWire(OccDependentShape, ProxyWire):
     def update_shape(self, change=None):
         d = self.declaration
         edges = TopTools_ListOfShape()
+        wires = []
         for c in self.children():
             if not isinstance(c, OccShape):
                 continue
             if c.shape is None:
                 raise ValueError("Cannot build wire from empty shape: %s" % c)
             self.extract_edges(c, edges)
+        else:
+            for edge in d.edges:
+                if isinstance(edge, TopoDS_Edge):
+                    edges.Append(edge)
+                else:
+                    wires.append(edge)
 
         builder = BRepBuilderAPI_MakeWire()
         builder.Add(edges)
+        for w in wires:
+            builder.Add(w)
         if not builder.IsDone():
             log.warning('Edges must be connected %s' % d)
         wire = builder.Wire()
