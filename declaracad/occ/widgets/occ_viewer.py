@@ -210,6 +210,9 @@ class ProxyOccViewer(ProxyControl):
     def reset_view(self):
         raise NotImplementedError
 
+    def update_display(self):
+        raise NotImplementedError
+
 
 class OccViewer(Control):
     """ A widget to view OpenCascade shapes.
@@ -231,7 +234,6 @@ class OccViewer(Control):
     #: Selected items
     selection = d_(Typed(ViewerSelection), writable=False)
 
-
     #: View direction
     view_mode = d_(Enum('iso', 'top', 'bottom', 'left', 'right', 'front',
                         'rear'))
@@ -245,9 +247,6 @@ class OccViewer(Control):
 
     def _default_grid_colors(self):
         return (parse_color('#888'), parse_color('#444'))
-
-    #: Selection event
-    #reset_view = d_(Event(),writable=False)
 
     #: Show tahedron
     trihedron_mode = d_(Enum('right-lower', 'right-upper', 'left-lower',
@@ -370,3 +369,7 @@ class OccViewer(Control):
         this or they'll be rerendered.
         """
         self.proxy.clear_display()
+
+    def update_display(self):
+        """ Trigger an update of the display """
+        self.proxy.update_display()
