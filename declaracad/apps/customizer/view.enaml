@@ -1,0 +1,181 @@
+'''
+Created on Sep 28, 2016
+
+@author: jrm
+'''
+import sys
+from atom.api import Atom
+from enaml.application import deferred_call
+from enaml.core.api import Conditional, Include, Looper, DynamicTemplate
+from enaml.layout.api import (
+    HSplitLayout, VSplitLayout, TabLayout, InsertItem,
+    hbox, vbox, spacer
+)
+from enaml.widgets.api import (
+    MainWindow, DockArea, DockItem,  Form, GroupBox, ScrollArea,
+    Notebook, Page, SpinBox, Container, Label, Menu, Action, MenuBar
+)
+from enaml.widgets.dock_events import DockItemEvent
+
+from enamlx.widgets.api import (
+    TreeView, TreeViewItem, TreeViewColumn, DoubleSpinBox
+)
+
+from declaracad.core.api import DockArea, DockItem
+from declaracad.occ.part import Part
+from declaracad.occ.shape import Shape
+from declaracad.occ.widgets.api import OccViewer
+from .advanced import AutoForm
+
+
+template TreeItemLoop(items):
+    """ A templated loop which maps a template over a sequence."""
+    TreeItemLoop(tuple(items[:-1])):
+        pass
+    AutoTreeItem:
+        item = items[-1]
+
+
+template TreeItemLoop(items: ()):
+    """ The terminating condition for the templated loop."""
+    pass
+
+
+template AutoTreeItemNode(item):
+    """ Template for tree item nodes. This defines
+        the columns and how the tree will be walked.
+    """
+    TreeViewColumn:
+        text << str(item)
+    TreeItemLoop(tuple([c for c in item.children if isinstance(c, Shape)])):
+        pass
+
+
+enamldef AutoTreeItem(TreeViewItem):
+    attr item
+    text = str(item)
+    items << [c for c in item.children if isinstance(c, Shape)]
+    DynamicTemplate:
+        base = AutoTreeItemNode
+        args = (item,)
+
+
+enamldef ModelViewer(OccViewer): viewer:
+    attr p0 = None
+    Menu:
+        context_menu = True
+        Action:
+            text = 'Fit all'
+            triggered :: viewer.fit_all()
+        Menu:
+            title = 'View'
+            Looper:
+                iterable << viewer.get_member('view_mode').items
+                Action:
+                    text << loop_item
+                    triggered :: viewer.view_mode = loop_item
+
+
+enamldef PropertyViewer(Container):
+    attr viewer
+
+    func force_redraw(item):
+        if hasattr(item.proxy, 'update_shape'):
+            item.proxy.update_shape()
+        else:
+            item.proxy.create_shape()
+
+    Looper:
+        iterable << viewer.selection.selection if viewer.selection else {}
+        GroupBox:
+            title = "Position"
+            Form:
+                Label:
+                    text = 'X'
+                DoubleSpinBox:
+                    value := loop.item.position.x
+                    value :: force_redraw(loop.item)
+                Label:
+                    text = 'Y'
+                DoubleSpinBox:
+                    value := loop.item.position.y
+                    value :: force_redraw(loop.item)
+                Label:
+                    text = 'Z'
+                DoubleSpinBox:
+                    value := loop.item.position.z
+                    value :: force_redraw(loop.item)
+        GroupBox:
+            title << str(loop.item.__class__)
+            AutoForm:
+                model = loop.item
+
+
+enamldef Main(MainWindow): window:
+    initial_size = (1280, 960)
+    attr model
+    alias viewer: model_viewer
+    MenuBar:
+        Menu:
+            title = '&File'
+            Action:
+                text = 'Quit'
+                triggered :: sys.exit(0)
+    Container:
+        padding = 0
+        DockArea:
+            layout = HSplitLayout(
+                    VSplitLayout(
+                    'model',
+                    'properties',
+                    sizes=[1,1],
+                ),
+                TabLayout('viewer'),
+                sizes=[1,4]
+            )
+
+            DockItem:
+                title = 'Model'
+                name = 'model'
+                stretch = 1
+                Container:
+                    padding = 0
+                    TreeView:
+                        horizontal_headers = ['Item']
+                        horizontal_stretch = True
+
+                        func get_items(*args):
+                            items = []
+                            for c in window.model:
+                                if isinstance(c, Shape):
+                                    items.append(c)
+                            return items
+
+                        items << get_items(window.model)
+                        #selection ::
+                            #if viewer:
+                            #    viewer.selection = [node.item for node in change['value']]
+                        Looper:
+                            iterable << parent.items
+                            AutoTreeItem:
+                                item = loop_item
+
+            DockItem:
+                title = 'Properties'
+                name = 'properties'
+                stretch = 1
+                Container:
+                    padding = 0
+                    ScrollArea:
+                        PropertyViewer:
+                            viewer << model_viewer
+
+            DockItem:
+                title = 'Viewer'
+                name = 'viewer'
+                stretch = 4
+                Container:
+                    padding = 0
+                    ModelViewer: model_viewer:
+                        Include:
+                            objects << window.model

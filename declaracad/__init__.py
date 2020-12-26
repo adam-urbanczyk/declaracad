@@ -83,6 +83,12 @@ def launch_viewer(args):
     viewer.main(**args.__dict__)
 
 
+def launch_customizer(args):
+    init_logging()
+    from declaracad.apps import customizer
+    customizer.main(**args.__dict__)
+
+
 def launch_workbench(args):
     init_logging()
     from declaracad.apps import workbench
@@ -113,6 +119,11 @@ def main():
     exporter.set_defaults(func=launch_exporter)
     exporter.add_argument("options", help="File to export or json string of "
                                           "ExportOption parameters")
+
+    customizer = subparsers.add_parser("customize", help="Customize a model")
+    customizer.set_defaults(func=launch_customizer)
+    customizer.add_argument("file", help="File to customize")
+
     args = parser.parse_args()
 
     # Start the app
