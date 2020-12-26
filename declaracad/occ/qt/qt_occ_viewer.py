@@ -1,5 +1,5 @@
 """
-Copyright (c) 2016-2019, Jairus Martin.
+Copyright (c) 2016-2020, Jairus Martin.
 
 Distributed under the terms of the GPL v3 License.
 
@@ -148,9 +148,6 @@ class QtViewer3d(QOpenGLWidget):
         self.setAttribute(Qt.WA_NoSystemBackground)
         self.setAutoFillBackground(False)
 
-        #self.resize(960, 720)
-        #self.setMinimumSize(960, 720)
-
     def get_window_id(self):
         """ Returns an the identifier of the GUI widget.
         """
@@ -199,7 +196,7 @@ class QtViewer3d(QOpenGLWidget):
             return
         try:
             delta = event.angleDelta().y()  # PyQt5
-        except:
+        except Exception as e:
             delta = event.delta()  # PyQt4/PySide
         view = self.proxy.v3d_view
         view.Redraw()
@@ -213,14 +210,13 @@ class QtViewer3d(QOpenGLWidget):
         handled = False
         view = self.proxy.v3d_view
         for cb in self._callbacks.get(name, []):
-            #: Raise StopIteration to ignore the default handlers
+            # Raise StopIteration to ignore the default handlers
             try:
                 cb((view, event))
             except StopIteration:
                 handled = True
-            except:
-                traceback.print_exc()
-                #log.error(traceback.format_exc())
+            except Exception as e:
+                log.exception(e)
         return handled
 
     def mousePressEvent(self, event):
@@ -233,7 +229,7 @@ class QtViewer3d(QOpenGLWidget):
     def mouseReleaseEvent(self, event):
         if self._fire_event('mouse_released', event):
             return
-        #pt = event.pos()
+        # pt = event.pos()
         modifiers = event.modifiers()
         view = self.proxy.v3d_view
 
@@ -457,6 +453,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         for child in self.children():
             self.child_added(child, update=False)
         self.update_display()
+        deferred_call(self.v3d_view.MustBeResized)
 
     def child_added(self, child, update=True):
         if isinstance(child, OccShape):
@@ -972,7 +969,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     def update_display(self, change=None):
         """ Queue an update request """
         self._update_count += 1
-        timed_call(10, self._do_update)
+        timed_call(1, self._do_update)
 
     def clear_display(self):
         """ Remove all shapes and dimensions drawn """
@@ -1042,7 +1039,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                 qtapp.processEvents()
                 if self._update_count != 0:
                     log.debug("Aborted!")
-                    return # Another update coming abort
+                    return  # Another update coming abort
 
                 d = occ_shape.declaration
                 topods_shape = occ_shape.shape
@@ -1087,7 +1084,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
             # Display all dimensions
             log.debug("Adding {} dimensions...".format(len(self.dimensions)))
-            displayed_dimensions ={}
+            displayed_dimensions = {}
             for item in self.dimensions:
                 dim = item.dimension
                 if dim is not None and item.declaration.display:
@@ -1105,7 +1102,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             self.declaration.bbox = BBox(*bbox)
             log.debug("Took: {}".format(datetime.now() - start_time))
             self.declaration.progress = 100
-        except:
+        except Exception as e:
             log.error("Failed to display shapes: {}".format(
                 traceback.format_exc()))
         finally:
