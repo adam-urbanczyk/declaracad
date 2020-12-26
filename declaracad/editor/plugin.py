@@ -295,8 +295,10 @@ class EditorPlugin(Plugin):
         path = event.parameters.get('path')
         if not path:
             return
+        if not os.path.dirname(path):
+            path = os.path.join(self.project_path, path)
         doc = Document(
-            name=os.path.join(self.project_path, path),
+            name=path,
             source=dedent("""
                 # Created in DeclaraCAD
                 from declaracad.occ.api import *
