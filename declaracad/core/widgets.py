@@ -16,7 +16,7 @@ from enaml.widgets.api import (
 )
 from enaml.workbench.api import Plugin
 from enaml.qt.QtGui import QWindow
-from enaml.qt.QtWidgets import QWidget
+from enaml.qt.QtWidgets import QWidget, QPlainTextEdit
 
 
 # -----------------------------------------------------------------------------
@@ -94,3 +94,15 @@ class EmbeddedWindow(RawWidget):
     def create_widget(self, parent):
         window = QWindow.fromWinId(self.window_id)
         return QWidget.createWindowContainer(window, parent=parent)
+
+
+class PlainTextEdit(RawWidget):
+    """ QTextEdit used by the MultiLineField is horribly slow at appending
+    text. This widget is significantly faster.
+
+    """
+    def create_widget(self, parent):
+        widget = QPlainTextEdit(parent)
+        widget.setReadOnly(True)
+        widget.setMaximumBlockCount(1000)
+        return widget
