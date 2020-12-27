@@ -18,16 +18,22 @@ from OCCT.BRep import BRep_Tool
 from OCCT.TopoDS import TopoDS_Shape
 
 
-TOLERANCE = 1e-6
+class Settings(Atom):
+    """ Used to manage tolerance settings
+
+    """
+    tolerance = Float(1e-6)
+
+
+settings = Settings()
 
 
 @contextmanager
 def tolerance(tol):
-    global TOLERANCE
-    _tol = TOLERANCE
-    TOLERANCE = tol
+    _tol = settings.tolerance
+    settings.tolerance = tol
     yield tol
-    TOLERANCE = _tol
+    settings.tolerance = _tol
 
 
 class BBox(Atom):
@@ -142,8 +148,11 @@ class Point(Atom):
         return self.__class__(self.x - p.x, self.y - p.y, self.z - p.z)
 
     def __eq__(self, other):
+        return self.is_equal(other)
+
+    def is_equal(self, other, tol=None):
         p = self.__coerce__(other)
-        return self.proxy.IsEqual(p.proxy, TOLERANCE)
+        return self.proxy.IsEqual(p.proxy, tol or settings.tolerance)
 
     def __mul__(self, other):
         return self.__class__(self.x * other, self.y * other, self.z * other)
@@ -236,16 +245,16 @@ class Direction(Point):
 
     def is_parallel(self, other, tol=None):
         p = self.__coerce__(other)
-        return self.proxy.IsParallel(p.proxy, tol or TOLERANCE)
+        return self.proxy.IsParallel(p.proxy, tol or settings.tolerance)
 
     def is_opposite(self, other, tol=None):
         p = self.__coerce__(other)
-        return self.proxy.IsOpposite(p.proxy, tol or TOLERANCE)
+        return self.proxy.IsOpposite(p.proxy, tol or settings.tolerance)
 
     def is_normal(self, other, tol=None):
         """ Check if perpendicular """
         p = self.__coerce__(other)
-        return self.proxy.IsNormal(p.proxy, tol or TOLERANCE)
+        return self.proxy.IsNormal(p.proxy, tol or settings.tolerance)
 
 
 def coerce_point(arg):

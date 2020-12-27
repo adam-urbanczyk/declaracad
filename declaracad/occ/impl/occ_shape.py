@@ -34,11 +34,13 @@ from OCCT.BRepPrimAPI import (
 )
 from OCCT.BRepTools import BRepTools_WireExplorer
 from OCCT.BRepGProp import BRepGProp
+from OCCT.GC import GC_MakeSegment
 from OCCT.GCPnts import (
     GCPnts_UniformDeflection, GCPnts_QuasiUniformDeflection,
 )
 from OCCT.Geom import (
-    Geom_Ellipse, Geom_Circle, Geom_Parabola, Geom_Hyperbola, Geom_Line
+    Geom_Ellipse, Geom_Circle, Geom_Parabola, Geom_Hyperbola, Geom_Line,
+    Geom_TrimmedCurve
 )
 from OCCT.GeomAbs import (
     GeomAbs_Line, GeomAbs_Circle, GeomAbs_Ellipse, GeomAbs_Hyperbola,
@@ -188,7 +190,8 @@ class Topology(Atom):
     }
 
     curve_factory = {
-        GeomAbs_Line: lambda c: Geom_Line(c.Line()),
+        GeomAbs_Line: lambda c: GC_MakeSegment(
+                c.Line(), c.FirstParameter(), c.LastParameter()).Value(),
         GeomAbs_Circle: lambda c: Geom_Circle(c.Circle()),
         GeomAbs_Ellipse: lambda c: Geom_Ellipse(c.Ellipse()),
         GeomAbs_Hyperbola: lambda c: Geom_Hyperbola(c.Hyperbola()),
@@ -276,68 +279,54 @@ class Topology(Atom):
                 filter_orientation_seq.append(i)
         return filter_orientation_seq
 
-
     # -------------------------------------------------------------------------
     # Shape Topology
     # -------------------------------------------------------------------------
-    faces = Property(lambda self: self._loop_topo(TopAbs_FACE),
-                     cached=True)
+    faces = List()
 
-    def _number_of_topo(self, iterable):
-        n = 0
-        for i in iterable:
-            n += 1
-        return n
+    def _default_faces(self):
+        return self._loop_topo(TopAbs_FACE)
 
-    def number_of_faces(self):
-        return self._number_of_topo(self.faces)
+    vertices = List()
 
-    vertices = Property(lambda self: self._loop_topo(TopAbs_VERTEX),
-                        cached=True)
+    def _default_vertices(self):
+        return self._loop_topo(TopAbs_VERTEX)
 
     #: Get a list of points from verticies
-    points = Property(lambda self: [coerce_point(v) for v in self.vertices],
-                        cached=True)
+    points = List()
 
-    def number_of_vertices(self):
-        return self._number_of_topo(self.vertices)
+    def _default_points(self):
+        return [coerce_point(v) for v in self.vertices]
 
-    edges = Property(lambda self: self._loop_topo(TopAbs_EDGE),
-                     cached=True)
+    edges = List()
 
-    def number_of_edges(self):
-        return self._number_of_topo(self.edges)
+    def _default_edges(self):
+        return self._loop_topo(TopAbs_EDGE)
 
-    wires = Property(lambda self: self._loop_topo(TopAbs_WIRE),
-                     cached=True)
+    wires = List()
 
-    def number_of_wires(self):
-        return self._number_of_topo(self.wires)
+    def _default_wires(self):
+        return self._loop_topo(TopAbs_WIRE)
 
-    shells = Property(lambda self: self._loop_topo(TopAbs_SHELL),
-                     cached=True)
+    shells = List()
 
-    def number_of_shells(self):
-        return self._number_of_topo(self.shells)
+    def _default_shells(self):
+        return self._loop_topo(TopAbs_SHELL)
 
-    solids = Property(lambda self: self._loop_topo(TopAbs_SOLID),
-                      cached=True)
+    solids = List()
 
-    def number_of_solids(self):
-        return self._number_of_topo(self.solids)
+    def _default_solids(self):
+        return self._loop_topo(TopAbs_SOLID)
 
-    def comp_solids(self):
-        """ loops over all compound solids """
+    comp_solids = List()
+
+    def _default_comp_solids(self):
         return self._loop_topo(TopAbs_COMPSOLID)
 
-    def number_of_comp_solids(self):
-        return self._number_of_topo(self.comp_solids())
+    compounds = List()
 
-    compounds = Property(lambda self: self._loop_topo(TopAbs_COMPOUND),
-                         cached=True)
-
-    def number_of_compounds(self):
-        return self._number_of_topo(self.compounds)
+    def _default_compounds(self):
+        return self._loop_topo(TopAbs_COMPOUND)
 
     def ordered_vertices_from_wire(self, wire):
         """ Get verticies from a wire.
@@ -348,9 +337,6 @@ class Topology(Atom):
         """
         return WireExplorer(wire).ordered_vertices()
 
-    def number_of_ordered_vertices_from_wire(self, wire):
-        return self._number_of_topo(self.ordered_vertices_from_wire(wire))
-
     def ordered_edges_from_wire(self, wire):
         """ Get edges from a wire.
 
@@ -360,10 +346,7 @@ class Topology(Atom):
         """
         return WireExplorer(wire).ordered_edges()
 
-    def number_of_ordered_edges_from_wire(self, wire):
-        return self._number_of_topo(self.ordered_edges_from_wire(wire))
-
-    def _map_shapes_and_ancestors(self, topo_type_a, topo_type_b, topological_entity):
+    def _map_shapes_and_ancestors(self, topo_type_a, topo_type_b, topo_entity):
         '''
         using the same method
         @param topoTypeA:
@@ -374,9 +357,9 @@ class Topology(Atom):
         _map = TopTools_IndexedDataMapOfShapeListOfShape()
         TopExp.MapShapesAndAncestors_(
             self.shape, topo_type_a, topo_type_b, map)
-        results = _map.FindFromKey(topological_entity)
+        results = _map.FindFromKey(topo_entity)
         if results.IsEmpty():
-            yield None
+            return topo_set
 
         topology_iterator = TopTools_ListIteratorOfListOfShape(results)
         factory = self.topo_factory[topo_type_b]
@@ -400,33 +383,11 @@ class Topology(Atom):
 
             topo_set.add(topo_entity)
             topology_iterator.Next()
+        return topo_set
 
-    def _number_shapes_ancestors(self, topo_type_a, topo_type_b,
-                                 topological_entity):
-        """ Get the number of shape ancestors If you want to know how many
-        edges a faces has:
-        _number_shapes_ancestors(self, TopAbs_EDGE, TopAbs_FACE, edg)
-        will return the number of edges a faces has
-        @param topo_type_a:
-        @param topo_type_b:
-        @param topological_entity:
-        """
-        topo_set = set()
-        _map = TopTools_IndexedDataMapOfShapeListOfShape()
-        TopExp.MapShapesAndAncestors_(
-            self.shape, topo_type_a, topo_type_b, _map)
-        results = _map.FindFromKey(topological_entity)
-        if results.IsEmpty():
-            return None
-        topology_iterator = TopTools_ListIteratorOfListOfShape(results)
-        while topology_iterator.More():
-            topo_set.add(topology_iterator.Value())
-            topology_iterator.Next()
-        return len(topo_set)
-
-    # ======================================================================
+    # ----------------------------------------------------------------------
     # EDGE <-> FACE
-    # ======================================================================
+    # ----------------------------------------------------------------------
     def faces_from_edge(self, edge):
         """
 
@@ -434,14 +395,6 @@ class Topology(Atom):
         :return:
         """
         return self._map_shapes_and_ancestors(TopAbs_EDGE, TopAbs_FACE, edge)
-
-    def number_of_faces_from_edge(self, edge):
-        """
-
-        :param edge:
-        :return:
-        """
-        return self._number_shapes_ancestors(TopAbs_EDGE, TopAbs_FACE, edge)
 
     def edges_from_face(self, face):
         """
@@ -451,32 +404,21 @@ class Topology(Atom):
         """
         return self._loop_topo(TopAbs_EDGE, face)
 
-    def number_of_edges_from_face(self, face):
-        return len(self._loop_topo(TopAbs_EDGE, face))
-
-    # ======================================================================
+    # ----------------------------------------------------------------------
     # VERTEX <-> EDGE
-    # ======================================================================
+    # ----------------------------------------------------------------------
     def vertices_from_edge(self, edg):
         return self._loop_topo(TopAbs_VERTEX, edg)
 
-    def number_of_vertices_from_edge(self, edg):
-        return len(self._loop_topo(TopAbs_VERTEX, edg))
-
     def edges_from_vertex(self, vertex):
-        return self._map_shapes_and_ancestors(TopAbs_VERTEX, TopAbs_EDGE, vertex)
+        return self._map_shapes_and_ancestors(
+            TopAbs_VERTEX, TopAbs_EDGE, vertex)
 
-    def number_of_edges_from_vertex(self, vertex):
-        return self._number_shapes_ancestors(TopAbs_VERTEX, TopAbs_EDGE, vertex)
-
-    # ======================================================================
+    # ----------------------------------------------------------------------
     # WIRE <-> EDGE
-    # ======================================================================
+    # ----------------------------------------------------------------------
     def edges_from_wire(self, wire):
         return self._loop_topo(TopAbs_EDGE, wire)
-
-    def number_of_edges_from_wire(self, wire):
-        return len(self._loop_topo(TopAbs_EDGE, wire))
 
     def wires_from_edge(self, edg):
         return self._map_shapes_and_ancestors(TopAbs_EDGE, TopAbs_WIRE, edg)
@@ -484,53 +426,33 @@ class Topology(Atom):
     def wires_from_vertex(self, edg):
         return self._map_shapes_and_ancestors(TopAbs_VERTEX, TopAbs_WIRE, edg)
 
-    def number_of_wires_from_edge(self, edg):
-        return self._number_shapes_ancestors(TopAbs_EDGE, TopAbs_WIRE, edg)
-
-    # ======================================================================
+    # ----------------------------------------------------------------------
     # WIRE <-> FACE
-    # ======================================================================
+    # ----------------------------------------------------------------------
     def wires_from_face(self, face):
         return self._loop_topo(TopAbs_WIRE, face)
-
-    def number_of_wires_from_face(self, face):
-        return len(self._loop_topo(TopAbs_WIRE, face))
 
     def faces_from_wire(self, wire):
         return self._map_shapes_and_ancestors(TopAbs_WIRE, TopAbs_FACE, wire)
 
-    def number_of_faces_from_wires(self, wire):
-        return self._number_shapes_ancestors(TopAbs_WIRE, TopAbs_FACE, wire)
-
-    # ======================================================================
+    # ----------------------------------------------------------------------
     # VERTEX <-> FACE
-    # ======================================================================
+    # ----------------------------------------------------------------------
     def faces_from_vertex(self, vertex):
-        return self._map_shapes_and_ancestors(TopAbs_VERTEX, TopAbs_FACE, vertex)
-
-    def number_of_faces_from_vertex(self, vertex):
-        return self._number_shapes_ancestors(TopAbs_VERTEX, TopAbs_FACE, vertex)
+        return self._map_shapes_and_ancestors(
+            TopAbs_VERTEX, TopAbs_FACE, vertex)
 
     def vertices_from_face(self, face):
         return self._loop_topo(TopAbs_VERTEX, face)
 
-    def number_of_vertices_from_face(self, face):
-        return len(self._loop_topo(TopAbs_VERTEX, face))
-
-    # ======================================================================
+    # ----------------------------------------------------------------------
     # FACE <-> SOLID
-    # ======================================================================
+    # ----------------------------------------------------------------------
     def solids_from_face(self, face):
         return self._map_shapes_and_ancestors(TopAbs_FACE, TopAbs_SOLID, face)
 
-    def number_of_solids_from_face(self, face):
-        return self._number_shapes_ancestors(TopAbs_FACE, TopAbs_SOLID, face)
-
     def faces_from_solids(self, solid):
         return self._loop_topo(TopAbs_FACE, solid)
-
-    def number_of_faces_from_solids(self, solid):
-        return len(self._loop_topo(TopAbs_FACE, solid))
 
     # -------------------------------------------------------------------------
     # Surface Types
@@ -548,32 +470,50 @@ class Topology(Atom):
                     'face': f, 'surface': getattr(surface, attr)()})
         return surfaces
 
-    plane_surfaces = Property(
-        lambda self: self.extract_surfaces(GeomAbs.GeomAbs_Plane), cached=True)
+    plane_surfaces = List()
 
-    cone_surfaces = Property(
-        lambda self: self.extract_surfaces(GeomAbs.GeomAbs_Cone), cached=True)
+    def _default_plane_surfaces(self):
+        return self.extract_surfaces(GeomAbs.GeomAbs_Plane)
 
-    sphere_surfaces = Property(
-        lambda self: self.extract_surfaces(GeomAbs.GeomAbs_Sphere), cached=True)
+    cone_surfaces = List()
 
-    torus_surfaces = Property(
-        lambda self: self.extract_surfaces(GeomAbs.GeomAbs_Torus), cached=True)
+    def _default_cone_surfaces(self):
+        return self.extract_surfaces(GeomAbs.GeomAbs_Cone)
 
-    cone_surfaces = Property(
-        lambda self: self.extract_surfaces(GeomAbs.GeomAbs_Cone), cached=True)
+    sphere_surfaces = List()
 
-    cylinder_surfaces = Property(
-        lambda self: self.extract_surfaces(GeomAbs.GeomAbs_Cylinder), cached=True)
+    def _default_sphere_surfaces(self):
+        return self.extract_surfaces(GeomAbs.GeomAbs_Sphere)
 
-    bezier_surfaces = Property(
-        lambda self: self.extract_surfaces(GeomAbs.GeomAbs_BezierSurface), cached=True)
+    torus_surfaces = List()
 
-    bspline_surfaces = Property(
-        lambda self: self.extract_surfaces(GeomAbs.GeomAbs_BSplineSurface), cached=True)
+    def _default_torus_surfaces(self):
+        return self.extract_surfaces(GeomAbs.GeomAbs_Torus)
 
-    offset_surfaces = Property(
-        lambda self: self.extract_surfaces(GeomAbs.GeomAbs_OffsetSurface), cached=True)
+    cone_surfaces = List()
+
+    def _default_cone_surfaces(self):
+        return self.extract_surfaces(GeomAbs.GeomAbs_Cone)
+
+    cylinder_surfaces = List()
+
+    def _default_cylinder_surface(self):
+        return self.extract_surfaces(GeomAbs.GeomAbs_Cylinder)
+
+    bezier_surfaces = List()
+
+    def _default_bezier_surfaces(self):
+        return self.extract_surfaces(GeomAbs.GeomAbs_BezierSurface)
+
+    bspline_surfaces = List()
+
+    def _default_bspline_surfaces(self):
+        return self.extract_surfaces(GeomAbs.GeomAbs_BSplineSurface)
+
+    offset_surfaces = List()
+
+    def _default_offset_surfaces(self):
+        return self.extract_surfaces(GeomAbs.GeomAbs_OffsetSurface)
 
     # -------------------------------------------------------------------------
     # Curve Types
@@ -634,7 +574,6 @@ class Topology(Atom):
     def _default_curves(self):
         return self.extract_curves(None)
 
-
     # -------------------------------------------------------------------------
     # Utilities
     # -------------------------------------------------------------------------
@@ -674,7 +613,8 @@ class Topology(Atom):
         """
         edge = TopoDS.Edge_(shape)
         curve = BRepAdaptor_Curve(edge)
-        return cls.curve_factory[curve.GetType()](curve)
+        t = curve.GetType()
+        return cls.curve_factory[t](curve)
 
     @classmethod
     def cast_surface(cls, shape, expected_type=None):
@@ -894,7 +834,7 @@ class Topology(Atom):
     def length(cls, shape):
         props = GProp_GProps()
         BRepGProp.LinearProperties_(shape, props, True)
-        return props.Mass() # Don't ask
+        return props.Mass()  # Don't ask
 
 
 class OccShape(ProxyShape):
@@ -943,16 +883,13 @@ class OccShape(ProxyShape):
         """ Activate the proxy for the top-down pass.
 
         """
-        #log.debug(f"{self}.create_shape()")
         self.create_shape()
-        #log.debug(f"{self}.init_shape()")
         self.init_shape()
 
     def activate_bottom_up(self):
         """ Activate the proxy tree for the bottom-up pass.
 
         """
-        #log.debug(f"{self}.init_layout()")
         self.init_layout()
 
     # -------------------------------------------------------------------------
@@ -967,13 +904,6 @@ class OccShape(ProxyShape):
     def update_topology(self, change):
         if self.shape is not None:
             self.topology = self._default_topology()
-
-
-    #@observe('shape')
-    #def update_display(self, change):
-    #    parent = self.parent()
-    #    if parent:
-    #        parent.update_display(change)
 
     def get_first_child(self):
         """ Return shape to apply the operation to. """
@@ -1011,7 +941,7 @@ class OccShape(ProxyShape):
             t.SetRotation(AZ, d.direction.angle(DZ) + d.rotation)
         else:
             d1 = d.direction.cross(DZ)
-            axis = gp_Ax1(gp_Pnt(0,0,0), d1.proxy)
+            axis = gp_Ax1(gp_Pnt(0, 0, 0), d1.proxy)
             t.SetRotation(axis, d.direction.angle(DZ))
 
             # Apply the rotation an reverse any rotation added in
@@ -1074,7 +1004,7 @@ class OccDependentShape(OccShape):
 
         # When they change re-compute
         for child in self.children():
-           child.observe('shape', self.update_shape)
+            child.observe('shape', self.update_shape)
 
     def update_shape(self, change=None):
         """ Must be implmented in subclasses to create the shape
@@ -1215,7 +1145,8 @@ class OccHalfSpace(OccDependentShape, ProxyHalfSpace):
                 pln = gp_Pln(d.position.proxy, d.direction.proxy)
                 surface = BRepBuilderAPI_MakeFace(pln).Face()
         half_space = BRepPrimAPI_MakeHalfSpace(surface, d.side.proxy)
-        # Shape doesnt work see https://tracker.dev.opencascade.org/view.php?id=29969
+        # Shape doesnt work see
+        # https://tracker.dev.opencascade.org/view.php?id=29969
         self.shape = half_space.Solid()
 
     def set_surface(self, surface):

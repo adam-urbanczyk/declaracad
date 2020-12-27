@@ -1,4 +1,4 @@
-from declaracad.occ.api import Part, Line, Box, Topology
+from declaracad.occ.api import Part, Line, Vertex, Box, Topology, Looper
 
 
 enamldef Axis(Part): part:
@@ -28,3 +28,20 @@ enamldef BoundingBox(Box):
     dx << bounding_box.dx
     dy << bounding_box.dy
     dz << bounding_box.dz
+
+
+enamldef TopologyPoints(Part): part:
+    """ Highlights points on a TopoDS_Wire
+
+    """
+    attr topods_shape
+
+    func get_points(s):
+        return Topology(shape=s).points
+
+    Looper:
+        iterable << get_points(topods_shape)
+        Vertex:
+            color = part.color
+            position = loop.item
+            description = str(self.position[:])

@@ -625,6 +625,50 @@ class Wire(Edge):
     def _update_proxy(self, change):
         super()._update_proxy(change)
 
+    def points_of_discontinuity(self, tolerance=0.5):
+        """ Find points of discontinuity
+
+        Parameters
+        ----------
+        tolerance: Float
+            The tolerance to use
+
+        Returns
+        -------
+        points: List[Point]
+            List of points where there is C1 discontinuity
+
+        """
+        points = []
+
+        # Map of vertex to map of curve an derivative
+        data = {}
+        if not self.proxy_is_active:
+            self.render()
+        for d in self.topology.curves:
+            curve = d['curve']
+            for t in (curve.FirstParameter(), curve.LastParameter()):
+                p, v = self.topology.get_value_at(curve, t=t, derivative=1)
+                r = data.get(p)
+                if r is None:
+                    # Hashing doesn't work so check for point equality
+                    for k in data:
+                        if k.is_equal(p):
+                            r = data[k]
+                            break
+                    if r is None:
+                        r = data[p] = []
+                r.append((curve, v))
+
+        for p, curves in data.items():
+            if len(curves) < 2:
+                continue
+            v1, v2 = curves[0][1], curves[1][1]
+            if v1.is_parallel(v2, tolerance):
+                continue  # Continuous
+            points.append(p)
+        return points
+
 
 class Polyline(Wire):
     """ A Polyline that can be built from any number of points or vertices,

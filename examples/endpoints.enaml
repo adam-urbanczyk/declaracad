@@ -1,0 +1,15 @@
+# Created in DeclaraCAD
+from declaracad.occ.api import *
+from declaracad.parts.display import TopologyPoints
+
+
+enamldef Assembly(Part):
+    Text: t:
+        color = 'teal'
+        transparency = 0.8
+        text = 't'
+        font = 'sans'
+    TopologyPoints:
+        color = 'red'
+        topods_shape = t.topology.faces[0]
+        

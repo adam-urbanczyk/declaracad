@@ -30,9 +30,8 @@ from OCCT.TopoDS import TopoDS_Face, TopoDS_Shell, TopoDS_Shape
 
 from .geom import (
     BBox, Point, Direction, coerce_point, coerce_direction,
-    coerce_rotation
+    coerce_rotation, settings
 )
-from . import geom
 
 
 class ProxyShape(ProxyControl):
@@ -310,7 +309,7 @@ class Shape(ToolkitObject):
     tolerance = d_(Float(strict=False))
 
     def _default_tolerance(self):
-        return geom.TOLERANCE
+        return settings.tolerance
 
     #: Material
     material = d_(Coerced(Material))
