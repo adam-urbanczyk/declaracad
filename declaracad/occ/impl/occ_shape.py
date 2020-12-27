@@ -122,7 +122,7 @@ class WireExplorer(Atom):
         items = set()  # list that stores hashes to avoid redundancy
         occ_seq = TopTools_ListOfShape()
 
-        get_current = wexp.Current if edges else wexp.CurrentVertext
+        get_current = wexp.Current if edges else wexp.CurrentVertex
 
         while wexp.More():
             current_item = get_current()
@@ -335,7 +335,7 @@ class Topology(Atom):
         ----------
         wire: TopoDS_Wire
         """
-        return WireExplorer(wire).ordered_vertices()
+        return WireExplorer(wire=wire).ordered_vertices()
 
     def ordered_edges_from_wire(self, wire):
         """ Get edges from a wire.
@@ -344,7 +344,7 @@ class Topology(Atom):
         ----------
         wire: TopoDS_Wire
         """
-        return WireExplorer(wire).ordered_edges()
+        return WireExplorer(wire=wire).ordered_edges()
 
     def _map_shapes_and_ancestors(self, topo_type_a, topo_type_b, topo_entity):
         '''
@@ -354,17 +354,18 @@ class Topology(Atom):
         @param topological_entity:
         '''
         topo_set = set()
-        _map = TopTools_IndexedDataMapOfShapeListOfShape()
+        items = []
+        topo_map = TopTools_IndexedDataMapOfShapeListOfShape()
         TopExp.MapShapesAndAncestors_(
-            self.shape, topo_type_a, topo_type_b, map)
-        results = _map.FindFromKey(topo_entity)
-        if results.IsEmpty():
-            return topo_set
+            self.shape, topo_type_a, topo_type_b, topo_map)
+        topo_results = topo_map.FindFromKey(topo_entity)
+        if topo_results.IsEmpty():
+            return []
 
-        topology_iterator = TopTools_ListIteratorOfListOfShape(results)
+        topology_iterator = TopTools_ListIteratorOfListOfShape(topo_results)
         factory = self.topo_factory[topo_type_b]
-        while topology_iterator.More():
 
+        while topology_iterator.More():
             topo_entity = factory(topology_iterator.Value())
 
             # return the entity if not in set
@@ -377,13 +378,13 @@ class Topology(Atom):
                             unique = False
                             break
                     if unique:
-                        yield topo_entity
+                        items.append(topo_entity)
                 else:
-                    yield topo_entity
+                    items.append(topo_entity)
 
             topo_set.add(topo_entity)
             topology_iterator.Next()
-        return topo_set
+        return items
 
     # ----------------------------------------------------------------------
     # EDGE <-> FACE

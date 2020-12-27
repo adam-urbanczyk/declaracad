@@ -860,7 +860,7 @@ enamldef ViewerDockItem(DockItem): view:
     active_document :: renderer.document = change['value']
 
     icon = load_icon("bricks")
-    stretch = 1
+    stretch = 3
     closed :: viewer.cleanup()
 
     func reload_document():
