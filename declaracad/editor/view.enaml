@@ -20,6 +20,7 @@ from enaml.core.parser import parse
 from enaml.colors import parse_color
 from enaml.qt.q_resource_helpers import get_cached_qcolor
 from enaml.qt.QtCore import Qt
+
 from enaml.layout.api import RetractItem, vbox, hbox, align
 from enaml.scintilla.api import Scintilla, ScintillaIndicator, ScintillaMarker
 from enaml.scintilla.themes import THEMES
@@ -32,7 +33,9 @@ from enamlx.widgets.api import KeyEvent, TreeView, TreeViewItem, TreeViewColumn
 
 from declaracad.core.api import DockItem
 from declaracad.core.utils import load_icon, load_image, log, format_title
+from declaracad.core.widgets import PlainTextEdit
 from .plugin import Document
+
 
 
 def detect_syntax(plugin, path):
@@ -87,6 +90,7 @@ def create_indicators(filename, errors):
         except Exception as e:
             print(e)
     return results
+
 
 
 enamldef ErrorPopup(PopupView):
@@ -327,7 +331,10 @@ enamldef Editor(Scintilla): editor:
 
     func set_code_folding():
         w = self.proxy.widget
-        style = w.CircledTreeFoldStyle if plugin.code_folding else w.NoFoldStyle
+        style = w.NoFoldStyle
+        if plugin.code_folding:
+            name = plugin.code_fold_style.title().replace('-', '')
+            style = getattr(w, f'{name}FoldStyle')
         w.setFolding(style)
 
     func set_margin_colors():
@@ -497,6 +504,7 @@ enamldef EditorDockItem(DockItem): view:
                             {'document':doc, 'target': view.name})
     icon = load_icon('script_code')
     name = 'editor-item-{}'.format(id(self))
+    stretch = 2
     Container:
         padding = 0
         Conditional:
@@ -528,6 +536,10 @@ enamldef EditorDockItem(DockItem): view:
 
     title_bar_right_clicked :: menu.popup()
     Menu: menu:
+        Action:
+            text = "Set as active"
+            triggered :: plugin.active_document = doc
+
         Action:
             text = "Reload from disk"
             triggered ::
@@ -593,14 +605,47 @@ enamldef ErrorsDockItem(DockItem):
 
 
 enamldef OutputDockItem(DockItem):
-  title = "Output"
-  name = 'script-output-item'
-  icon = load_icon('script')
-  Container:
-      minimum_size = (320, 320)
-      padding = 0
-      MultilineField:
-          text << "\n".join(plugin.active_document.output)
+    title = "Output"
+    name = 'script-output-item'
+    icon = load_icon('script')
+    stretch = 1
+    title_bar_right_clicked :: menu.popup()
+
+    attr active_document << plugin.active_document
+
+    func rebind(change):
+        if change:
+            old_document = change['oldvalue']
+            old_document.unobserve('output', self.watch_output)
+        active_document.observe('output', self.watch_output)
+
+    active_document :: rebind(change)
+
+    func watch_output(change):
+        #print(change)
+        if change['type'] == 'update':
+            output.proxy.widget.setPlainText(''.join(change['value']))
+        elif change['type'] == 'container':
+            if change['operation'] == 'extend':
+                output.proxy.widget.appendPlainText(''.join(change['items']))
+            elif change['operation'] == 'append':
+                output.proxy.widget.appendPlainText(change['item'])
+            elif change['operation'] == 'set':
+                output.proxy.widget.setPlainText(''.join(change['value']))
+
+
+    Menu: menu:
+        Action:
+            text = "Clear window"
+            triggered :: output.proxy.widget.setPlainText("")
+
+    Container:
+        minimum_size = (320, 320)
+        padding = 0
+        PlainTextEdit: output:
+            hug_width = 'ignore'
+            hug_height = 'ignore'
+            activated :: rebind(None)
 
 
 enamldef OutlineDockItem(DockItem): view:

@@ -95,7 +95,7 @@ class Document(Model):
             try:
                 with open(self.name) as f:
                     self.unsaved = f.read() != self.source
-            except:
+            except Exception as e:
                 pass
 
     def _update_suggestions(self, change):
@@ -120,6 +120,8 @@ class EditorPlugin(Plugin):
     zoom = Int(0).tag(config=True)  #: Relative to default
     show_line_numbers = Bool(True).tag(config=True)
     code_folding = Bool(True).tag(config=True)
+    code_fold_style = Enum('plain', 'circled', 'boxed',
+                           'circled-tree', 'boxed-tree').tag(config=True)
     font_size = Int(12).tag(config=True)  #: Default is 12 pt
     font_family = Str(MONO_FONT.split()[-1]).tag(config=True)
     show_scrollbars = Bool(True).tag(config=True)

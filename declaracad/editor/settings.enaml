@@ -14,7 +14,7 @@ from atom.api import Str, Typed
 from enaml.core.api import Looper, Conditional
 from enaml.layout.api import align, hbox, spacer
 from enaml.widgets.api import (
-    Field, Label, PushButton, Form, ObjectCombo, Container, SpinBox, 
+    Field, Label, PushButton, Form, ObjectCombo, Container, SpinBox,
     FileDialogEx,RawWidget, CheckBox
 )
 from enamlx.widgets.api import TreeView, TreeViewItem
@@ -27,23 +27,23 @@ from declaracad.core.api import log
 
 class FontCombo(RawWidget):
     __slots__ = '__weakref__'
-    
+
     #: Selected font
     selected = d_(Str())
-    
+
     #: Widget
     widget = Typed(QFontComboBox)
-    
+
     def create_widget(self, parent):
         widget = self.widget = QFontComboBox(parent)
         widget.currentFontChanged.connect(self.on_current_font_changed)
         if self.selected:
             self.set_selected(self.selected)
         return widget
-    
+
     def _observe_selected(self, change):
         self.set_selected(change['value'])
-        
+
     def set_selected(self, font_family):
         try:
             font = QFont(font_family, 12, 100)
@@ -51,12 +51,12 @@ class FontCombo(RawWidget):
         except Exception as e:
             import traceback
             log.error(traceback.print_exc())
-    
+
     def on_current_font_changed(self, font):
         font_family = font.toString().split(",")[0]
         log.debug(f"Font changed to {font_family}")
         self.selected = font_family
-        
+
 
 enamldef EditorSettingsPage(Container):
     attr model
@@ -100,6 +100,14 @@ enamldef EditorSettingsPage(Container):
         CheckBox:
             text = "Code folding"
             checked  := model.code_folding
+        Conditional:
+            condition << model.code_folding
+            Label:
+                text = "Fold style"
+            ObjectCombo:
+                items = list(sorted(model.get_member('code_fold_style').items))
+                to_string = lambda it: it.title().replace("-", " ")
+                selected := model.code_fold_style
     Label:
         text = "Project"
     Form:

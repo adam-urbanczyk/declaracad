@@ -246,7 +246,7 @@ enamldef EditorManifest(PluginManifest):
         DockItem:
             plugin_id = 'declaracad.editor'
             factory = item_factory
-            layout = 'main'
+            layout = 'main-left'
         DockItem:
             plugin_id = 'declaracad.editor'
             factory = errors_item_factory
@@ -254,7 +254,7 @@ enamldef EditorManifest(PluginManifest):
         DockItem:
             plugin_id = 'declaracad.editor'
             factory = output_item_factory
-            layout = 'bottom'
+            layout = 'main-bottom'
         DockItem:
             plugin_id = 'declaracad.editor'
             factory = outline_item_factory
