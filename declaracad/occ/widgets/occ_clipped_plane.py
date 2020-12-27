@@ -36,7 +36,6 @@ class ProxyOccViewerClippedPlane(ProxyControl):
         raise NotImplementedError
 
 
-
 class OccViewerClippedPlane(Control):
     #: A reference to the ProxySpinBox object.
     proxy = Typed(ProxyOccViewerClippedPlane)
