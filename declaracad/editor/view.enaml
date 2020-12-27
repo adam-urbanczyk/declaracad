@@ -622,17 +622,18 @@ enamldef OutputDockItem(DockItem):
     active_document :: rebind(change)
 
     func watch_output(change):
-        #print(change)
-        if change['type'] == 'update':
-            output.proxy.widget.setPlainText(''.join(change['value']))
-        elif change['type'] == 'container':
-            if change['operation'] == 'extend':
-                output.proxy.widget.appendPlainText(''.join(change['items']))
-            elif change['operation'] == 'append':
-                output.proxy.widget.appendPlainText(change['item'])
-            elif change['operation'] == 'set':
+        try:
+            if change['type'] == 'update':
                 output.proxy.widget.setPlainText(''.join(change['value']))
-
+            elif change['type'] == 'container':
+                if change['operation'] == 'extend':
+                    output.proxy.widget.appendPlainText(''.join(change['items']))
+                elif change['operation'] == 'append':
+                    output.proxy.widget.appendPlainText(change['item'])
+                elif change['operation'] == 'set':
+                    output.proxy.widget.setPlainText(''.join(change['value']))
+        except Exception as e:
+            log.exception(e)
 
     Menu: menu:
         Action:
@@ -715,7 +716,4 @@ enamldef OutlineDockItem(DockItem): view:
                         text << obj[3]
                     TreeViewColumn:
                         text << str(loop_item.lineno)
-
-
-
 
