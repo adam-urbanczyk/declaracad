@@ -320,7 +320,7 @@ class ViewerProcess(ProcessLineReceiver):
                         if doc:
                             msgs = error.get('message', '').split("\n")
                             doc.errors.extend(msgs)
-                        f.set_error(RuntimeError(error))
+                        f.set_exception(RuntimeError(error))
                     else:
                         f.set_result(response.get('result'))
                     return
