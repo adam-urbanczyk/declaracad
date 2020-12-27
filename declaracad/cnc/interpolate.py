@@ -9,6 +9,7 @@ Created on Dec 27, 2020
 
 @author: jrm
 """
+from declaracad.occ.api import Topology
 
 
 def distance(points, start, end, scale=-1):
@@ -62,4 +63,37 @@ def distance(points, start, end, scale=-1):
             p.z = (z + dz*t)
             last = p
     return points
+
+
+
+def build_edge_graph(shapes):
+    """ Build a graph of verticies and edges that connect them. This assumes
+    that all edges are unique.
+
+    Parameters
+    ----------
+    shapes: Iterable[TopoDS_Shape]
+        Iterable of shapes to build an edge graph from
+
+    Returns
+    -------
+    graph: Dict
+        A mapping of points to set of connected edges
+
+    """
+    graph = {}
+    for s in shapes:
+        for e in Topology(shape=s).edges:
+            for p in Topology(shape=e).points:
+                r = graph.get(p)
+                if r is None:
+                    # Lookup using equals instead of hash
+                    for node in graph:
+                        if node == p:
+                            r = graph[node]
+                            break
+                    if r is None:
+                        r = graph[p] = []
+                r.append(e)
+    return graph
 
