@@ -1,6 +1,6 @@
 # Created in DeclaraCAD
 from declaracad.occ.api import *
-from OCCT.gp import gp_Pln
+
 
 enamldef Assembly(Part):
     Box: box:
