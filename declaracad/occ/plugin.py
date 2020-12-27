@@ -458,7 +458,7 @@ class ViewerPlugin(Plugin):
         viewer = self.get_viewer()
         editor = self.workbench.get_plugin('declaracad.editor').get_editor()
         doc = editor.doc
-        viewer.renderer.source = editor.get_text()
+        viewer.renderer.set_source(editor.get_text())
         doc.version += 1
 
     def get_viewer(self, name=None):
