@@ -1,0 +1,212 @@
+# Created in DeclaraCAD
+from math import radians, sin, cos
+from declaracad.occ.api import *
+
+enamldef H7(Part): part:
+    attr thickness = 0.45
+    attr diameter = 33.84
+    Cut:
+        material = part.material
+        transparency = part.transparency
+        Cylinder: c1:
+            height = thickness
+            radius = diameter/2
+        Box: b1:
+            position = (-10, c1.radius-dy)
+            dy = 3
+            dx = 6
+            dz = thickness
+        Transform:
+            shape = b1
+            operations = [Translate(x=b1.dx+8)]
+
+enamldef LEDBulb(Part):
+    Fuse:
+        color = 'white'
+        transparency = 0.5
+        Cylinder:
+            position = (0, 0, -height)
+            height = 33
+            radius = 14.13/2
+        Cylinder: c2:
+            height = 13
+            radius = 15.85/2
+    
+        Transform:
+            position = (0, 0, c2.height)
+            Revol:
+                Face:
+                    Polyline:
+                        points = [
+                            (0, 0, 0), 
+                            (22/2, 0, 0), 
+                            (34.84/2, 0,  11) ,
+                            (34.84/2, 0,  18) ,
+                            (0, 0,  18) 
+                        ]
+                        closed = True
+
+
+enamldef TrackProfile(Wire):
+    attr d 
+    attr r 
+    func pos(a, z):
+        a = radians(a)
+        return (r, r*sin(a), z)
+    
+    Polyline: s1:
+            points = [
+                pos(-15, d), 
+                pos(-15, d-1), 
+                pos(-6, d-1), 
+            ]
+    Bezier: b1:
+            points = [
+                s1.points[-1],
+                pos(-5, d-1),
+                pos(3, d-0.2),
+            ]
+    Bezier: b2:
+            points = [
+                b1.points[-1],
+                pos(4, d-1),
+                pos(8, d-1),
+            ]
+    Polyline: 
+            points = [
+                b2.points[-1],
+                pos(15, d-1),
+                pos(15, d),
+                s1.points[0],
+            ]
+            
+
+enamldef Holder(Part):
+    Cut:
+        color = '#444'
+        material = 'plastic'
+        #transparency = 0.4
+        Fuse:                
+            Cylinder:  c1:
+                height = 18
+                radius = 38/2
+            Cylinder: c2:
+                position = (0, 0,  1.75 + 5)
+                height = 3.5
+                radius = 46.1/2
+            Cut: # Flange
+                color = 'yellow'
+                Revol:
+                    Face:
+                        Polyline: lip:
+                            attr h = 1.75
+                            attr r = c1.radius
+                            attr r2 = 35/2
+                            points = [
+                                (r, 0, h), (r+0.75, 0, h), (r, 0, 0),
+                                (r2, 0, 0), (r2, 0, h)
+                            ]
+                            closed = True
+                Box:
+                    position = (-dx/2, lip.r2, 0)
+                    dx = 20
+                    dz = lip.h
+                    dy = 5
+            Box: peg:
+                color = 'yellow'
+                position = (-14.2/2-dx, 35/2-dy, -dz+lip.h)
+                dx = 1.75
+                dy = 3.5
+                dz = 3+lip.h
+            Transform:
+                shape = peg
+                operations = [Translate(x=14.2+peg.dx)]
+            Box: peg_bottom:
+                position = (-6.5/2-dx, -35/2-dy/2, -dz+lip.h)
+                dx = 3
+                dy = 2
+                dz = 3 + lip.h
+            Transform:
+                shape = peg_bottom
+                operations = [Translate(x=6.5+peg_bottom.dx)]
+        #Cylinder:
+        #    position = (0, 0, 4)
+        #    height = c1.height
+        #    radius = 35/2
+        H7:
+            thickness = 1.5
+            diameter = 34
+                
+        Cylinder:
+            color = 'red'
+            height = c1.height
+            radius = 17.5/2
+        
+        # Slots for metal clip
+        Box: slot: 
+            position = (-dx/2, -dy/2+32.5/2, 0)
+            dx = 3
+            dy = 1.25
+            dz = 6.5
+        Transform:
+            shape = slot 
+            operations = [Rotate(angle=radians(120))]
+        Transform:
+            shape = slot 
+            operations = [Rotate(angle=radians(-120))]
+        
+        # Cutout for heat sink
+        Cone: cone:
+            transparency = 0.5
+            position = (0, 0, 23.5)
+            direction = (0, 0, -1)
+            height = 12
+            radius = 35/2
+            radius2 = 22/2
+        
+        # Air vents
+        Box: fin:
+            position = (-dx/2, -dy+cone.radius, cone.position.z-cone.height)
+            dy = 10
+            dx = 2
+            dz = cone.height
+        Looper:
+            iterable = range(20, 360, 20)
+            Transform:
+                    shape = fin 
+                    operations = [Rotate(angle=radians(loop.item))]
+      
+        Cut: track_slot:
+            Loft:
+                solid = True
+                TrackProfile:
+                    d = c2.position.z + c2.height
+                    r = c2.radius+0.2
+                TrackProfile:
+                    d = c2.position.z + c2.height
+                    r = c2.radius-5
+            Transform:
+                shape = c1
+        Transform:
+            shape = track_slot
+            operations = [Rotate(angle=radians(180))]
+          
+enamldef Assembly(Part):
+    
+    H7:
+        display = False
+        position = (0,0, -0.1)
+        material = 'steel'
+        transparency = 0.6
+    
+    LEDBulb:
+        display = False
+        position = (0, 0, 1.5)
+    
+    Holder:
+        pass
+
+    
+    
+
+            

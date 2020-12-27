@@ -1,0 +1,98 @@
+# Created in DeclaraCAD
+from declaracad.occ.api import *
+from declaracad.parts.display import Axis
+
+inch = 25.4
+
+enamldef SanderVacuumAdapter(Part):
+    attr d = (1+3/8)*inch
+    attr h = 7/8*inch
+    attr w = (2+3/8)*inch
+    attr offset = 1/4*inch
+    #ThickSolid:
+    #    offset = 1/8*inch
+    #    faces = loft.topology.faces[0:1]
+    Fuse:
+        material = 'plastic'
+        color = '#333'
+        # Hack it can't make a thick solid 
+        # so manually do it
+        Cut:            
+            
+            Loft:
+                solid = True
+                Rectangle: o2:
+                        height = h+ offset
+                        width = w + offset
+                        rx = height/2
+                        position = (-width/2, -height/2)
+                Rectangle: 
+                        height = o2.height*1.05
+                        width = o2.width
+                        rx = height/2
+                        position = (-width/2, -o2.height/2, 0.5*inch)
+                Rectangle: 
+                        height = cylinder.radius*2*0.9+offset
+                        width = height
+                        rx = height/2
+                        position = (-width/2, -o2.height/2, 2*inch)
+                Rectangle: 
+                        height = cylinder.radius*2 + offset
+                        width = height
+                        rx = height/2
+                        position = (-width/2, -o2.height/2, 2.5*inch)
+            Loft: loft:
+                    color = 'red'
+                    solid = True
+                    Rectangle: oval:
+                            color = 'red'
+                            height = h
+                            width = w
+                            rx = height/2
+                            position = (-width/2, -height/2)
+                    Rectangle: 
+                            color = 'red'
+                            height = oval.height*1.05
+                            width = oval.width
+                            rx = height/2
+                            position = (-width/2, -oval.height/2, 0.5*inch)
+                    Rectangle: 
+                            color = 'red'
+                            height = cylinder.radius*2*0.9
+                            width = height
+                            rx = height/2
+                            position = (-width/2, -oval.height/2, 2*inch)
+                    Rectangle: 
+                            color = 'red'
+                            height = cylinder.radius*2
+                            width = height
+                            rx = height/2
+                            position = (-width/2, -oval.height/2, 2.5*inch)
+
+
+        ThickSolid:
+            offset = 1/8*inch
+            faces = mount.topology.faces[6:8]
+            Extrude: mount:
+                vector = (0, 0, d)
+                color = 'green'
+                Face:
+                    Transform:
+                            position = (0, 0, -d)
+                            shape = oval
+        ThickSolid:
+            offset = 1/8*inch
+            faces = cylinder.topology.faces[1:3]
+            Cylinder: cylinder:
+                    color = 'red'
+                    direction = (0, 0, -1)
+                    radius = 2.25/2*inch
+                    height = 2*inch
+                    position = (0, radius-oval.height/2, 2.5*inch+height)
+
+enamldef Assembly(Part):
+    Axis:
+        color = 'black'
+    SanderVacuumAdapter:
+        pass
+   
