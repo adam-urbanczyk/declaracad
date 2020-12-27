@@ -13,7 +13,10 @@ import enaml
 from atom.api import Atom, List, Str, Instance, Dict, Enum
 from declaracad.core.api import Plugin, DockItem, log
 
-from enaml.layout.api import AreaLayout, DockBarLayout, HSplitLayout, TabLayout
+from enaml.layout.api import (
+    AreaLayout, DockBarLayout, HSplitLayout, VSplitLayout, TabLayout
+)
+
 from . import extensions
 
 with enaml.imports():
@@ -107,13 +110,7 @@ class DeclaracadPlugin(Plugin):
         point = workbench.get_extension_point(extensions.DOCK_ITEM_POINT)
 
         #: Layout spec
-        layout = {
-            'main': [],
-            'left': [],
-            'right': [],
-            'bottom': [],
-            'top': []
-        }
+        layout = {name: [] for name in extensions.DockItem.layout.items}
 
         dock_items = []
         for extension in sorted(point.extensions, key=lambda ext: ext.rank):
@@ -145,8 +142,16 @@ class DeclaracadPlugin(Plugin):
         if not items:
             raise EnvironmentError("At least one main layout item must be "
                                    "defined!")
-        main = (HSplitLayout(TabLayout(*items[1:]), items[0])
-                if len(items) > 1 else items[0])
+
+        left_items = layout.pop('main-left', [])
+        bottom_items = layout.pop('main-bottom', [])
+
+        main = TabLayout(*items)
+
+        if bottom_items:
+            main = VSplitLayout(main, *bottom_items)
+        if left_items:
+            main = HSplitLayout(*left_items, main)
 
         dockbars = [DockBarLayout(*items, position=side)
                     for side, items in layout.items() if items]

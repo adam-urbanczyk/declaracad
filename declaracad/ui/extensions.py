@@ -25,7 +25,8 @@ class DockItem(Declarative):
     factory = d_(Callable())
 
     #: Where to layout this item in the dock area
-    layout = d_(Enum('main', 'top', 'left', 'right', 'bottom'))
+    layout = d_(Enum('main', 'top', 'left', 'right', 'bottom',
+                     'main-bottom', 'main-left'))
 
 
 class SettingsPage(Declarative):
