@@ -277,6 +277,16 @@ def occ_radius_dimension_factory():
     return OccRadiusDimension
 
 
+def occ_display_arrow_factory():
+    from .occ_display import OccDisplayArrow
+    return OccDisplayArrow
+
+
+def occ_display_text_factory():
+    from .occ_display import OccDisplayText
+    return OccDisplayText
+
+
 #: Part
 OCC_FACTORIES = {
     'Part': occ_part_factory,
@@ -344,6 +354,10 @@ OCC_FACTORIES = {
     'LengthDimension': occ_length_dimension_factory,
     'DiameterDimension': occ_diameter_dimension_factory,
     'RadiusDimension': occ_radius_dimension_factory,
+
+    #: Display
+    'DisplayArrow': occ_display_arrow_factory,
+    'DisplayText': occ_display_text_factory,
 }
 
 #: Install it

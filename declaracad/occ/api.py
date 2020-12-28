@@ -9,6 +9,7 @@ Created on Dec 13, 2017
 
 @author: jrm
 """
+from enaml.core.api import Looper, Conditional, Include
 from .algo import (
     Cut, Common, Fuse, Split, Intersection, Sew,
     Fillet, Chamfer,
@@ -19,14 +20,9 @@ from .algo import (
     ThruSections,
     Transform, Translate, Rotate, Scale, Mirror
 )
-
-Loft = ThruSections
-Sweep = Pipe
-
 from .dimension import (
     AngleDimension, DiameterDimension, LengthDimension, RadiusDimension
 )
-
 from .draw import (
     Plane, Vertex, Edge, Line, Rectangle,
     Segment, Arc, Circle, Ellipse, Hyperbola,
@@ -41,13 +37,11 @@ from .shape import (
     Box, Cylinder, Sphere, Cone, Wedge, Torus,
     HalfSpace, Prism, Revol, TopoShape
 )
-
-Extrude = Prism
-
-
-from enaml.core.api import Looper, Conditional, Include
-
 from .impl.occ_shape import Topology
-
 from .part import Part, RawPart
 from .loaders import LoadedPart
+from .display import DisplayArrow, DisplayText
+
+Loft = ThruSections
+Sweep = Pipe
+Extrude = Prism

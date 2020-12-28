@@ -47,7 +47,8 @@ from OCCT.gp import gp_Pnt, gp_Dir, gp_Ax3
 from OCCT.Graphic3d import (
     Graphic3d_MaterialAspect, Graphic3d_StereoMode_QuadBuffer,
     Graphic3d_RM_RASTERIZATION, Graphic3d_RM_RAYTRACING,
-    Graphic3d_RenderingParams, Graphic3d_TypeOfShadingModel
+    Graphic3d_RenderingParams, Graphic3d_TypeOfShadingModel,
+    Graphic3d_StructureManager, Graphic3d_Structure
 )
 
 from OCCT.MeshVS import (
@@ -55,8 +56,11 @@ from OCCT.MeshVS import (
     MeshVS_MeshPrsBuilder
 )
 from OCCT.OpenGl import OpenGl_GraphicDriver
-from OCCT.Quantity import Quantity_Color, Quantity_NOC_BLACK, Quantity_NOC_WHITE
+from OCCT.Quantity import (
+    Quantity_Color, Quantity_NOC_BLACK, Quantity_NOC_WHITE
+)
 from OCCT.Prs3d import Prs3d_Drawer
+from OCCT.PrsMgr import PrsMgr_PresentationManager
 from OCCT.TopoDS import TopoDS_Shape
 from OCCT.TopAbs import TopAbs_FACE, TopAbs_EDGE, TopAbs_WIRE
 from OCCT.TCollection import TCollection_AsciiString
@@ -69,11 +73,13 @@ from declaracad.occ.qt.utils import (
 from declaracad.occ.impl.occ_part import OccPart
 from declaracad.occ.impl.occ_shape import OccShape
 from declaracad.occ.impl.occ_dimension import OccDimension
+from declaracad.occ.impl.occ_display import OccDisplayItem
 from declaracad.occ.widgets.occ_viewer import (
     ProxyOccViewer, ViewerSelection
 )
 
 from declaracad.occ.dimension import Dimension
+from declaracad.occ.display import DisplayItem
 from declaracad.occ.shape import BBox
 
 from declaracad.core.utils import log
@@ -314,6 +320,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     #: Displayed Shapes
     _displayed_shapes = Dict()
     _displayed_dimensions = Dict()
+    _displayed_graphics = Dict()
     _selected_shapes = List()
 
     #: Tuple of (Quantity_Color, transparency)
@@ -327,6 +334,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
     #: Dimensions
     dimensions = Typed(set)
+    graphics = Typed(set)
 
     # -------------------------------------------------------------------------
     # OpenCascade specific members
@@ -337,8 +345,12 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
     ais_context = Typed(AIS_InteractiveContext)
     prs3d_drawer = Typed(Prs3d_Drawer)
+    prs_mgr = Typed(PrsMgr_PresentationManager)
     v3d_window = Typed(V3d_Window)
+    gfx_structure_manager = Typed(Graphic3d_StructureManager)
+    gfx_structure = Typed(Graphic3d_Structure)
     graphics_driver = Typed(OpenGl_GraphicDriver)
+
 
     #: List of lights
     lights = List()
@@ -376,6 +388,11 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         self.v3d_view.SetWindow(window)
         ais_context = self.ais_context = AIS_InteractiveContext(viewer)
         drawer = self.prs3d_drawer = ais_context.DefaultDrawer()
+
+        # Needed for displaying graphics
+        prs_mgr = self.prs_mgr = ais_context.MainPrsMgr()
+        gfx_mgr = self.gfx_structure_manager = prs_mgr.StructureManager()
+        self.gfx_structure = Graphic3d_Structure(gfx_mgr)
 
         try:
             self.set_lights(d.lights)
@@ -485,8 +502,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     # Viewer API
     # -------------------------------------------------------------------------
     def get_bounding_box(self, shapes):
-        """ Compute the bounding box for the given list of shapes. Return values
-        are in 3d coordinate space.
+        """ Compute the bounding box for the given list of shapes.
+        Return values are in 3d coordinate space.
 
         Parameters
         ----------
@@ -979,33 +996,33 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             remove(occ_shape.ais_shape, False)
         for ais_dim in self._displayed_dimensions.keys():
             remove(ais_dim, False)
+        self.gfx_structure.Clear()
         self.ais_context.UpdateCurrentViewer()
 
     def reset_view(self):
         """ Reset to default zoom and orientation """
         self.v3d_view.Reset()
 
-    def _extract_dimensions(self, child, dimensions):
-        """ Extract any dimensions defined in the given child shape
-
-        """
-        for c in child.declaration.traverse():
-            if isinstance(c, Dimension):
-                dimensions.add(c.proxy)
-
-    def _expand_shapes(self, shapes, dimensions):
+    def _expand_shapes(self, shapes, dimensions, graphics):
         expansion = []
         for s in shapes:
             if isinstance(s, OccPart):
                 if s.declaration.display:
-                    subshapes = self._expand_shapes(s.children(), dimensions)
+                    subshapes = self._expand_shapes(
+                        s.children(), dimensions, graphics)
                     expansion.extend(subshapes)
             elif isinstance(s, OccShape):
                 if s.declaration.display:
                     expansion.append(s)
-                    self._extract_dimensions(s, dimensions)
+                    for c in s.declaration.traverse():
+                        if isinstance(c, Dimension):
+                            dimensions.add(c.proxy)
+                        elif isinstance(c, DisplayItem):
+                            graphics.add(c.proxy)
             elif isinstance(s, OccDimension):
                 dimensions.add(s)
+            elif isinstance(s, OccDisplayItem):
+                graphics.add(s)
         return expansion
 
     def _do_update(self):
@@ -1027,8 +1044,10 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             log.debug("Rendering...")
 
             #: Expand all parts otherwise we lose the material information
-            self.dimensions = set()
-            shapes = self._expand_shapes(self.children(), self.dimensions)
+            dimensions = self.dimensions = set()
+            graphics = self.graphics = set()
+            shapes = self._expand_shapes(self.children(), dimensions, graphics)
+
             if not shapes:
                 log.debug("No shapes to display")
                 return
@@ -1067,9 +1086,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                 # Save the mapping of topods_shape to declaracad shape
                 displayed_shapes[topods_shape] = occ_shape
 
-                progress = self.declaration.progress = min(100, max(0, i * 100 / n))
-                #log.debug("Displaying {} ({}%)".format(
-                #    topods_shape, round(progress, 2)))
+                self.declaration.progress = min(100, max(0, i * 100 / n))
                 ais_shape = self.display_shape(
                     topods_shape,
                     d.color,
@@ -1083,19 +1100,30 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                     ais_shapes.append(ais_shape)
 
             # Display all dimensions
-            log.debug("Adding {} dimensions...".format(len(self.dimensions)))
             displayed_dimensions = {}
-            for item in self.dimensions:
-                dim = item.dimension
-                if dim is not None and item.declaration.display:
-                    displayed_dimensions[dim] = item
-                    self.display_ais(dim, update=False)
+            if dimensions:
+                log.debug(f"Adding {len(dimensions)} dimensions...")
+                for item in dimensions:
+                    dim = item.dimension
+                    if dim is not None and item.declaration.display:
+                        displayed_dimensions[dim] = item
+                        self.display_ais(dim, update=False)
 
-            # Update
+            displayed_graphics = {}
+            if graphics:
+                log.debug(f"Adding {len(graphics)} graphics...")
+                for item in graphics:
+                    if not item.declaration.display:
+                        continue
+                    context = self.gfx_structure.NewGroup()
+                    item.create_item(context)
+                self.gfx_structure.Display()
+
             self.ais_context.UpdateCurrentViewer()
 
             self._displayed_shapes = displayed_shapes
             self._displayed_dimensions = displayed_dimensions
+            self._displayed_graphics = displayed_graphics
 
             # Update bounding box
             bbox = self.get_bounding_box(displayed_shapes.keys())
@@ -1103,7 +1131,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             log.debug("Took: {}".format(datetime.now() - start_time))
             self.declaration.progress = 100
         except Exception as e:
-            log.error("Failed to display shapes: {}".format(
-                traceback.format_exc()))
+            log.error("Failed to display shapes: ")
+            log.exception(e)
         finally:
             self.declaration.loading = False

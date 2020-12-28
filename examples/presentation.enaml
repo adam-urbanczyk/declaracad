@@ -1,0 +1,20 @@
+# Created in DeclaraCAD
+from declaracad.occ.api import *
+
+enamldef Assembly(Part):
+    Box:
+        pass
+    #DisplayArrow:
+    #    pass
+        
+    DisplayArrow:
+        position = (1,2 )
+        color = 'black'
+        #size = 1.0
+        #angle = 1
+        
+    DisplayText:
+        color = 'blue'
+        position = (2, 2)
+        text = "Hello"
+        size = 30
