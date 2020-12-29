@@ -1,0 +1,15 @@
+# Created in DeclaraCAD
+from declaracad.occ.api import *
+
+enamldef Assembly(Part):
+    Box:
+        transparency = 0.8
+        color = 'orange'
+        dx = 50
+        dy = 15
+        position = (0, 0, -dz)
+    Text:
+        text = "DeclaraCAD"
+        font = "Georgia"
+        size = 6
+        position = (10, 5)
