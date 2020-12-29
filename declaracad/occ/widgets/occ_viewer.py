@@ -156,6 +156,9 @@ class ProxyOccViewer(ProxyControl):
     def set_view_mode(self, mode):
         raise NotImplementedError
 
+    def set_view_projection(self, mode):
+        raise NotImplementedError
+
     def set_shadows(self, enabled):
         raise NotImplementedError
 
@@ -224,6 +227,9 @@ class OccViewer(Control):
     #: (xmin, ymin, zmin, xmax, ymax, zmax).
     bbox = d_(Typed(BBox), writable=False)
 
+    #: Any errors that occurred while rendering
+    errors = d_(Dict(), writable=False)
+
     #: Display mode
     display_mode = d_(Enum('shaded', 'wireframe'))
 
@@ -237,6 +243,9 @@ class OccViewer(Control):
     #: View direction
     view_mode = d_(Enum('iso', 'top', 'bottom', 'left', 'right', 'front',
                         'rear'))
+
+    #: View projection
+    view_projection = d_(Enum('orthographic', 'perspective'))
 
     # -------------------------------------------------------------------------
     # Grid
@@ -268,7 +277,7 @@ class OccViewer(Control):
     reflections = d_(Bool(False))
 
     #: Enable antialiasing
-    antialiasing = d_(Bool(False))
+    antialiasing = d_(Bool(True))
 
     #: Enable raytracing
     raytracing = d_(Bool(False))
@@ -325,7 +334,7 @@ class OccViewer(Control):
              'selection_mode', 'background_gradient', 'double_buffer',
              'shadows', 'reflections', 'antialiasing', 'lock_rotation',
              'lock_zoom', 'draw_boundaries', 'hidden_line_removal',
-             'shape_color', 'raytracing_depth', 'lights',
+             'shape_color', 'raytracing_depth', 'lights', 'view_projection',
              'grid_mode', 'grid_colors')
     def _update_proxy(self, change):
         """ An observer which sends state change to the proxy.

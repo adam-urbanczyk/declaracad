@@ -12,6 +12,7 @@ from OCCT.Quantity import Quantity_Color, Quantity_TOC_RGB
 
 
 OCC_COLOR_CACHE = {}
+OCC_MATERIAL_CACHE = {}
 
 
 def color_to_quantity_color(color):
@@ -54,9 +55,14 @@ def material_to_material_aspect(material):
         The material
 
     """
-    if material.name:
-        material_type = 'Graphic3d_NOM_%s' % material.name.upper()
-        return Graphic3d_MaterialAspect(getattr(Graphic3d, material_type))
+    name = 'DEFAULT' if material is None else material.name
+    if name:
+        ma = OCC_MATERIAL_CACHE.get(name)
+        if ma is None:
+            material_type = 'Graphic3d_NOM_%s' % name.upper()
+            ma = Graphic3d_MaterialAspect(getattr(Graphic3d, material_type))
+            OCC_MATERIAL_CACHE[name] = ma
+        return ma
     a = Graphic3d_MaterialAspect()
     a.SetTransparency(material.transparency)
     a.SetShininess(material.shininess)

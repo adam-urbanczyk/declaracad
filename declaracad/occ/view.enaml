@@ -120,6 +120,8 @@ enamldef ModelViewer(OccViewer): viewer:
         ViewerAction(name="View front (vf)", action=keymap['v']['f']),
         ViewerAction(name="View right", action=lambda: set_view_mode('right')),
         ViewerAction(name="View rear (vr)", action=lambda: set_view_mode('rear')),
+        ViewerAction(name="Projection orthographic (po)", action=keymap['p']['o']),
+        ViewerAction(name="Projection projection (pp)", action=keymap['p']['p']),
         ViewerAction(name="Fit all (fa)", action=self.fit_all),
         ViewerAction(name="Fit selection (fs)", action=self.fit_selection),
         ViewerAction(name="Reset view (v0)", action=self.reset_view),
@@ -154,6 +156,7 @@ enamldef ModelViewer(OccViewer): viewer:
         'd': menu_dimensions.keymap,
         'v': menu_view_direction.keymap,
         's': menu_selection_mode.keymap,
+        'p': menu_projection.keymap,
         'l': {
             'x': lambda: viewer.rotate_view(x=math.radians(-90)),
             'y': lambda: viewer.rotate_view(y=math.radians(-90)),
@@ -401,6 +404,28 @@ enamldef ModelViewer(OccViewer): viewer:
                     checkable = True
                     checked << viewer.view_mode == loop_item
                     triggered :: set_view_mode(loop_item)
+        Menu: menu_projection:
+            title = 'View projection'
+            attr keymap = {
+                m[0]: lambda m=m: set_projection_mode(m)
+                for m in viewer.get_member('view_projection').items
+            }
+
+            func set_projection_mode(mode):
+                log.debug(f"Set projection mode {mode}")
+                if viewer.view_projection == mode:
+                    # Force it if already set
+                    viewer.proxy.set_view_projection(mode)
+                else:
+                    viewer.view_projection = mode
+
+            Looper:
+                iterable << viewer.get_member('view_projection').items
+                Action:
+                    text = loop_item.title()
+                    checkable = True
+                    checked << viewer.view_projection == loop_item
+                    triggered :: set_projection_mode(loop_item)
 
         Menu:
             title = 'Clip planes'
