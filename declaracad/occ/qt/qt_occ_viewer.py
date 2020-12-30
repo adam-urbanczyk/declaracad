@@ -30,7 +30,7 @@ from OCCT import __version__ as OCCT_VERSION
 
 from OCCT.AIS import (
     AIS_InteractiveContext, AIS_Shape, AIS_Shaded, AIS_WireFrame,
-    AIS_ColoredDrawer, AIS_TexturedShape,
+    AIS_TexturedShape
 )
 from OCCT.Aspect import (
     Aspect_DisplayConnection, Aspect_TOTP_LEFT_LOWER, Aspect_GFM_VER,
@@ -838,6 +838,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             ais_shape.SetColor(color)
             if alpha is not None:
                 ais_shape.SetTransparency(alpha)
+
         elif material is None and texture is None:
             color, alpha = self.shape_color
             ais_shape.SetColor(color)
