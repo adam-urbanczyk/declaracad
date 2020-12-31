@@ -39,7 +39,7 @@ before_script:
   - xvfb-run -s "-screen 0 1920x1080x24 +extension GLX +extension RENDER" glxinfo
 
   # Make Qt Happy
-  #- export QT_DEBUG_PLUGINS=1
+  - export QT_DEBUG_PLUGINS=1
   - export QT_QPA_PLATFORM=xcb
 
 script:
