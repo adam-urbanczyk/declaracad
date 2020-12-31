@@ -18,11 +18,12 @@ from OCCT.Prs3d import (
 from OCCT.TCollection import TCollection_ExtendedString
 
 from declaracad.core.utils import log
-from declaracad.occ.qt.utils import color_to_quantity_color
+
 
 from ..display import ProxyDisplayItem, ProxyDisplayArrow, ProxyDisplayText
-from .occ_shape import coerce_axis
 from ..shape import Point
+from .occ_shape import coerce_axis
+from .utils import color_to_quantity_color
 
 
 class OccDisplayItem(ProxyDisplayItem):

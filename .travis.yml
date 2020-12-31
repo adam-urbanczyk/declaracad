@@ -4,7 +4,7 @@ matrix:
     - os: linux
       dist: xenial
       env:
-        - PYTHON=3.6
+        - PYTHON=3.8
 
 
 before_script:

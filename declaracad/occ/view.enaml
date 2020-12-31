@@ -22,7 +22,8 @@ from enaml.layout.api import align, hbox
 from enaml.qt.QtCore import Qt
 from enaml.widgets.api import (
     Window, Container, Menu, Action, DualSlider, CheckBox, Label,
-    IPythonConsole, ProgressBar, ScrollArea, PopupView, Field, PushButton
+    IPythonConsole, ProgressBar, ScrollArea, PopupView, Field, PushButton,
+    Splitter, SplitItem
 )
 
 from declaracad.core.api import DockItem, EmbeddedWindow
@@ -731,35 +732,44 @@ enamldef ViewerWindow(Window): window:
         return []
     Container:
         padding = 0
-        ModelViewer: viewer:
-            selection ::
-                e = change['value']
-                send_message(id='shape_selection', result=str(e.selection))
-            # Load the 3d models and include them in the viewer
-            shapes << load_source() if filename and version else []
+        Splitter:
+            orientation = 'vertical'
+            SplitItem:
+                Container:
+                    padding = 0
+                    ModelViewer: viewer:
+                        resist_height = 'weak'
+                        selection ::
+                            e = change['value']
+                            send_message(id='shape_selection', result=str(e.selection))
+                        # Load the 3d models and include them in the viewer
+                        shapes << load_source() if filename and version else []
 
 
-            get_actions => ():
-                return viewer.default_actions + [
-                    ViewerAction(name="Rapid move to (mt)", action=keymap['m']['t']),
-                ]
+                        get_actions => ():
+                            return viewer.default_actions + [
+                                ViewerAction(name="Rapid move to (mt)", action=keymap['m']['t']),
+                            ]
 
-            get_keymap => ():
-                km = viewer.default_keymap
-                km.update({
-                    'm': {
-                        't': window.send_move_to,
-                    }
-                })
-                return km
+                        get_keymap => ():
+                            km = viewer.default_keymap
+                            km.update({
+                                'm': {
+                                    't': window.send_move_to,
+                                }
+                            })
+                            return km
 
-        Conditional:
-            condition << viewer.show_console
-            IPythonConsole:
-                initial_ns = {
-                    'viewer': viewer,
-                }
-                minimum_size = (640, 240)
+            Conditional:
+                condition << viewer.show_console
+                SplitItem:
+                    Container:
+                        padding = 0
+                        IPythonConsole:
+                            resist_height = 'weak'
+                            initial_ns = {
+                                'viewer': viewer,
+                            }
         Conditional:
             condition << viewer.loading
             ProgressBar:

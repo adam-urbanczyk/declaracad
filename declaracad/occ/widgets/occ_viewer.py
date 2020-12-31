@@ -245,7 +245,7 @@ class OccViewer(Control):
                         'rear'))
 
     #: View projection
-    view_projection = d_(Enum('orthographic', 'perspective'))
+    view_projection = d_(Enum('orthographic', 'perspective', 'stereo'))
 
     # -------------------------------------------------------------------------
     # Grid

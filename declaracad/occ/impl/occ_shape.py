@@ -76,6 +76,8 @@ from ..shape import (
     coerce_point, coerce_direction
 )
 
+from .utils import color_to_quantity_color, material_to_material_aspect
+
 from declaracad.core.utils import log
 
 
@@ -921,6 +923,24 @@ class OccShape(ProxyShape):
                         yield s
                 else:
                     yield child.shape
+
+    def _default_ais_shape(self):
+        """ Generate the AIS shape for the viewer to display.
+        This is only invoked when the viewer wants to display the shape.
+
+        """
+        d = self.declaration
+        ais_shape = AIS_Shape(self.shape)
+
+        ais_shape.SetTransparency(d.transparency)
+        if d.color:
+            c, a = color_to_quantity_color(d.color)
+            ais_shape.SetColor(c)
+            if a is not None:
+                ais_shape.SetTransparency(a)
+        ma = material_to_material_aspect(d.material)
+        ais_shape.SetMaterial(ma)
+        return ais_shape
 
     # -------------------------------------------------------------------------
     # Proxy API

@@ -33,7 +33,7 @@ from .occ_shape import Topology
 
 from declaracad.core.utils import log
 
-from declaracad.occ.qt.utils import color_to_quantity_color
+from .utils import color_to_quantity_color
 
 
 

@@ -12,7 +12,7 @@ Created on Sep 30, 2016
 import os
 from atom.api import Typed, Int, Tuple, List, set_default
 
-from OCCT import TCollection, NCollection, Graphic3d
+from OCCT import Aspect, TCollection, NCollection, Graphic3d
 from OCCT.BRep import BRep_Tool
 from OCCT.BRepAdaptor import BRepAdaptor_CompCurve
 from OCCT.BRepBuilderAPI import (
@@ -40,19 +40,21 @@ from OCCT.TopoDS import (
 from OCCT.GeomAPI import GeomAPI_PointsToBSpline, GeomAPI
 from OCCT.Geom import (
     Geom_BezierCurve, Geom_BSplineCurve, Geom_TrimmedCurve, Geom_Plane,
-    Geom_Ellipse, Geom_Circle, Geom_Parabola, Geom_Hyperbola, Geom_Line
+    Geom_Ellipse, Geom_Circle, Geom_Parabola, Geom_Hyperbola, Geom_Line,
+    Geom_CartesianPoint
 )
 from OCCT.TColgp import TColgp_Array1OfPnt
 
 from ..shape import coerce_point, coerce_direction
 from ..draw import (
     ProxyPlane, ProxyVertex, ProxyLine, ProxyCircle, ProxyEllipse,
-    ProxyHyperbola, ProxyParabola, ProxyEdge, ProxyWire, ProxySegment, ProxyArc,
-    ProxyPolyline, ProxyBSpline, ProxyBezier, ProxyTrimmedCurve, ProxyText,
-    ProxyRectangle
+    ProxyHyperbola, ProxyParabola, ProxyEdge, ProxyWire, ProxySegment,
+    ProxyArc, ProxyPolyline, ProxyBSpline, ProxyBezier, ProxyTrimmedCurve,
+    ProxyText, ProxyRectangle
 )
 from .occ_shape import OccShape, OccDependentShape, Topology, coerce_axis
 from .occ_svg import make_ellipse
+from .utils import color_to_quantity_color
 
 from declaracad.core.utils import log
 
@@ -61,6 +63,23 @@ from declaracad.core.utils import log
 FONT_MANAGER = Font_FontMgr.GetInstance_()
 FONT_REGISTRY = set()
 FONT_CACHE = {}
+
+
+MARKERS = {
+    'plus': Aspect.Aspect_TOM_PLUS,
+    'point': Aspect.Aspect_TOM_POINT,
+    'star': Aspect.Aspect_TOM_STAR,
+    'cross': Aspect.Aspect_TOM_X,
+    'circle': Aspect.Aspect_TOM_O,
+    'point-in-circle': Aspect.Aspect_TOM_O_POINT,
+    'star-in-circle': Aspect.Aspect_TOM_O_STAR,
+    'plus-in-circle': Aspect.Aspect_TOM_O_PLUS,
+    'cross-in-circle': Aspect.Aspect_TOM_O_X,
+    'large-ring': Aspect.Aspect_TOM_RING1,
+    'medium-ring': Aspect.Aspect_TOM_RING2,
+    'small-ring': Aspect.Aspect_TOM_RING3,
+    'ball': Aspect.Aspect_TOM_BALL,
+}
 
 
 class OccPlane(OccShape, ProxyPlane):
@@ -95,6 +114,14 @@ class OccVertex(OccShape, ProxyVertex):
     def create_shape(self):
         pt = self.declaration.position.proxy
         self.shape = BRepBuilderAPI_MakeVertex(pt).Vertex()
+
+    def _default_ais_shape(self):
+        d = self.declaration
+        ais_shape = super()._default_ais_shape()
+        marker = MARKERS.get(d.marker)
+        if marker:
+            ais_shape.Attributes().PointAspect().SetTypeOfMarker(marker)
+        return ais_shape
 
 
 class OccEdge(OccShape, ProxyEdge):

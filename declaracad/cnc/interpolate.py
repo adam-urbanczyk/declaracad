@@ -9,7 +9,7 @@ Created on Dec 27, 2020
 
 @author: jrm
 """
-from declaracad.occ.api import Topology
+from declaracad.occ.api import Topology, Wire
 
 
 def distance(points, start, end, scale=-1):
@@ -65,6 +65,30 @@ def distance(points, start, end, scale=-1):
     return points
 
 
+def lookup_vertex(graph, v):
+    """ Lookup the vertex in the graph using the hash, if that fails,
+    fallback to using equals to find points that are equal within
+    the tolerance.
+
+    Parameters
+    ----------
+    graph: Dict
+        Mapping of Point to items
+    v: Point
+        The point to find
+
+    Return
+    ------
+    entry: Tuple or None
+        If the vertex is found return vertex and matching item in the graph.
+    """
+    item = graph.get(v)
+    if item is not None:
+        return (v, item)
+    for vertex, item in graph.items():
+        if vertex == v:
+            return (vertex, item)
+
 
 def build_edge_graph(shapes):
     """ Build a graph of verticies and edges that connect them. This assumes
@@ -78,13 +102,14 @@ def build_edge_graph(shapes):
     Returns
     -------
     graph: Dict
-        A mapping of points to set of connected edges
+        A mapping of points to the list of connected edge topologies
 
     """
     graph = {}
     for s in shapes:
         for e in Topology(shape=s).edges:
-            for p in Topology(shape=e).points:
+            edge_topo = Topology(shape=e)
+            for p in edge_topo.points:
                 r = graph.get(p)
                 if r is None:
                     # Lookup using equals instead of hash
@@ -94,6 +119,88 @@ def build_edge_graph(shapes):
                             break
                     if r is None:
                         r = graph[p] = []
-                r.append(e)
+                r.append(edge_topo)
     return graph
+
+
+def walk_edges(graph, vertex, edge):
+    """ Start at the given vertex and walk the edge until a leaf or branch
+    is found.
+
+    Parameters
+    ----------
+    graph: Dict
+        The graph to walk.
+    vertex: Point
+        The point to start at
+    edge: TopoDS_Edge
+        The edge to walk.
+
+    Yields
+    ------
+    result: Tuple[Point, TopoDS_Edge or None]
+        The vertex and edge walked. When the terminating vertex is found
+        the edge is None.
+
+    """
+    used = set() # TODO: Detect loops
+    vertex, topos = lookup_vertex(graph, vertex)
+    topo = None
+    for t in topos:
+        if t.shape == edge:
+            topo = t
+            yield (vertex, edge)
+            break
+    if topo is None:
+        raise ValueError("Edge is not connected")
+    while True:
+        # Find other point
+        other_vertices = [p for p in topo.points if p != vertex]
+        assert len(other_vertices) == 1
+        next_vertex = other_vertices[0]
+        assert vertex != next_vertex
+        vertex, topos = lookup_vertex(graph, next_vertex)
+        if len(topos) != 2:
+            yield (vertex, None) # Final vertex, done
+            break
+
+        # Find other edge
+        other_edges = [t for t in topos if not t.shape.IsSame(edge)]
+        assert len(other_edges) == 1
+        topo = other_edges[0]
+        edge = topo.shape
+        yield (vertex, edge)
+
+
+def split_wires(graph):
+    """ Split the graph into wires at their branch points.
+
+    Parameters
+    ----------
+    wire: List[TopoDS_Wire]
+        The list is wires to split
+    graph:
+
+    Yields
+    ------
+    wire: TopoDS_Wire
+        Each wire in the graph
+
+    """
+    visited_edges = []
+    for vertex, topos in graph.items():
+        if len(topos) == 2:
+            continue
+        for topo in topos:
+            edge = topo.edge
+            if Topology.is_shape_in_list(edge, visited_edges):
+                continue
+            edges = [e for v, e in walk_edges(graph, vertex, edge)
+                     if e is not None]
+            yield Wire(edges=edges).render()
+
+            # Add first and last edges to visited list
+            visited_edges.append(edges[0])
+            if len(edges) > 1:
+                visited_edges.append(edges[-1])
 

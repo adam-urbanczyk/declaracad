@@ -33,6 +33,9 @@ class ProxyVertex(ProxyShape):
     #: A reference to the shape declaration.
     declaration = ForwardTyped(lambda: Vertex)
 
+    def set_marker(self, marker):
+        raise NotImplementedError
+
 
 class ProxyEdge(ProxyShape):
     #: A reference to the shape declaration.
@@ -234,6 +237,14 @@ class Vertex(Shape):
 
     """
     proxy = Typed(ProxyVertex)
+
+    #: Style marker
+    #: TODO: Custom
+    marker = d_(Enum('plus', 'point', 'dot', 'star', 'cross', 'circle',
+                     'point-in-circle', 'star-in-circle',
+                     'plus-in-circle', 'cross-in-circle',
+                     'large-ring', 'medium-ring', 'small-ring',
+                     'ball'))
 
 
 class Edge(Shape):

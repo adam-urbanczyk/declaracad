@@ -68,7 +68,7 @@ from OCCT.TCollection import TCollection_AsciiString
 from OCCT.TopLoc import TopLoc_Location
 from OCCT.V3d import V3d_Viewer, V3d_View, V3d_TypeOfOrientation
 
-from declaracad.occ.qt.utils import (
+from declaracad.occ.impl.utils import (
     color_to_quantity_color, material_to_material_aspect
 )
 from declaracad.occ.impl.occ_part import OccPart
@@ -226,8 +226,6 @@ class QtViewer3d(QOpenGLWidget):
     def mouseReleaseEvent(self, event):
         if self._fire_event('mouse_released', event):
             return
-        # pt = event.pos()
-
         view = self.proxy.v3d_view
         btn = event.button()
 
@@ -1061,6 +1059,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         declaration = self.declaration
         declaration.loading = True
         self.errors = {}
+        ais_context = self.ais_context
+        default_color, default_alpha = self.shape_color
         try:
             view = self.v3d_view
 
@@ -1078,6 +1078,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
             displayed_shapes = {}
             ais_shapes = []
+
             self.set_selection_mode(declaration.selection_mode)
             n = len(shapes)
             for i, occ_shape in enumerate(shapes):
@@ -1113,15 +1114,25 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                 displayed_shapes[topods_shape] = occ_shape
 
                 declaration.progress = min(100, max(0, i * 100 / n))
-                ais_shape = self.display_shape(
-                    topods_shape,
-                    d.color,
-                    d.transparency,
-                    d.material if d.material.name else None,
-                    d.texture,
-                    update=False)
 
-                occ_shape.ais_shape = ais_shape
+                ais_shape = occ_shape.ais_shape
+                if ais_shape is not None:
+                    try:
+                        if not ais_shape.HasColor():
+                            ais_shape.SetColor(default_color)
+                        ais_context.Display(ais_shape, False)
+                    except RuntimeError as e:
+                        log.exception(e)
+                        self.errors[occ_shape] = e
+                else:
+                    ais_shape = self.display_shape(
+                        topods_shape,
+                        d.color,
+                        d.transparency,
+                        d.material if d.material.name else None,
+                        d.texture,
+                        update=False)
+                    occ_shape.ais_shape = ais_shape
                 if ais_shape:
                     ais_shapes.append(ais_shape)
 

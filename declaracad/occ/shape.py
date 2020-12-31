@@ -14,7 +14,7 @@ import math
 from math import pi
 from atom.api import (
     Atom, Tuple, Instance, Bool, Str, Float, FloatRange, Property, Coerced,
-    Typed, ForwardTyped, List, Enum, Event, observe
+    Typed, ForwardTyped, List, Enum, Event, Value, observe
 )
 
 from enaml.core.declarative import d_
@@ -265,8 +265,12 @@ class Material(Atom):
     #: Name
     name = Str()
 
+    #: Internal data
+    _data = Value()
+
     def __init__(self, name="", **kwargs):
-        """ Constructor which accepts a material name
+        """ Constructor which accepts a material name. Use 'custom'
+        to define your own.
 
         """
         super().__init__(name=name, **kwargs)

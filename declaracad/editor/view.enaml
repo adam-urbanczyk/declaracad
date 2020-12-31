@@ -624,14 +624,14 @@ enamldef OutputDockItem(DockItem):
     func watch_output(change):
         try:
             if change['type'] == 'update':
-                output.proxy.widget.setPlainText(''.join(change['value']))
+                output.proxy.widget.setPlainText('\n'.join(change['value']).rstrip('\n'))
             elif change['type'] == 'container':
                 if change['operation'] == 'extend':
-                    output.proxy.widget.appendPlainText(''.join(change['items']))
+                    output.proxy.widget.appendPlainText('\n'.join(change['items']).rstrip('\n'))
                 elif change['operation'] == 'append':
-                    output.proxy.widget.appendPlainText(change['item'])
+                    output.proxy.widget.appendPlainText(change['item'].rstrip('\n'))
                 elif change['operation'] == 'set':
-                    output.proxy.widget.setPlainText(''.join(change['value']))
+                    output.proxy.widget.setPlainText('\n'.join(change['value']).rstrip('\n'))
         except Exception as e:
             log.exception(e)
 
