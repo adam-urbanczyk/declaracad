@@ -90,8 +90,9 @@ def load_model(filename, source=None):
     # Parse the enaml file or load from source code
     if source or filename.endswith('.enaml'):
         # Parse and compile the code
-        with open(filename, 'r') as f:
-            source = f.read()
+        if not source:
+            with open(filename, 'r') as f:
+                source = f.read()
         ast = parse(source)
         code = EnamlCompiler.compile(ast, filename)
         module = ModuleType(filename.rsplit('.', 1)[0])
