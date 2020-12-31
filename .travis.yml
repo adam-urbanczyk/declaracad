@@ -11,7 +11,7 @@ before_script:
   # And OpenGL support
   - sudo apt update -qq -y
   - export DEBIAN_FRONTEND=noninteractive
-  - sudo apt -yq --force-yes install libgl1-mesa-dev libgl1-mesa-glx mesa-common-dev libglapi-mesa libgbm1 libgl1-mesa-dri mesa-utils libxkbcommon-x11-0 libxcb1-dev xcb-util-wm
+  - sudo apt -yq --force-yes install libgl1-mesa-dev libgl1-mesa-glx mesa-common-dev libglapi-mesa libgbm1 libgl1-mesa-dri mesa-utils libxkbcommon-x11-0 libxcb1-dev libxcb-icccm4-dev
 
   # Install miniconda
   - travis_retry wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
