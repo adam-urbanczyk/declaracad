@@ -11,7 +11,7 @@ before_script:
   # And OpenGL support
   - sudo apt update -qq -y
   - export DEBIAN_FRONTEND=noninteractive
-  - sudo apt -yq --force-yes install libgl1-mesa-dev libgl1-mesa-glx mesa-common-dev libglapi-mesa libgbm1 libgl1-mesa-dri mesa-utils libxkbcommon-x11-0
+  - sudo apt -yq --force-yes install libgl1-mesa-dev libgl1-mesa-glx mesa-common-dev libglapi-mesa libgbm1 libgl1-mesa-dri mesa-utils libxkbcommon-x11-0 libxcb-icccm4
 
 
   # Install miniconda
