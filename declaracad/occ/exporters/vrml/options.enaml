@@ -1,0 +1,53 @@
+"""
+Copyright (c) 2017-2018, Jairus Martin.
+
+Distributed under the terms of the GPL v3 License.
+
+The full license is in the file LICENSE, distributed with this software.
+
+Created on Dec 13, 2017
+
+@author: jrm
+"""
+from enaml.widgets.api import Field, Label, CheckBox, ObjectCombo, Form
+from enamlx.widgets.api import DoubleSpinBox
+from .exporter import VrmlExporter
+
+
+enamldef OptionsForm(Form):
+    attr model: VrmlExporter
+
+    func get_help(name):
+        m = model.get_member(name)
+        if not m.metadata:
+            return ''
+        return m.metadata.get('help', '')
+
+    Label:
+        text = "Representation"
+        tool_tip << get_help('representation')
+    ObjectCombo:
+        items << list(model.get_member('representation').items)
+        to_string = lambda it: it.title().replace("-", " ")
+        selected := model.representation
+
+    Label:
+        text = "Version"
+        tool_tip << get_help('version')
+    ObjectCombo:
+        items << list(model.get_member('version').items)
+        selected := model.version
+
+    Label:
+        text = "Deflection"
+        tool_tip << get_help('deflection')
+    DoubleSpinBox:
+        value := model.deflection
+        minimum = -1
+        single_step = 0.0001
+        maximum = 10000
+        #decimals = 10 # enamlx needs a release
+        activated :: self.proxy.widget.setDecimals(10)
+
+
+

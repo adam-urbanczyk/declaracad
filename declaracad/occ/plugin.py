@@ -473,7 +473,8 @@ class ViewerPlugin(Plugin):
         """ TODO: push to an ExtensionPoint """
         from .exporters.stl.exporter import StlExporter
         from .exporters.step.exporter import StepExporter
-        return [StlExporter, StepExporter]
+        from .exporters.vrml.exporter import VrmlExporter
+        return [StlExporter, StepExporter, VrmlExporter]
 
     # -------------------------------------------------------------------------
     # Plugin commands

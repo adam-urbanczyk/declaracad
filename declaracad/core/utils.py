@@ -272,7 +272,7 @@ class ProcessLineReceiver(Atom, asyncio.SubprocessProtocol):
             The data received
 
         """
-        pass
+        self.output.append(data)
 
     def err_received(self, data):
         """ Called for stderr data if err_to_out is set to False
@@ -283,7 +283,7 @@ class ProcessLineReceiver(Atom, asyncio.SubprocessProtocol):
             The data received
 
         """
-        pass
+        self.output.append(data)
 
     def terminate(self):
         if self.process_transport:

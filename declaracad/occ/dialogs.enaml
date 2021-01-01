@@ -44,7 +44,7 @@ enamldef ExportDialog(Dialog): dialog:
     attr plugin
     attr event
     attr protocol = None
-    attr show_advanced: bool = False
+    attr show_advanced: bool = True
     attr options: ModelExporter = create_default_options()
     func create_default_options():
         editor = plugin.workbench.get_plugin('declaracad.editor')
