@@ -1007,6 +1007,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             remove(occ_shape.ais_shape, False)
         for ais_dim in self._displayed_dimensions.keys():
             remove(ais_dim, False)
+        for ais_item in self._displayed_graphics.keys():
+            remove(ais_item, False)
         self.gfx_structure.Clear()
         self.ais_context.UpdateCurrentViewer()
 
@@ -1150,10 +1152,10 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             if graphics:
                 log.debug(f"Adding {len(graphics)} graphics...")
                 for item in graphics:
-                    if not item.declaration.display:
-                        continue
-                    context = self.gfx_structure.NewGroup()
-                    item.create_item(context)
+                    ais_item = item.item
+                    if ais_item is not None and item.declaration.display:
+                        displayed_graphics[ais_item] = item
+                        self.display_ais(ais_item, update=False)
                 self.gfx_structure.Display()
 
             self.ais_context.UpdateCurrentViewer()

@@ -10,8 +10,10 @@ Created on Dec 27, 2020
 @author: jrm
 """
 from atom.api import Typed, Instance
+from OCCT.AIS import AIS_Line, AIS_TextLabel, AIS_Plane
 from OCCT.gp import gp_Ax2
 from OCCT.Graphic3d import Graphic3d_Text
+from OCCT.Geom import Geom_Line, Geom_Plane
 from OCCT.Prs3d import (
     Prs3d_Arrow, Prs3d_ArrowAspect, Prs3d_Text, Prs3d_TextAspect
 )
@@ -20,15 +22,16 @@ from OCCT.TCollection import TCollection_ExtendedString
 from declaracad.core.utils import log
 
 
-from ..display import ProxyDisplayItem, ProxyDisplayArrow, ProxyDisplayText
+from ..display import (
+    ProxyDisplayItem, ProxyDisplayArrow, ProxyDisplayText, ProxyDisplayLine,
+    ProxyDisplayPlane,
+)
 from ..shape import Point
 from .occ_shape import coerce_axis
 from .utils import color_to_quantity_color
 
 
 class OccDisplayItem(ProxyDisplayItem):
-    context = Instance(object)
-
     # -------------------------------------------------------------------------
     # Initialization API
     # -------------------------------------------------------------------------
@@ -50,7 +53,7 @@ class OccDisplayItem(ProxyDisplayItem):
         """ Activate the proxy for the top-down pass.
 
         """
-        pass
+        self.create_item()
 
     def activate_bottom_up(self):
         """ Activate the proxy tree for the bottom-up pass.
@@ -71,39 +74,65 @@ class OccDisplayItem(ProxyDisplayItem):
         self.update_item()
 
 
+class OccDisplayLine(OccDisplayItem, ProxyDisplayLine):
+    #: A reference to the toolkit item created by the proxy.
+    item = Typed(AIS_Line)
+
+    def create_item(self):
+        d = self.declaration
+        line = Geom_Line(d.position.proxy, d.direction.proxy)
+        ais_item = AIS_Line(line)
+        color, alpha = color_to_quantity_color(d.color)
+        ais_item.SetColor(color)
+        self.item = ais_item
+
+
+class OccDisplayPlane(OccDisplayItem, ProxyDisplayPlane):
+    #: A reference to the toolkit item created by the proxy.
+    item = Typed(AIS_Plane)
+
+    def create_item(self):
+        d = self.declaration
+        plane = Geom_Plane(d.position.proxy, d.direction.proxy)
+        ais_item = AIS_Plane(plane)
+        color, alpha = color_to_quantity_color(d.color)
+        ais_item.SetColor(color)
+        self.item = ais_item
+
+
 class OccDisplayArrow(OccDisplayItem, ProxyDisplayArrow):
     #: A reference to the toolkit item created by the proxy.
     item = Typed(Prs3d_Arrow)
 
-    def create_item(self, context):
+    def create_item(self):
         d = self.declaration
         #aspect = Prs3d_ArrowAspect()
         #color, alpha = color_to_quantity_color(d.color)
         #aspect.SetColor(color)
         #context.SetPrimitivesAspect(aspect)
-        self.context = context
-        self.item = Prs3d_Arrow.Draw_(
-            context, d.position.proxy, d.direction.proxy, d
-            .angle or d.size, d.size)
+        #self.context = context
+        #self.item = Prs3d_Arrow.Draw_(
+            #context, d.position.proxy, d.direction.proxy, d
+            #.angle or d.size, d.size)
 
 
 class OccDisplayText(OccDisplayItem, ProxyDisplayText):
     #: A reference to the toolkit item created by the proxy.
-    item = Typed(Graphic3d_Text)
+    item = Typed(AIS_TextLabel)
 
-    def create_item(self, context):
-        self.context = context
+    def create_item(self):
         d = self.declaration
         text = TCollection_ExtendedString(d.text)
-        axis = gp_Ax2(d.position.proxy, d.direction.proxy)
-        aspect = Prs3d_TextAspect()
-        color, alpha = color_to_quantity_color(d.color)
-        aspect.SetColor(color)
-        aspect.SetHeight(d.size)
+        ais_item = AIS_TextLabel()
+        ais_item.SetText(text)
+        ais_item.SetPosition(d.position.proxy)
+        ais_item.SetHeight(d.size)
         if d.font:
-            aspect.SetFont(d.font)
+            ais_item.SetFont(d.font)
 
-        self.item = Prs3d_Text.Draw_(context, aspect, text, axis)
+        color, alpha = color_to_quantity_color(d.color)
+        ais_item.SetColor(color)
+        self.item = ais_item
 
     def set_text(self, text):
         self.update_item()

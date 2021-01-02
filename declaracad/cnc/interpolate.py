@@ -192,7 +192,7 @@ def split_wires(graph):
         if len(topos) == 2:
             continue
         for topo in topos:
-            edge = topo.edge
+            edge = topo.shape
             if Topology.is_shape_in_list(edge, visited_edges):
                 continue
             edges = [e for v, e in walk_edges(graph, vertex, edge)
@@ -204,3 +204,30 @@ def split_wires(graph):
             if len(edges) > 1:
                 visited_edges.append(edges[-1])
 
+
+def group_connected_wires(wires):
+    """ Put the list of wires into a group if they are connected in the same
+    graph.
+
+    Parameters
+    ----------
+    wires: List[TopoDS_Wire]
+
+    Returns
+    -------
+    groups: List[Dict]
+        List of groups of connected wires.
+
+    """
+    groups = []
+    for w in wires:
+        topo = Topology(shape=w)
+        group = None
+        for g in groups:
+            if any(topo.intersection(w) for w in g):
+                group = g
+                group.append(w)
+                break
+        if group is None:
+            groups.append([w])
+    return groups

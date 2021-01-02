@@ -17,6 +17,7 @@ from atom.api import (
 
 from OCCT import GeomAbs
 from OCCT.AIS import AIS_Shape
+from OCCT.BOPAlgo import BOPAlgo_Section
 from OCCT.Bnd import Bnd_Box
 from OCCT.BRepAdaptor import (
     BRepAdaptor_Curve, BRepAdaptor_CompCurve, BRepAdaptor_Surface
@@ -61,7 +62,7 @@ from OCCT.TopExp import TopExp, TopExp_Explorer
 from OCCT.TopoDS import (
     TopoDS, TopoDS_Wire, TopoDS_Vertex, TopoDS_Edge,
     TopoDS_Face, TopoDS_Shell, TopoDS_Solid,
-    TopoDS_Compound, TopoDS_CompSolid, TopoDS_Shape
+    TopoDS_Compound, TopoDS_CompSolid, TopoDS_Shape, TopoDS_Iterator
 )
 from OCCT.TopTools import (
     TopTools_ListOfShape,
@@ -831,13 +832,61 @@ class Topology(Atom):
                       pmax.X(), pmax.Y(), pmax.Z()))
 
     # -------------------------------------------------------------------------
-    # Properties
+    # Edge/Wire Properties
     # -------------------------------------------------------------------------
-    @classmethod
-    def length(cls, shape):
+    @property
+    def length(self):
         props = GProp_GProps()
-        BRepGProp.LinearProperties_(shape, props, True)
+        BRepGProp.LinearProperties_(self.shape, props, True)
         return props.Mass()  # Don't ask
+
+    @property
+    def start_point(self):
+        """ Get the first / start point of a TopoDS_Wire or TopoDS_Edge
+
+        """
+        curve = BRepAdaptor_CompCurve(self.shape)
+        return self.get_value_at(curve, curve.FirstParameter())
+
+    @property
+    def end_point(self):
+        """ Get the end / last point of a TopoDS_Wire or TopoDS_Edge
+
+        """
+        curve = BRepAdaptor_CompCurve(self.shape)
+        return self.get_value_at(curve, curve.LastParameter())
+
+    # -------------------------------------------------------------------------
+    # Shape Properties
+    # -------------------------------------------------------------------------
+    mass = length
+
+    # -------------------------------------------------------------------------
+    # Intersection
+    # -------------------------------------------------------------------------
+    def intersection(self, shape):
+        """ Returns the resulting intersection of this and the given shape
+        or None.
+
+        """
+        op = BOPAlgo_Section()
+        op.AddArgument(self.shape)
+        op.AddArgument(shape)
+        op.Perform()
+        if op.HasErrors():
+            return
+        r = op.Shape()
+        if r.IsNull():
+            return
+        n = r.NbChildren()
+        if n == 0:
+            return
+        it = TopoDS_Iterator(r)
+        results = []
+        while it.More():
+            results.append(Topology.cast_shape(it.Value()))
+            it.Next()
+        return results
 
 
 class OccShape(ProxyShape):

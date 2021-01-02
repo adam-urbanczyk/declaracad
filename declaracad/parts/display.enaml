@@ -1,17 +1,17 @@
-from declaracad.occ.api import Part, Line, Vertex, Box, Topology, Looper
+from declaracad.occ.api import Part, DisplayLine, Vertex, Box, Topology, Looper
 
 
 enamldef Axis(Part): part:
     """ Displays an XYZ lines """
-    Line: xaxis:
+    DisplayLine: xaxis:
         color := part.color
         position := part.position
         direction = (1, 0)
-    Line: yaxis:
+    DisplayLine: yaxis:
         color := part.color
         position := part.position
         direction = (0, 1)
-    Line:
+    DisplayLine:
         color := part.color
         position := part.position
         direction = (0, 0, 1)

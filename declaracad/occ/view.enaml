@@ -13,6 +13,7 @@ import os
 import math
 import inspect
 import traceback
+from datetime import datetime
 from atom.api import Atom, Tuple, Str, Callable
 
 import enaml
@@ -250,13 +251,21 @@ enamldef ModelViewer(OccViewer): viewer:
             return [f"  Vertex: {v[:]}"]
         elif shape_type == 'edge':
             topology = Topology(shape=topods_shape)
-            verticies = topology.number_of_vertices()
-            length = topology.length(topods_shape)
+            verticies = len(topology.vertices)
+            length = topology.length
             desc = [
                 f"  Edge: {verticies} vertices",
-                f"  Length: {length}"
+                f"  Edge Length: {length}"
             ]
-
+            return desc
+        elif shape_type == 'wire':
+            topology = Topology(shape=topods_shape)
+            edges = len(topology.edges)
+            length = topology.length
+            desc = [
+                f"  Wire: {edges} edges",
+                f"  Wire Length: {length}"
+            ]
             return desc
 
     func describe_selection(selection):
@@ -706,8 +715,11 @@ enamldef ViewerWindow(Window): window:
         if filename != "-":
             with capture_output() as stdout:
                 try:
+                    start_time = datetime.now()
                     # Load the models from source code or disk
                     result = load_model(filename, source)
+                    end_time = datetime.now()
+                    print(f"Load took {end_time-start_time}")
                     send_message(id='render_success')
                     # Clear clipped planes
                     viewer.clipped_planes = {}
@@ -744,7 +756,6 @@ enamldef ViewerWindow(Window): window:
                             send_message(id='shape_selection', result=str(e.selection))
                         # Load the 3d models and include them in the viewer
                         shapes << load_source() if filename and version else []
-
 
                         get_actions => ():
                             return viewer.default_actions + [

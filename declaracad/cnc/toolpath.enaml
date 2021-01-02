@@ -155,7 +155,7 @@ enamldef Toolpath(Part): toolpath:
         last = movement.points[0]
         for p in movement.points[1:]:
             l += last.distance(p)
-        return f'Length: {l}'
+        return f'Move Length: {l}'
 
     Looper:
         iterable << toolpath.movements

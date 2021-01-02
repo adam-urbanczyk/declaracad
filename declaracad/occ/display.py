@@ -33,6 +33,16 @@ class ProxyDisplayItem(ProxyControl):
         raise NotImplementedError
 
 
+class ProxyDisplayLine(ProxyDisplayItem):
+    #: A reference to the Shape declaration.
+    declaration = ForwardTyped(lambda: DisplayLine)
+
+
+class ProxyDisplayPlane(ProxyDisplayItem):
+    #: A reference to the Shape declaration.
+    declaration = ForwardTyped(lambda: DisplayPlane)
+
+
 class ProxyDisplayArrow(ProxyDisplayItem):
     #: A reference to the Shape declaration.
     declaration = ForwardTyped(lambda: DisplayArrow)
@@ -104,6 +114,16 @@ class DisplayItem(ToolkitObject):
         if not self.proxy_is_active:
             self.activate_proxy()
         return self.proxy.item
+
+
+class DisplayLine(DisplayItem):
+    #: Reference to the implementation control
+    proxy = Typed(ProxyDisplayLine)
+
+
+class DisplayPlane(DisplayItem):
+    #: Reference to the implementation control
+    proxy = Typed(ProxyDisplayPlane)
 
 
 class DisplayArrow(DisplayItem):

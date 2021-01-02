@@ -31,7 +31,6 @@ class VrmlExporter(ModelExporter):
         'wire-frame'
     )
 
-
     @classmethod
     def get_options_view(cls):
         with enaml.imports():

@@ -282,9 +282,19 @@ def occ_display_arrow_factory():
     return OccDisplayArrow
 
 
+def occ_display_line_factory():
+    from .occ_display import OccDisplayLine
+    return OccDisplayLine
+
+
 def occ_display_text_factory():
     from .occ_display import OccDisplayText
     return OccDisplayText
+
+
+def occ_display_plane_factory():
+    from .occ_display import OccDisplayPlane
+    return OccDisplayPlane
 
 
 #: Part
@@ -357,7 +367,9 @@ OCC_FACTORIES = {
 
     #: Display
     'DisplayArrow': occ_display_arrow_factory,
+    'DisplayLine': occ_display_line_factory,
     'DisplayText': occ_display_text_factory,
+    'DisplayPlane': occ_display_plane_factory,
 }
 
 #: Install it

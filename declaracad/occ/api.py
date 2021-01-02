@@ -40,7 +40,7 @@ from .shape import (
 from .impl.occ_shape import Topology
 from .part import Part, RawPart
 from .loaders import LoadedPart
-from .display import DisplayArrow, DisplayText
+from .display import DisplayLine, DisplayArrow, DisplayText, DisplayPlane
 
 Loft = ThruSections
 Sweep = Pipe
