@@ -17,10 +17,11 @@ import traceback
 import faulthandler
 faulthandler.enable()
 
+# FIXME: The frozen app won't start without this before importing atom
+from enaml import qt
 
 from atom.api import Instance, Bool, Dict, Float
 from enaml.application import timed_call, deferred_call
-
 from declaracad import occ
 occ.install()
 from declaracad.core.app import Application
