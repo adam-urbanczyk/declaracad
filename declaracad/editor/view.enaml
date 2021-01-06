@@ -504,6 +504,7 @@ enamldef EditorDockItem(DockItem): view:
                             {'document':doc, 'target': view.name})
     icon = load_icon('script_code')
     name = 'editor-item-{}'.format(id(self))
+
     stretch = 2
     Container:
         padding = 0

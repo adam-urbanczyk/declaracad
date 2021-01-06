@@ -71,7 +71,7 @@ class Part(Shape):
     #: Optional description of the part
     description = d_(Str())
 
-    #: Cache
+    #: Static cache
     cache = {}
 
     @property

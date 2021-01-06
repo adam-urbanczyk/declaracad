@@ -50,14 +50,8 @@ enamldef HexSocketBolt(Transform): bolt:
     Chamfer:
         distance = body.radius * 1/3
         func get_bottom_face():
-            try:
-                for f in all.topology.plane_surfaces:
-                    print(f['surface'].Location().Z())
-            except Exception as e:
-                print(e)
-                #print(f.Location())
             return [all.topology.faces[12]]
-            
+
         operations = get_bottom_face()
         Fuse: all:
             HexSocketHead: head:

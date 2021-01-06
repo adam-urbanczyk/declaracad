@@ -1078,7 +1078,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                 log.debug("No shapes to display")
                 return
 
-            displayed_shapes = {}
+            displayed_shapes = self._displayed_shapes = {}
             ais_shapes = []
 
             self.set_selection_mode(declaration.selection_mode)
@@ -1120,7 +1120,8 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                 ais_shape = occ_shape.ais_shape
                 if ais_shape is not None:
                     try:
-                        if not ais_shape.HasColor():
+                        if not ais_shape.HasMaterial() \
+                                and not ais_shape.HasColor():
                             ais_shape.SetColor(default_color)
                         ais_context.Display(ais_shape, False)
                     except RuntimeError as e:
@@ -1139,7 +1140,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                     ais_shapes.append(ais_shape)
 
             # Display all dimensions
-            displayed_dimensions = {}
+            displayed_dimensions = self._displayed_dimensions = {}
             if dimensions:
                 log.debug(f"Adding {len(dimensions)} dimensions...")
                 for item in dimensions:
@@ -1148,7 +1149,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                         displayed_dimensions[dim] = item
                         self.display_ais(dim, update=False)
 
-            displayed_graphics = {}
+            displayed_graphics = self._displayed_graphics = {}
             if graphics:
                 log.debug(f"Adding {len(graphics)} graphics...")
                 for item in graphics:
@@ -1159,10 +1160,6 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                 self.gfx_structure.Display()
 
             self.ais_context.UpdateCurrentViewer()
-
-            self._displayed_shapes = displayed_shapes
-            self._displayed_dimensions = displayed_dimensions
-            self._displayed_graphics = displayed_graphics
 
             # Update bounding box
             bbox = self.get_bounding_box(displayed_shapes.keys())

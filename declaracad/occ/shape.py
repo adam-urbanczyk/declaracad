@@ -392,7 +392,7 @@ class Shape(ToolkitObject):
         if self.proxy.shape:
             try:
                 return self.proxy.get_bounding_box()
-            except:
+            except Exception as e:
                 pass
 
     #: Bounding box of this shape
@@ -400,7 +400,7 @@ class Shape(ToolkitObject):
 
     @observe('color', 'transparency', 'display', 'texture')
     def _update_proxy(self, change):
-        super(Shape, self)._update_proxy(change)
+        super()._update_proxy(change)
 
     @observe('proxy.shape')
     def _update_properties(self, change):

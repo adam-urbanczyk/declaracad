@@ -33,12 +33,6 @@ class Application(QtApplication):
 
     def __init__(self):
         super().__init__()
-
-        #: Set event loop policy for windows
-        if sys.platform == 'win32':
-            asyncio.set_event_loop_policy(
-                asyncio.WindowsSelectorEventLoopPolicy())
-
         self.loop = QEventLoop(self._qapp)
         asyncio.set_event_loop(self.loop)
         for name in ('asyncqt._unix._Selector',

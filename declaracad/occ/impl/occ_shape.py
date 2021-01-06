@@ -987,8 +987,9 @@ class OccShape(ProxyShape):
             ais_shape.SetColor(c)
             if a is not None:
                 ais_shape.SetTransparency(a)
-        ma = material_to_material_aspect(d.material)
-        ais_shape.SetMaterial(ma)
+        if d.material.name:
+            ma = material_to_material_aspect(d.material)
+            ais_shape.SetMaterial(ma)
         return ais_shape
 
     # -------------------------------------------------------------------------
@@ -1083,12 +1084,12 @@ class OccDependentShape(OccShape):
         raise NotImplementedError
 
     def child_added(self, child):
-        super(OccDependentShape, self).child_added(child)
+        super().child_added(child)
         if isinstance(child, OccShape):
             child.observe('shape', self.update_shape)
 
     def child_removed(self, child):
-        super(OccDependentShape, self).child_removed(child)
+        super().child_removed(child)
         if isinstance(child, OccShape):
             child.unobserve('shape', self.update_shape)
 
