@@ -16,7 +16,7 @@ from atom.api import (
     Atom, Tuple, Instance, Bool, Str, Float, FloatRange, Property, Coerced,
     Typed, ForwardTyped, List, Enum, Event, Value, observe
 )
-
+from enaml.application import Application
 from enaml.core.declarative import d_
 from enaml.colors import ColorMember
 from enaml.widgets.control import ProxyControl
@@ -58,6 +58,11 @@ class ProxyShape(ProxyControl):
 
     def get_bounding_box(self):
         raise NotImplementedError
+
+
+class ProxyPart(ProxyShape):
+    #: A reference to the Shape declaration.
+    declaration = ForwardTyped(lambda: Part)
 
 
 class ProxyFace(ProxyShape):
@@ -214,6 +219,14 @@ class ProxyRawShape(ProxyShape):
         raise NotImplementedError
 
 
+class ProxyRawPart(ProxyPart):
+    #: A reference to the shape declaration.
+    declaration = ForwardTyped(lambda: RawPart)
+
+    def get_shapes(self):
+        raise NotImplementedError
+
+
 class ProxyLoadShape(ProxyShape):
     #: A reference to the shape declaration.
     declaration = ForwardTyped(lambda: LoadShape)
@@ -301,6 +314,11 @@ class Shape(ToolkitObject):
     """
     #: Reference to the implementation control
     proxy = Typed(ProxyShape)
+
+    #: Set to true to prevent destruction of the shape when removed
+    #: from the viewer. You need to manually manage it otherwise it'll
+    #: create a memory leak
+    cached = d_(Bool(False))
 
     #: Whether the shape should be displayed and exported when in a part
     #: If set to false this shape will be excluded from the rendered part
@@ -398,7 +416,8 @@ class Shape(ToolkitObject):
     #: Bounding box of this shape
     bbox = Property(_get_bounding_box, cached=True)
 
-    @observe('color', 'transparency', 'display', 'texture')
+    @observe('color', 'transparency', 'display',
+             'texture', 'position', 'direction')
     def _update_proxy(self, change):
         super()._update_proxy(change)
 
@@ -428,6 +447,11 @@ class Shape(ToolkitObject):
                 child.initialize()
             if isinstance(child, ToolkitObject):
                 child.activate_proxy()
+
+        # Generating the model can take a lot of time
+        # so process events inbetween to keep the UI from freezing
+        Application.instance().process_events()
+
         self.activate_bottom_up()
         self.proxy_is_active = True
         self.activated()
@@ -448,6 +472,45 @@ class Shape(ToolkitObject):
         if not self.proxy_is_active:
             self.activate_proxy()
         return self.proxy.shape
+
+
+class Part(Shape):
+    """ A Part is a compound shape. It may contain
+    any number of nested parts and is typically subclassed.
+
+    Attributes
+    ----------
+
+    name: String
+        An optional name for the part
+    description: String
+        An optional description for the part
+
+    Examples
+    --------
+
+    enamldef Case(Part):
+        TopCover:
+            # etc..
+        BottomCover:
+            # etc..
+
+    """
+    #: Reference to the implementation control
+    proxy = Typed(ProxyPart)
+
+    #: Optional name of the part
+    name = d_(Str())
+
+    #: Optional description of the part
+    description = d_(Str())
+
+    #: Static cache
+    cache = {}
+
+    @property
+    def shapes(self):
+        return [child for child in self.children if isinstance(child, Shape)]
 
 
 class Face(Shape):
@@ -931,6 +994,62 @@ class RawShape(Shape):
         """
         if self.proxy_is_active:
             return self.proxy.get_shape()
+
+
+class RawPart(Shape):
+    """ A RawPart is a part that delegates creation to the declaration.
+    This allows custom shapes to be added to the 3D model hierarchy. Users
+    should subclass this and implement the `create_shapes` method.
+
+    Examples
+    --------
+
+    from OCC.TopoDS import TopoDS_Shape
+    from OCC.StlAPI import StlAPI_Reader
+
+    class StlShape(RawShape):
+        #: Loads a shape from an stl file
+        def create_shape(self, parent):
+            stl_reader = StlAPI_Reader()
+            shape = TopoDS_Shape()
+            stl_reader.Read(shape, './models/fan.stl')
+            return shape
+
+
+    """
+    #: Reference to the implementation control
+    proxy = Typed(ProxyRawPart)
+
+    def create_shapes(self, parent):
+        """ Create the shape for the control.
+        This method should create and initialize the shape.
+
+        Parameters
+        ----------
+        parent : shape or None
+            The parent shape for the control.
+
+        Returns
+        -------
+        result : List[shape]
+            The shapes for the control.
+
+
+        """
+        raise NotImplementedError
+
+    def get_shapes(self):
+        """ Retrieve the shapes for display.
+
+        Returns
+        -------
+        shapes : List[shape] or None
+            The toolkit shape that was previously created by the
+            call to 'create_shapes' or None if the proxy is not
+            active or the shape has been destroyed.
+        """
+        if self.proxy_is_active:
+            return self.proxy.get_shapes()
 
 
 class TopoShape(RawShape):

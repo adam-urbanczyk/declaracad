@@ -204,19 +204,32 @@ enamldef ModelViewer(OccViewer): viewer:
         popup.close()
         self.action_search = ""
 
-    func render(shapes):
-        """ Make sure shapes are initialized """
-        for s in shapes:
-            if not s.is_initialized:
-                s.initialize()
+
+    func before_render(shapes):
         return shapes
+
+    func after_render(change):
+        """ Destroy any non-cached old items after they have been removed
+        from the display. TODO: This is a hack... rework this...
+
+        """
+        new = set(change['value'])
+        old = set(change['oldvalue'])
+        removed = old - new
+        for s in removed:
+            if not s.cached:
+                s.destroy()
 
     Include:
         objects << list(expand_dict(clipped_planes))
     Include:
-        objects << render(viewer.shapes)
+        # Allow shapes to be cached
+        destroy_old = False
+        objects << before_render(viewer.shapes)
     Include:
         objects << viewer.dimensions
+
+    shapes :: deferred_call(after_render, change)
 
     key_pressed ::
         key = change['value'][1].text()

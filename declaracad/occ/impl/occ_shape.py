@@ -15,13 +15,11 @@ from atom.api import (
     Atom, Bool, Instance, List, Typed, Str, Property, observe, set_default
 )
 
-from OCCT import GeomAbs
-from OCCT.AIS import AIS_Shape
-from OCCT.BOPAlgo import BOPAlgo_Section
-from OCCT.Bnd import Bnd_Box
-from OCCT.BRepAdaptor import (
-    BRepAdaptor_Curve, BRepAdaptor_CompCurve, BRepAdaptor_Surface
+from OCCT.AIS import (
+    AIS_Shape, AIS_TexturedShape, AIS_MultipleConnectedInteractive
 )
+from OCCT.Bnd import Bnd_Box
+from OCCT.BRep import BRep_Builder
 from OCCT.BRepBndLib import BRepBndLib
 from OCCT.BRepBuilderAPI import (
     BRepBuilderAPI_MakeShape, BRepBuilderAPI_MakeFace,
@@ -33,51 +31,28 @@ from OCCT.BRepPrimAPI import (
     BRepPrimAPI_MakeSphere, BRepPrimAPI_MakeWedge, BRepPrimAPI_MakeTorus,
     BRepPrimAPI_MakeRevol,
 )
-from OCCT.BRepTools import BRepTools_WireExplorer
-from OCCT.BRepGProp import BRepGProp
-from OCCT.GC import GC_MakeSegment
-from OCCT.GCPnts import (
-    GCPnts_UniformDeflection, GCPnts_QuasiUniformDeflection,
-)
-from OCCT.Geom import (
-    Geom_Ellipse, Geom_Circle, Geom_Parabola, Geom_Hyperbola, Geom_Line,
-    Geom_TrimmedCurve
-)
-from OCCT.GeomAbs import (
-    GeomAbs_Line, GeomAbs_Circle, GeomAbs_Ellipse, GeomAbs_Hyperbola,
-    GeomAbs_Parabola, GeomAbs_BezierCurve, GeomAbs_BSplineCurve,
-    GeomAbs_OffsetCurve, GeomAbs_OtherCurve,
-)
-from OCCT.GProp import GProp_GProps
+
 from OCCT.gp import (
     gp, gp_Pnt, gp_Dir, gp_Vec, gp_Ax1, gp_Ax2, gp_Ax3, gp_Trsf, gp_Pln
 )
-
-from OCCT.TopAbs import (
-    TopAbs_VERTEX, TopAbs_EDGE, TopAbs_FACE, TopAbs_WIRE,
-    TopAbs_SHELL, TopAbs_SOLID, TopAbs_COMPOUND,
-    TopAbs_COMPSOLID
-)
-from OCCT.TopExp import TopExp, TopExp_Explorer
 from OCCT.TopoDS import (
     TopoDS, TopoDS_Wire, TopoDS_Vertex, TopoDS_Edge,
     TopoDS_Face, TopoDS_Shell, TopoDS_Solid,
     TopoDS_Compound, TopoDS_CompSolid, TopoDS_Shape, TopoDS_Iterator
 )
-from OCCT.TopTools import (
-    TopTools_ListOfShape,
-    TopTools_ListIteratorOfListOfShape,
-    TopTools_IndexedDataMapOfShapeListOfShape
-)
+from OCCT.TopLoc import TopLoc_Location
+from OCCT.TCollection import TCollection_AsciiString
+
 
 from ..shape import (
-    ProxyShape, ProxyFace, ProxyBox, ProxyCone, ProxyCylinder,
-    ProxyHalfSpace, ProxyPrism, ProxySphere, ProxyWedge,
+    ProxyShape, ProxyPart, ProxyFace, ProxyBox, ProxyCone, ProxyCylinder,
+    ProxyHalfSpace, ProxyPrism, ProxySphere, ProxyWedge, ProxyRawPart,
     ProxyTorus, ProxyRevol, ProxyRawShape, ProxyLoadShape, BBox, Shape,
     coerce_point, coerce_direction
 )
 
 from .utils import color_to_quantity_color, material_to_material_aspect
+from .topology import Topology
 
 from declaracad.core.utils import log
 
@@ -112,783 +87,6 @@ def coerce_shape(shape):
     return shape
 
 
-class WireExplorer(Atom):
-    """ Wire traversal ported from the pythonocc examples by @jf--
-
-    """
-    wire = Instance(TopoDS_Wire)
-    wire_explorer = Typed(BRepTools_WireExplorer)
-
-    def _loop_topo(self, edges=True):
-        wexp = self.wire_explorer = BRepTools_WireExplorer(self.wire)
-
-        items = set()  # list that stores hashes to avoid redundancy
-        occ_seq = TopTools_ListOfShape()
-
-        get_current = wexp.Current if edges else wexp.CurrentVertex
-
-        while wexp.More():
-            current_item = get_current()
-            if current_item not in items:
-                items.add(current_item)
-                occ_seq.Append(current_item)
-            wexp.Next()
-
-        # Convert occ_seq to python list
-        seq = []
-        topology_type = TopoDS.Edge_ if edges else TopoDS.Vertex_
-        occ_iterator = TopTools_ListIteratorOfListOfShape(occ_seq)
-        while occ_iterator.More():
-            topo_to_add = topology_type(occ_iterator.Value())
-            seq.append(topo_to_add)
-            occ_iterator.Next()
-        return seq
-
-    def ordered_edges(self):
-        return self._loop_topo(edges=True)
-
-    def ordered_vertices(self):
-        return self._loop_topo(edges=False)
-
-
-class Topology(Atom):
-    """ Topology traversal ported from the pythonocc examples by @jf---
-
-    Implements topology traversal from any TopoDS_Shape this class lets you
-    find how various topological entities are connected from one to another
-    find the faces connected to an edge, find the vertices this edge is
-    made from, get all faces connected to a vertex, and find out how many
-    topological elements are connected from a source
-
-
-    Note
-    ----
-    when traversing TopoDS_Wire entities, its advised to use the
-    specialized ``WireExplorer`` class, which will return the vertices /
-    edges in the expected order
-
-    """
-
-    #: Maps topology types and functions that can create this topology
-    topo_factory = {
-        TopAbs_VERTEX: TopoDS.Vertex_,
-        TopAbs_EDGE: TopoDS.Edge_,
-        TopAbs_FACE: TopoDS.Face_,
-        TopAbs_WIRE: TopoDS.Wire_,
-        TopAbs_SHELL: TopoDS.Shell_,
-        TopAbs_SOLID: TopoDS.Solid_,
-        TopAbs_COMPOUND: TopoDS.Compound_,
-        TopAbs_COMPSOLID: TopoDS.CompSolid_
-    }
-
-    topo_types = {
-        TopAbs_VERTEX: TopoDS_Vertex,
-        TopAbs_EDGE: TopoDS_Edge,
-        TopAbs_FACE: TopoDS_Face,
-        TopAbs_WIRE: TopoDS_Wire,
-        TopAbs_SHELL: TopoDS_Shell,
-        TopAbs_SOLID: TopoDS_Solid,
-        TopAbs_COMPOUND: TopoDS_Compound,
-        TopAbs_COMPSOLID: TopoDS_CompSolid
-    }
-
-    curve_factory = {
-        GeomAbs_Line: lambda c: GC_MakeSegment(
-                c.Line(), c.FirstParameter(), c.LastParameter()).Value(),
-        GeomAbs_Circle: lambda c: Geom_Circle(c.Circle()),
-        GeomAbs_Ellipse: lambda c: Geom_Ellipse(c.Ellipse()),
-        GeomAbs_Hyperbola: lambda c: Geom_Hyperbola(c.Hyperbola()),
-        GeomAbs_Parabola: lambda c: Geom_Parabola(c.Parabola()),
-        GeomAbs_BezierCurve: BRepAdaptor_Curve.Bezier,
-        GeomAbs_BSplineCurve: BRepAdaptor_Curve.BSpline,
-        GeomAbs_OffsetCurve: BRepAdaptor_Curve.OffsetCurve,
-        GeomAbs_OtherCurve: BRepAdaptor_CompCurve,
-    }
-
-    #: The shape which topology will be traversed
-    shape = Instance(TopoDS_Shape)
-
-    #: Filter out TopoDS_* entities of similar TShape but different orientation
-    #: for instance, a cube has 24 edges, 4 edges for each of 6 faces
-    #: that results in 48 vertices, while there are only 8 vertices that have
-    #: a unique geometric coordinate
-    #: in certain cases ( computing a graph from the topology ) its preferable
-    #: to return topological entities that share similar geometry, though
-    #: differ in orientation by setting the ``ignore_orientation`` variable
-    #: to True, in case of a cube, just 12 edges and only 8 vertices will be
-    #: returned
-    #: for further reference see TopoDS_Shape IsEqual / IsSame methods
-    ignore_orientation = Bool()
-
-    def _loop_topo(self, topology_type, topological_entity=None,
-                   topology_type_to_avoid=None):
-        """ this could be a faces generator for a python TopoShape class
-        that way you can just do:
-        for face in srf.faces:
-            processFace(face)
-        """
-        allowed_types = self.topo_types.keys()
-        if topology_type not in allowed_types:
-            raise TypeError('%s not one of %s' % (
-                topology_type, allowed_types))
-
-        shape = self.shape
-        if shape is None:
-            return []
-
-        topo_exp = TopExp_Explorer()
-        # use self.myShape if nothing is specified
-        if topological_entity is None and topology_type_to_avoid is None:
-            topo_exp.Init(shape, topology_type)
-        elif topological_entity is None and topology_type_to_avoid is not None:
-            topo_exp.Init(shape, topology_type, topology_type_to_avoid)
-        elif topology_type_to_avoid is None:
-            topo_exp.Init(topological_entity, topology_type)
-        elif topology_type_to_avoid:
-            topo_exp.Init(
-                topological_entity, topology_type, topology_type_to_avoid)
-
-        items = set()  # list that stores hashes to avoid redundancy
-        occ_seq = TopTools_ListOfShape()
-        while topo_exp.More():
-            current_item = topo_exp.Current()
-            if current_item not in items:
-                items.add(current_item)
-                occ_seq.Append(current_item)
-            topo_exp.Next()
-
-        # Convert occ_seq to python list
-        seq = []
-        factory = self.topo_factory[topology_type]
-        occ_iterator = TopTools_ListIteratorOfListOfShape(occ_seq)
-        while occ_iterator.More():
-            topo_to_add = factory(occ_iterator.Value())
-            seq.append(topo_to_add)
-            occ_iterator.Next()
-
-        if not self.ignore_orientation:
-            return seq
-
-        # else filter out those entities that share the same TShape
-        # but do *not* share the same orientation
-        filter_orientation_seq = []
-        for i in seq:
-            present = False
-            for j in filter_orientation_seq:
-                if i.IsSame(j):
-                    present = True
-                    break
-            if present is False:
-                filter_orientation_seq.append(i)
-        return filter_orientation_seq
-
-    # -------------------------------------------------------------------------
-    # Shape Topology
-    # -------------------------------------------------------------------------
-    faces = List()
-
-    def _default_faces(self):
-        return self._loop_topo(TopAbs_FACE)
-
-    vertices = List()
-
-    def _default_vertices(self):
-        return self._loop_topo(TopAbs_VERTEX)
-
-    #: Get a list of points from verticies
-    points = List()
-
-    def _default_points(self):
-        return [coerce_point(v) for v in self.vertices]
-
-    edges = List()
-
-    def _default_edges(self):
-        return self._loop_topo(TopAbs_EDGE)
-
-    wires = List()
-
-    def _default_wires(self):
-        return self._loop_topo(TopAbs_WIRE)
-
-    shells = List()
-
-    def _default_shells(self):
-        return self._loop_topo(TopAbs_SHELL)
-
-    solids = List()
-
-    def _default_solids(self):
-        return self._loop_topo(TopAbs_SOLID)
-
-    comp_solids = List()
-
-    def _default_comp_solids(self):
-        return self._loop_topo(TopAbs_COMPSOLID)
-
-    compounds = List()
-
-    def _default_compounds(self):
-        return self._loop_topo(TopAbs_COMPOUND)
-
-    def ordered_vertices_from_wire(self, wire):
-        """ Get verticies from a wire.
-
-        Parameters
-        ----------
-        wire: TopoDS_Wire
-        """
-        return WireExplorer(wire=wire).ordered_vertices()
-
-    def ordered_edges_from_wire(self, wire):
-        """ Get edges from a wire.
-
-        Parameters
-        ----------
-        wire: TopoDS_Wire
-        """
-        return WireExplorer(wire=wire).ordered_edges()
-
-    def _map_shapes_and_ancestors(self, topo_type_a, topo_type_b, topo_entity):
-        '''
-        using the same method
-        @param topoTypeA:
-        @param topoTypeB:
-        @param topological_entity:
-        '''
-        topo_set = set()
-        items = []
-        topo_map = TopTools_IndexedDataMapOfShapeListOfShape()
-        TopExp.MapShapesAndAncestors_(
-            self.shape, topo_type_a, topo_type_b, topo_map)
-        topo_results = topo_map.FindFromKey(topo_entity)
-        if topo_results.IsEmpty():
-            return []
-
-        topology_iterator = TopTools_ListIteratorOfListOfShape(topo_results)
-        factory = self.topo_factory[topo_type_b]
-
-        while topology_iterator.More():
-            topo_entity = factory(topology_iterator.Value())
-
-            # return the entity if not in set
-            # to assure we're not returning entities several times
-            if topo_entity not in topo_set:
-                if self.ignore_orientation:
-                    unique = True
-                    for i in topo_set:
-                        if i.IsSame(topo_entity):
-                            unique = False
-                            break
-                    if unique:
-                        items.append(topo_entity)
-                else:
-                    items.append(topo_entity)
-
-            topo_set.add(topo_entity)
-            topology_iterator.Next()
-        return items
-
-    # ----------------------------------------------------------------------
-    # EDGE <-> FACE
-    # ----------------------------------------------------------------------
-    def faces_from_edge(self, edge):
-        """
-
-        :param edge:
-        :return:
-        """
-        return self._map_shapes_and_ancestors(TopAbs_EDGE, TopAbs_FACE, edge)
-
-    def edges_from_face(self, face):
-        """
-
-        :param face:
-        :return:
-        """
-        return self._loop_topo(TopAbs_EDGE, face)
-
-    # ----------------------------------------------------------------------
-    # VERTEX <-> EDGE
-    # ----------------------------------------------------------------------
-    def vertices_from_edge(self, edg):
-        return self._loop_topo(TopAbs_VERTEX, edg)
-
-    def edges_from_vertex(self, vertex):
-        return self._map_shapes_and_ancestors(
-            TopAbs_VERTEX, TopAbs_EDGE, vertex)
-
-    # ----------------------------------------------------------------------
-    # WIRE <-> EDGE
-    # ----------------------------------------------------------------------
-    def edges_from_wire(self, wire):
-        return self._loop_topo(TopAbs_EDGE, wire)
-
-    def wires_from_edge(self, edg):
-        return self._map_shapes_and_ancestors(TopAbs_EDGE, TopAbs_WIRE, edg)
-
-    def wires_from_vertex(self, edg):
-        return self._map_shapes_and_ancestors(TopAbs_VERTEX, TopAbs_WIRE, edg)
-
-    # ----------------------------------------------------------------------
-    # WIRE <-> FACE
-    # ----------------------------------------------------------------------
-    def wires_from_face(self, face):
-        return self._loop_topo(TopAbs_WIRE, face)
-
-    def faces_from_wire(self, wire):
-        return self._map_shapes_and_ancestors(TopAbs_WIRE, TopAbs_FACE, wire)
-
-    # ----------------------------------------------------------------------
-    # VERTEX <-> FACE
-    # ----------------------------------------------------------------------
-    def faces_from_vertex(self, vertex):
-        return self._map_shapes_and_ancestors(
-            TopAbs_VERTEX, TopAbs_FACE, vertex)
-
-    def vertices_from_face(self, face):
-        return self._loop_topo(TopAbs_VERTEX, face)
-
-    # ----------------------------------------------------------------------
-    # FACE <-> SOLID
-    # ----------------------------------------------------------------------
-    def solids_from_face(self, face):
-        return self._map_shapes_and_ancestors(TopAbs_FACE, TopAbs_SOLID, face)
-
-    def faces_from_solids(self, solid):
-        return self._loop_topo(TopAbs_FACE, solid)
-
-    # -------------------------------------------------------------------------
-    # Surface Types
-    # -------------------------------------------------------------------------
-    def extract_surfaces(self, surface_type):
-        """ Returns a list of dicts containing the face and surface
-
-        """
-        surfaces = []
-        attr = str(surface_type).split("_")[-1]
-        for f in self.faces:
-            surface = self.cast_surface(f, surface_type)
-            if surface is not None:
-                surfaces.append({
-                    'face': f, 'surface': getattr(surface, attr)()})
-        return surfaces
-
-    plane_surfaces = List()
-
-    def _default_plane_surfaces(self):
-        return self.extract_surfaces(GeomAbs.GeomAbs_Plane)
-
-    cone_surfaces = List()
-
-    def _default_cone_surfaces(self):
-        return self.extract_surfaces(GeomAbs.GeomAbs_Cone)
-
-    sphere_surfaces = List()
-
-    def _default_sphere_surfaces(self):
-        return self.extract_surfaces(GeomAbs.GeomAbs_Sphere)
-
-    torus_surfaces = List()
-
-    def _default_torus_surfaces(self):
-        return self.extract_surfaces(GeomAbs.GeomAbs_Torus)
-
-    cone_surfaces = List()
-
-    def _default_cone_surfaces(self):
-        return self.extract_surfaces(GeomAbs.GeomAbs_Cone)
-
-    cylinder_surfaces = List()
-
-    def _default_cylinder_surface(self):
-        return self.extract_surfaces(GeomAbs.GeomAbs_Cylinder)
-
-    bezier_surfaces = List()
-
-    def _default_bezier_surfaces(self):
-        return self.extract_surfaces(GeomAbs.GeomAbs_BezierSurface)
-
-    bspline_surfaces = List()
-
-    def _default_bspline_surfaces(self):
-        return self.extract_surfaces(GeomAbs.GeomAbs_BSplineSurface)
-
-    offset_surfaces = List()
-
-    def _default_offset_surfaces(self):
-        return self.extract_surfaces(GeomAbs.GeomAbs_OffsetSurface)
-
-    # -------------------------------------------------------------------------
-    # Curve Types
-    # -------------------------------------------------------------------------
-    def extract_curves(self, curve_type):
-        """ Returns a list of tuples containing the edge and curve
-
-        """
-        curves = []
-        for e in self.edges:
-            curve = self.cast_curve(e, curve_type)
-            if curve is not None:
-                curves.append({'edge': e, 'curve': curve})
-        return curves
-
-    line_curves = List()
-
-    def _default_line_curves(self):
-        return self.extract_curves(GeomAbs_Line)
-
-    circle_curves = List()
-
-    def _default_circle_curves(self):
-        return self.extract_curves(GeomAbs_Circle)
-
-    ellipse_curves = List()
-
-    def _default_ellipse_curves(self):
-        return self.extract_curves(GeomAbs_Ellipse)
-
-    hyperbola_curves = List()
-
-    def _default_hyperbola_curves(self):
-        return self.extract_curves(GeomAbs_Hyperbola)
-
-    parabola_cuves = List()
-
-    def _default_parabola_cuves(self):
-        return self.extract_curves(GeomAbs_Parabola)
-
-    bezier_curves = List()
-
-    def _default_bezier_curves(self):
-        return self.extract_curves(GeomAbs_BezierCurve)
-
-    bspline_curves = List()
-
-    def _default_bspline_curves(self):
-        return self.extract_curves(GeomAbs_BSplineCurve)
-
-    offset_curves = List()
-
-    def _default_offset_curves(self):
-        return self.extract_curves(GeomAbs_OffsetCurve)
-
-    curves = List()
-
-    def _default_curves(self):
-        return self.extract_curves(None)
-
-    # -------------------------------------------------------------------------
-    # Utilities
-    # -------------------------------------------------------------------------
-    @classmethod
-    def cast_shape(cls, topods_shape):
-        """ Convert a TopoDS_Shape into it's actual type, ex an TopoDS_Edge
-
-        Parameters
-        -----------
-        topods_shape: TopoDS_Shape
-            The shape to cas
-
-        Returns
-        -------
-        shape: TopoDS_Shape
-            The actual shape.
-
-        """
-        return cls.topo_factory[topods_shape.ShapeType()](topods_shape)
-
-    @classmethod
-    def cast_curve(cls, shape, expected_type=None):
-        """ Attempt to cast the shape (an edge or wire) to a curve
-
-        Parameters
-        ----------
-        shape: TopoDS_Edge
-            The shape to cast
-        expected_type: GeomAbs_CurveType
-            The type to restrict
-
-        Returns
-        -------
-        curve: Curve or None
-            The curve or None if it could not be created or if it was not
-            of the expected type (if given).
-        """
-        edge = TopoDS.Edge_(shape)
-        curve = BRepAdaptor_Curve(edge)
-        t = curve.GetType()
-        return cls.curve_factory[t](curve)
-
-    @classmethod
-    def cast_surface(cls, shape, expected_type=None):
-        """ Attempt to cast the shape (a face) to a surface
-
-        Parameters
-        ----------
-        shape: TopoDS_Face
-            The shape to cast
-        expected_type: GeomAbs_SurfaceType
-            The type to restrict
-
-        Returns
-        -------
-        surface: BRepAdaptor_Surface or None
-            The surface or None if it could not be created or did not
-            match the expected type (if given).
-        """
-        if isinstance(shape, TopoDS_Face):
-            face = shape
-        else:
-            face = TopoDS.Face_(shape)
-        surface = BRepAdaptor_Surface(face, True)
-        if expected_type is not None and surface.GetType() != expected_type:
-            return None
-        return surface
-
-    @classmethod
-    def is_circle(cls, shape):
-        """ Check if an edge or wire is a part of a circle.
-        This can be used to see if an edge can be used for radius dimensions.
-
-        Returns
-        -------
-        bool: Bool
-            Whether the shape is a part of circle
-        """
-        edge = TopoDS.Edge_(shape)
-        curve = BRepAdaptor_Curve(edge)
-        return curve.GetType() == GeomAbs.GeomAbs_Circle
-
-    @classmethod
-    def is_ellipse(cls, shape):
-        """ Check if an edge or wire is a part of an ellipse.
-        This can be used to see if an edge can be used for radius dimensions.
-
-        Returns
-        -------
-        bool: Bool
-            Whether the shape is a part of an ellipse
-        """
-        edge = TopoDS.Edge_(shape)
-        curve = BRepAdaptor_Curve(edge)
-        return curve.GetType() == GeomAbs.GeomAbs_Ellipse
-
-    @classmethod
-    def is_line(cls, shape):
-        """ Check if an edge or wire is a line.
-        This can be used to see if an edge can be used for length dimensions.
-
-        Returns
-        -------
-        bool: Bool
-            Whether the shape is a part of a line
-        """
-        edge = TopoDS.Edge_(shape)
-        curve = BRepAdaptor_Curve(edge)
-        return curve.GetType() == GeomAbs.GeomAbs_Line
-
-    @classmethod
-    def is_plane(cls, shape):
-        """ Check if a surface is a plane.
-
-        Returns
-        -------
-        bool: Bool
-            Whether the shape is a part of a line
-        """
-        surface = cls.cast_surface(shape)
-        if surface is None:
-            return False
-        return surface.GetType() == GeomAbs.GeomAbs_Plane
-
-    @classmethod
-    def is_cylinder(cls, shape):
-        """ Check if a surface is a cylinder.
-
-        Returns
-        -------
-        bool: Bool
-            Whether the shape is a part of a line
-        """
-        surface = cls.cast_surface(shape)
-        if surface is None:
-            return False
-        return surface.GetType() == GeomAbs.GeomAbs_Cylinder
-
-    @classmethod
-    def is_shape_in_list(cls, shape, shapes):
-        """ Check if an shape is in a list of shapes using the IsSame method.
-
-        Parameters
-        ----------
-        shape: TopoDS_Shape
-            The shape to check
-        shapes: Iterable[TopoDS_Shape]
-            An interable of shapes to check against
-
-        Returns
-        -------
-        bool: Bool
-            Whether the shape is in the list
-        """
-        if not isinstance(shape, TopoDS_Shape):
-            raise TypeError("Expected a TopoDS_Shape instance")
-        return any(shape.IsSame(s) for s in shapes)
-
-    @classmethod
-    def get_value_at(cls, curve, t, derivative=0):
-        """ Get the value of the curve at parameter t with it's derivatives.
-
-        Parameters
-        ----------
-        curve: BRepAdaptor_Curve
-            The curve to get the value from
-        t: Float
-            The parameter value from 0 to 1
-        derivative: Int
-            The derivative from 0 to 4
-
-        Returns
-        -------
-        results: Point or Tuple
-            If the derivative is 0 only the position at t is returned,
-            otherwise a tuple of the position and all deriviatives.
-        """
-        p = gp_Pnt()
-        if derivative == 0:
-            curve.D0(t, p)
-            return coerce_point(p)
-        v1 = gp_Vec()
-        if derivative == 1:
-            curve.D1(t, p, v1)
-            return (coerce_point(p), coerce_direction(v1))
-        v2 = gp_Vec()
-        if derivative == 2:
-            curve.D1(t, p, v1, v2)
-            return (coerce_point(p), coerce_direction(v1),
-                    coerce_direction(v2))
-        v3 = gp_Vec()
-        if derivative == 3:
-            curve.D3(t, p, v1, v2, v3)
-            return (coerce_point(p), coerce_direction(v1),
-                    coerce_direction(v2), coerce_direction(v3))
-        raise ValueError("Invalid derivative")
-
-    @classmethod
-    def discretize(cls, wire, deflection=0.01, quasi=True):
-        """ Convert a wire to points.
-
-        Parameters
-        ----------
-        deflection: Float
-            Maximum deflection allowed
-        n: Int
-            Number of points to use
-        quasi: Bool
-            If True, use the Quasi variant which is faster but less accurate.
-
-        Returns
-        -------
-        points: List[Point]
-            A list of points that make up the curve
-
-        """
-        c = BRepAdaptor_CompCurve(wire)
-        start = c.FirstParameter()
-        end = c.LastParameter()
-        if quasi:
-            a = GCPnts_QuasiUniformDeflection(c, deflection, start, end)
-        else:
-            a = GCPnts_UniformDeflection(c, deflection, start, end)
-        return [coerce_point(a.Value(i)) for i in range(1, a.NbPoints()+1)]
-
-    @classmethod
-    def bbox(cls, shapes, optimal=False, tolerance=0):
-        """ Compute the bounding box of the shape or list of shapes
-
-        Parameters
-        ----------
-        shapes: Shape, TopoDS_Shape or list of them
-            The shapes to compute the bounding box for
-
-        Returns
-        -------
-        bbox: BBox
-            The boudning g
-
-        """
-        if not shapes:
-            return BBox()
-        bbox = Bnd_Box()
-        bbox.SetGap(tolerance)
-        if not isinstance(shapes, (list, tuple, set)):
-            shapes = [shapes]
-        add = BRepBndLib.AddOptimal_ if optimal else BRepBndLib.Add_
-        for s in shapes:
-            add(coerce_shape(s), bbox)
-        pmin, pmax = bbox.CornerMin(), bbox.CornerMax()
-        return BBox(*(pmin.X(), pmin.Y(), pmin.Z(),
-                      pmax.X(), pmax.Y(), pmax.Z()))
-
-    # -------------------------------------------------------------------------
-    # Edge/Wire Properties
-    # -------------------------------------------------------------------------
-    @property
-    def length(self):
-        props = GProp_GProps()
-        BRepGProp.LinearProperties_(self.shape, props, True)
-        return props.Mass()  # Don't ask
-
-    @property
-    def start_point(self):
-        """ Get the first / start point of a TopoDS_Wire or TopoDS_Edge
-
-        """
-        curve = BRepAdaptor_CompCurve(self.shape)
-        return self.get_value_at(curve, curve.FirstParameter())
-
-    @property
-    def end_point(self):
-        """ Get the end / last point of a TopoDS_Wire or TopoDS_Edge
-
-        """
-        curve = BRepAdaptor_CompCurve(self.shape)
-        return self.get_value_at(curve, curve.LastParameter())
-
-    # -------------------------------------------------------------------------
-    # Shape Properties
-    # -------------------------------------------------------------------------
-    mass = length
-
-    # -------------------------------------------------------------------------
-    # Intersection
-    # -------------------------------------------------------------------------
-    def intersection(self, shape):
-        """ Returns the resulting intersection of this and the given shape
-        or None.
-
-        """
-        op = BOPAlgo_Section()
-        op.AddArgument(self.shape)
-        op.AddArgument(shape)
-        op.Perform()
-        if op.HasErrors():
-            return
-        r = op.Shape()
-        if r.IsNull():
-            return
-        n = r.NbChildren()
-        if n == 0:
-            return
-        it = TopoDS_Iterator(r)
-        results = []
-        while it.More():
-            results.append(Topology.cast_shape(it.Value()))
-            it.Next()
-        return results
-
-
 class OccShape(ProxyShape):
     #: A reference to the toolkit shape created by the proxy.
     shape = Typed(TopoDS_Shape)
@@ -896,11 +94,25 @@ class OccShape(ProxyShape):
     #: The shape that was shown on the screen
     ais_shape = Instance(AIS_Shape)
 
+    #: Whether this is currently displayed
+    displayed = Bool()
+
     #: Topology explorer of the shape
     topology = Typed(Topology)
 
     #: Class reference url
     reference = Str()
+
+    #: Cached reference to the viewer
+    def _get_viewer(self):
+        parent = self.parent()
+        if isinstance(parent, OccShape):
+            return parent.viewer
+        return parent
+
+    viewer = Property(_get_viewer, cached=True)
+
+    location = Typed(TopLoc_Location)
 
     # -------------------------------------------------------------------------
     # Initialization API
@@ -953,9 +165,11 @@ class OccShape(ProxyShape):
         return Topology(shape=self.shape)
 
     @observe('shape')
-    def update_topology(self, change):
+    def on_shape_changed(self, change):
         if self.shape is not None:
             self.topology = self._default_topology()
+        if self.displayed:
+            self.ais_shape = self._default_ais_shape()
 
     def get_first_child(self):
         """ Return shape to apply the operation to. """
@@ -973,13 +187,41 @@ class OccShape(ProxyShape):
                 else:
                     yield child.shape
 
+    def walk_shapes(self):
+        """ Iterator of all child shapes """
+        if isinstance(self, OccPart):
+            if self.declaration.display:
+                for s in self.children():
+                    if isinstance(s, OccShape):
+                        yield from s.walk_shapes()
+        elif isinstance(self, OccShape):
+            if self.declaration.display:
+                yield self
+
     def _default_ais_shape(self):
         """ Generate the AIS shape for the viewer to display.
         This is only invoked when the viewer wants to display the shape.
 
         """
         d = self.declaration
-        ais_shape = AIS_Shape(self.shape)
+
+        if d.texture is not None:
+            texture = d.texture
+            ais_shape = AIS_TexturedShape(self.shape)
+
+            if os.path.exists(texture.path):
+                path = TCollection_AsciiString(texture.path)
+                ais_shape.SetTextureFileName(path)
+                params = texture.repeat
+                ais_shape.SetTextureRepeat(params.enabled, params.u, params.v)
+                params = texture.origin
+                ais_shape.SetTextureOrigin(params.enabled, params.u, params.v)
+                params = texture.scale
+                ais_shape.SetTextureScale(params.enabled, params.u, params.v)
+                ais_shape.SetTextureMapOn()
+                ais_shape.SetDisplayMode(3)
+        else:
+            ais_shape = AIS_Shape(self.shape)
 
         ais_shape.SetTransparency(d.transparency)
         if d.color:
@@ -990,7 +232,19 @@ class OccShape(ProxyShape):
         if d.material.name:
             ma = material_to_material_aspect(d.material)
             ais_shape.SetMaterial(ma)
+        ais_shape.SetLocalTransformation(self.location.Transformation())
         return ais_shape
+
+    def _default_location(self):
+        """ Get the final location based on the assembly tree.
+
+        """
+        location = TopLoc_Location()
+        parent = self.parent()
+        while isinstance(parent, OccPart):
+            location = parent.location.Multiplied(location)
+            parent = parent.parent()
+        return location
 
     # -------------------------------------------------------------------------
     # Proxy API
@@ -1026,6 +280,9 @@ class OccShape(ProxyShape):
 
         t.SetTranslationPart(gp_Vec(*d.position))
         return t
+
+    def set_position(self, position):
+        self.create_shape()
 
     def set_direction(self, direction):
         self.create_shape()
@@ -1098,6 +355,56 @@ class OccDependentShape(OccShape):
 
     def set_axis(self, axis):
         self.update_shape()
+
+
+class OccPart(OccDependentShape, ProxyPart):
+    #: A reference to the toolkit shape created by the proxy.
+    builder = Typed(BRep_Builder)
+
+    #: Location
+    location = Typed(TopLoc_Location)
+
+    #: Display each sub-item
+    ais_shape = Typed(AIS_MultipleConnectedInteractive)
+
+    def _default_location(self):
+        return TopLoc_Location(self.get_transform())
+
+    def _default_ais_shape(self):
+        ais_obj = AIS_MultipleConnectedInteractive()
+        for c in self.children():
+            if isinstance(c, OccShape):
+                ais_obj.Connect(c.ais_shape)
+        return ais_obj
+
+    def update_shape(self, change=None):
+        """ Create the toolkit shape for the proxy object.
+
+        """
+        d = self.declaration
+        builder = self.builder = BRep_Builder()
+        shape = TopoDS_Compound()
+        builder.MakeCompound(shape)
+        for c in self.children():
+            if not isinstance(c, OccShape):
+                continue
+            if c.shape is None or not c.declaration.display:
+                continue
+            # Note infinite planes cannot be added to a compound!
+            builder.Add(shape, c.shape)
+        location = self.location = self._default_location()
+        shape.Location(location)
+        self.shape = shape
+
+    def set_position(self, position):
+        new_location = self._default_location()
+        ais_shape = self.ais_shape
+        viewer = self.viewer
+
+        # TODO: Not correct
+        for c in self.walk_shapes():
+            viewer.ais_context.SetLocation(c.ais_shape, new_location)
+        viewer.update()
 
 
 class OccFace(OccDependentShape, ProxyFace):
@@ -1416,3 +723,23 @@ class OccRawShape(OccShape, ProxyRawShape):
         """ Retrieve the underlying toolkit shape.
         """
         return self.shape
+
+
+class OccRawPart(OccPart, ProxyRawPart):
+    #: Update the class reference
+    reference = set_default('https://dev.opencascade.org/doc/refman/html/'
+                            'class_topo_d_s___shape.html')
+
+    shapes = List(TopoDS_Shape)
+
+    def create_shapes(self):
+        """ Delegate shape creation to the declaration implementation. """
+        self.shapes = self.declaration.create_shapes(self.parent_shape())
+
+    # -------------------------------------------------------------------------
+    # ProxyRawShape API
+    # -------------------------------------------------------------------------
+    def get_shapes(self):
+        """ Retrieve the underlying toolkit shape.
+        """
+        return self.shapes

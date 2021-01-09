@@ -32,7 +32,7 @@ from enaml.core.parser import parse
 from enaml.core.import_hooks import EnamlCompiler
 from enaml.colors import ColorMember
 
-from .part import Part
+from .shape import Part
 
 
 @functools.lru_cache

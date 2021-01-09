@@ -10,6 +10,7 @@ Created on Dec 13, 2017
 @author: jrm
 """
 from enaml.core.api import Looper, Conditional, Include
+from enaml.widgets.api import Timer
 from .algo import (
     Cut, Common, Fuse, Split, Intersection, Sew,
     Fillet, Chamfer,
@@ -33,12 +34,11 @@ from .draw import (
 )
 
 from .shape import (
-    Point, Direction, BBox, Shape, RawShape, Face, Texture, Material,
+    Part, Point, Direction, BBox, Shape, RawShape, Face, Texture, Material,
     Box, Cylinder, Sphere, Cone, Wedge, Torus,
-    HalfSpace, Prism, Revol, TopoShape
+    HalfSpace, Prism, Revol, TopoShape, RawPart
 )
-from .impl.occ_shape import Topology
-from .part import Part, RawPart
+from .impl.topology import Topology
 from .loaders import LoadedPart
 from .display import DisplayLine, DisplayArrow, DisplayText, DisplayPlane
 

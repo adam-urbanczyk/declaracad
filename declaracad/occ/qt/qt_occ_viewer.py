@@ -18,7 +18,7 @@ from atom.api import List, Dict, Typed, Int, Value, Property, Bool
 
 from enaml.qt import QtCore, QtGui
 from enaml.qt.QtWidgets import QOpenGLWidget
-from enaml.qt.QtCore import Qt, QRect
+from enaml.qt.QtCore import Qt, QTimer, QRect
 from enaml.qt.QtGui import QPainter, QPalette
 from enaml.qt.qt_control import QtControl
 from enaml.qt.qt_toolkit_object import QtToolkitObject
@@ -29,8 +29,7 @@ from OCCT import Aspect, Graphic3d, TopAbs, V3d
 from OCCT import __version__ as OCCT_VERSION
 
 from OCCT.AIS import (
-    AIS_InteractiveContext, AIS_Shape, AIS_Shaded, AIS_WireFrame,
-    AIS_TexturedShape
+    AIS_InteractiveContext, AIS_Shape, AIS_Shaded, AIS_WireFrame
 )
 from OCCT.Aspect import (
     Aspect_DisplayConnection, Aspect_TOTP_LEFT_LOWER, Aspect_GFM_VER,
@@ -71,8 +70,7 @@ from OCCT.V3d import V3d_Viewer, V3d_View, V3d_TypeOfOrientation
 from declaracad.occ.impl.utils import (
     color_to_quantity_color, material_to_material_aspect
 )
-from declaracad.occ.impl.occ_part import OccPart
-from declaracad.occ.impl.occ_shape import OccShape
+from declaracad.occ.impl.occ_shape import OccShape, OccPart
 from declaracad.occ.impl.occ_dimension import OccDimension
 from declaracad.occ.impl.occ_display import OccDisplayItem
 from declaracad.occ.widgets.occ_viewer import (
@@ -151,6 +149,7 @@ class QtViewer3d(QOpenGLWidget):
         self.setFocusPolicy(Qt.StrongFocus)
 
         # required for overpainting the widget
+        self.setAutoFillBackground(False)
         self.setBackgroundRole(QPalette.NoRole)
         self.setAttribute(Qt.WA_PaintOnScreen)
         self.setAttribute(Qt.WA_NoSystemBackground)
@@ -168,11 +167,13 @@ class QtViewer3d(QOpenGLWidget):
         return hwnd
 
     def resizeEvent(self, event):
-        self.proxy.v3d_view.MustBeResized()
+        view = self.proxy.v3d_view
+        if view:
+            view.MustBeResized()
 
     def keyPressEvent(self, event):
-        if self._fire_event('key_pressed', event):
-            return
+        if self.hasFocus():
+            self._fire_event('key_pressed', event)
 
     def focusInEvent(self, event):
         self.proxy.v3d_view.Redraw()
@@ -182,12 +183,12 @@ class QtViewer3d(QOpenGLWidget):
 
     def paintEvent(self, event):
         self.proxy.v3d_view.Redraw()
-        # important to allow overpainting of the OCC OpenGL context in Qt
 
-        if self._drawbox:
-            painter = QPainter(self)
-            painter.setPen(self._select_pen)
-            painter.drawRect(QRect(*self._drawbox))
+    def initializeGL(self):
+        self.proxy.init_viewer()
+
+    def resizeGL(self):
+        self.proxy.v3d_view.MustBeResized()
 
     def wheelEvent(self, event):
         if self._fire_event('mouse_scrolled', event):
@@ -302,7 +303,6 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     widget = Typed(QtViewer3d)
 
     #: Update count
-    _update_count = Int(0)
     _redraw_blocked = Bool()
 
     #: Displayed Shapes
@@ -346,6 +346,11 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     #: List of lights
     lights = List()
 
+    #: Fired
+    _redisplay_timer = Typed(QTimer, ())
+
+    _qt_app = Property(lambda self: Application.instance()._qapp, cached=True)
+
     def get_shapes(self):
         return [c for c in self.children() if not isinstance(c, QtControl)]
 
@@ -354,10 +359,20 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
     def init_widget(self):
         super().init_widget()
-        d = self.declaration
         widget = self.widget
         widget.proxy = self
 
+        redisplay_timer = self._redisplay_timer
+        redisplay_timer.setSingleShot(True)
+        redisplay_timer.setInterval(8)
+        redisplay_timer.timeout.connect(self.on_redisplay_requested)
+
+    def init_viewer(self):
+        """ Init viewer when the QOpenGLWidget is ready
+
+        """
+        d = self.declaration
+        widget = self.widget
         if sys.platform == 'win32':
             display = Aspect_DisplayConnection()
         else:
@@ -384,6 +399,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             window.Map()
         self.v3d_window = window
         view.SetWindow(window)
+        view.MustBeResized()
 
         # Setup viewer
         ais_context = self.ais_context = AIS_InteractiveContext(viewer)
@@ -396,6 +412,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
         # Lights camera
         self.camera = view.Camera()
+
         try:
             self.set_lights(d.lights)
         except Exception as e:
@@ -427,6 +444,11 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             self.dump_gl_info()
 
         self.redraw()
+
+        qt_app = self._qt_app
+        for child in self.children():
+            self.child_added(child)
+            qt_app.processEvents()
 
     def dump_gl_info(self):
         # Debug info
@@ -471,38 +493,155 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             if cb is not None:
                 callbacks[name].append(cb)
 
-    def init_layout(self):
-        super().init_layout()
-        for child in self.children():
-            self.child_added(child, update=False)
-        self.update_display()
-        self.v3d_view.MustBeResized()
-
-    def child_added(self, child, update=True):
+    def child_added(self, child):
         if isinstance(child, OccShape):
-            self.get_member('shapes').reset(self)
-            child.observe('shape', self.update_display)
-            if update:
-                self.update_display()
+            self._add_shape_to_display(child)
         elif isinstance(child, OccDimension):
-            child.observe('dimension', self.update_display)
-            if update:
-                self.update_display()
+            self._add_dimension_to_display(child)
         else:
-            return super().child_added(child)
+            super().child_added(child)
 
-    def child_removed(self, child, update=True):
+    def child_removed(self, child):
         if isinstance(child, OccShape):
-            self.get_member('shapes').reset(self)
-            child.unobserve('shape', self.update_display)
-            if update:
-                self.update_display()
+            self._remove_shape_from_display(child)
         elif isinstance(child, OccDimension):
-            child.observe('dimension', self.update_display)
-            if update:
-                self.update_display()
+            self._remove_dimension_from_display(child)
         else:
-            return super().child_removed(child)
+            super().child_removed(child)
+
+    def _add_shape_to_display(self, occ_shape):
+        """ Add an OccShape to the display
+
+        """
+        d = occ_shape.declaration
+        if not d.display:
+            return
+        displayed_shapes = self._displayed_shapes
+        display = self.ais_context.Display
+        qt_app = self._qt_app
+        occ_shape.displayed = True
+        for s in occ_shape.walk_shapes():
+            s.observe('ais_shape', self.on_ais_shape_changed)
+            ais_shape = s.ais_shape
+            if ais_shape is not None:
+                try:
+
+                    # FIXME: Translate part locations
+                    #parent = occ_shape.parent()
+                    #if parent and isinstance(parent, OccPart) \
+                            #and not topods_shape.Locked():
+
+                        #Build transform for nested parts
+                        #l = topods_shape.Location()
+                        #while isinstance(parent, OccPart):
+                            #l = parent.location.Multiplied(l)
+                            #parent = parent.parent()
+
+                        #topods_shape.Location(l)
+
+                        #HACK: Prevent doing this multiple times when the view is
+                        #force updated and the same part is rendered
+                        #topods_shape.Locked(True)
+
+                    display(ais_shape, False)
+                    s.displayed = True
+                    displayed_shapes[s.shape] = s
+                except RuntimeError as e:
+                    log.exception(e)
+
+                # Displaying can take a lot of time
+                qt_app.processEvents()
+
+        if isinstance(occ_shape, OccPart):
+            for d in occ_shape.declaration.traverse():
+                proxy = getattr(d, 'proxy', None)
+                if proxy is None:
+                    continue
+                if isinstance(proxy, OccDimension):
+                    self._add_dimension_to_display(proxy)
+                elif isinstance(proxy, OccDisplayItem):
+                    self._add_item_to_display(proxy)
+
+        self._redisplay_timer.start()
+
+    def _remove_shape_from_display(self, occ_shape):
+        displayed_shapes = self._displayed_shapes
+        remove = self.ais_context.Remove
+        occ_shape.displayed = False
+        for s in occ_shape.walk_shapes():
+            s.unobserve('ais_shape', self.on_ais_shape_changed)
+            if s.get_member('ais_shape').get_slot(s) is None:
+                continue
+            ais_shape = s.ais_shape
+            if ais_shape is not None:
+                s.displayed = False
+                displayed_shapes.pop(ais_shape, None)
+                remove(ais_shape, False)
+
+        if isinstance(occ_shape, OccPart):
+            for d in occ_shape.declaration.traverse():
+                proxy = getattr(d, 'proxy', None)
+                if proxy is None:
+                    continue
+                if isinstance(proxy, OccDimension):
+                    self._remove_dimension_from_display(proxy)
+                elif isinstance(proxy, OccDisplayItem):
+                    self._remove_item_from_display(proxy)
+
+        self._redisplay_timer.start()
+
+    def on_ais_shape_changed(self, change):
+        ais_context = self.ais_context
+        displayed_shapes = self._displayed_shapes
+        occ_shape = change['object']
+        if change['type'] == 'update':
+            old_ais_shape = change['oldvalue']
+            if old_ais_shape is not None:
+                old_shape = old_ais_shape.Shape()
+                displayed_shapes.pop(old_shape, None)
+                ais_context.Remove(old_ais_shape, False)
+                occ_shape.displayed = False
+            new_ais_shape = change['value']
+            if new_ais_shape is not None:
+                displayed_shapes[occ_shape.shape] = occ_shape
+                ais_context.Display(new_ais_shape, False)
+                occ_shape.displayed = True
+        self._redisplay_timer.start()
+
+    def _add_dimension_to_display(self, occ_dim):
+        ais_dimension = occ_dim.dimension
+        if ais_dimension is not None:
+            self.ais_context.Display(ais_dimension, False)
+            self._displayed_dimensions[ais_dimension] = occ_dim
+        self._redisplay_timer.start()
+
+    def _remove_dimension_from_display(self, occ_dim):
+        ais_dimension = occ_dim.dimension
+        if ais_dimension is not None:
+            self.ais_context.Remove(ais_dimension, False)
+            self._displayed_dimensions.pop(ais_dimension, None)
+        self._redisplay_timer.start()
+
+    def _add_item_to_display(self, occ_disp_item):
+        ais_object = occ_disp_item.item
+        if ais_object is not None:
+            self.ais_context.Display(ais_object, False)
+            self._displayed_graphics[ais_object] = occ_disp_item
+        self._redisplay_timer.start()
+
+    def _remove_item_from_display(self, occ_disp_item):
+        ais_object = occ_disp_item.item
+        if ais_object is not None:
+            self.ais_context.Remove(ais_object, False)
+            self._displayed_graphics.pop(ais_object, None)
+        self._redisplay_timer.start()
+
+    def on_redisplay_requested(self):
+        self.ais_context.UpdateCurrentViewer()
+
+        # Recompute bounding box
+        bbox = self.get_bounding_box(self._displayed_shapes.keys())
+        self.declaration.bbox = BBox(*bbox)
 
     # -------------------------------------------------------------------------
     # Viewer API
@@ -542,13 +681,13 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         """
         return self.v3d_view.Convert(point[0], point[1], point[2], 0, 0)
 
+    # -------------------------------------------------------------------------
+    # Rendering parameters
+    # -------------------------------------------------------------------------
     def set_chordial_deviation(self, deviation):
         # Turn up tesselation defaults
         self.prs3d_drawer.SetMaximalChordialDeviation(deviation)
 
-    # -------------------------------------------------------------------------
-    # Rendering parameters
-    # -------------------------------------------------------------------------
     def set_lights(self, lights):
         viewer = self.v3d_viewer
         new_lights = []
@@ -627,7 +766,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         defaults = dict(
             Method=method,
             RaytracingDepth=d.raytracing_depth,
-            #IsGlobalIlluminationEnabled=d.raytracing,
+            # IsGlobalIlluminationEnabled=d.raytracing,
             IsShadowEnabled=d.shadows,
             IsReflectionEnabled=d.reflections,
             IsAntialiasingEnabled=d.antialiasing,
@@ -774,146 +913,6 @@ class QtOccViewer(QtControl, ProxyOccViewer):
     # -------------------------------------------------------------------------
     # Display Handling
     # -------------------------------------------------------------------------
-    def display_ais(self, ais_shape, update=True):
-        """ Display an AIS_Shape.
-
-        Parameters
-        ----------
-        ais_shape: OCCT.AIS.AIS_Shape
-            The AIS shape to display.
-        update: Bool
-            Option to update the viewer.
-        """
-        self.ais_context.Display(ais_shape, update)
-
-    def display_shape(self, shape, color=None, transparency=None,
-                      material=None, texture=None, update=True):
-        """ Display a shape.
-
-        Parameters
-        ----------
-        shape: OCCT.TopoDS.TopoDS_Shape
-            The shape to display
-        color: collections.Sequence(float) or OCCT.Quantity.Quantity_Color
-            The enaml color
-        transparency: float
-            The transparency (0 to 1).
-        material: String
-            The material to render the shape.
-        texture: declaracad.occ.shape.Texture
-            The texture to apply to the shape.
-
-        Returns
-        -------
-        ais_shape: OCCT.AIS.AIS_Shape
-            The AIS_Shape created for the part.
-        """
-        if texture is not None:
-            ais_shape = AIS_TexturedShape(shape)
-
-            if os.path.exists(texture.path):
-
-                ais_shape.SetTextureFileName(
-                    TCollection_AsciiString(texture.path))
-
-                params = texture.repeat
-                ais_shape.SetTextureRepeat(params.enabled, params.u, params.v)
-
-                params = texture.origin
-                ais_shape.SetTextureOrigin(params.enabled, params.u, params.v)
-
-                params = texture.scale
-                ais_shape.SetTextureScale(params.enabled, params.u, params.v)
-
-                ais_shape.SetTextureMapOn()
-                ais_shape.SetDisplayMode(3)
-
-        else:
-            ais_shape = AIS_Shape(shape)
-
-        if color:
-            color, alpha = color_to_quantity_color(color)
-            ais_shape.SetColor(color)
-            if alpha is not None:
-                ais_shape.SetTransparency(alpha)
-
-        elif material is None and texture is None:
-            color, alpha = self.shape_color
-            ais_shape.SetColor(color)
-            if alpha is not None:
-                ais_shape.SetTransparency(alpha)
-
-        if transparency is not None:
-            ais_shape.SetTransparency(transparency)
-
-        ma = material_to_material_aspect(material)
-        ais_shape.SetMaterial(ma)
-
-        try:
-            self.ais_context.Display(ais_shape, update)
-        except RuntimeError as e:
-            log.exception(e)
-            self.errors[shape] = e
-        return ais_shape
-
-    def display_geom(self, geom, color=None, transparency=None,
-                     material=None, update=True):
-        """ Display a geometric entity.
-
-        Parameters
-        ----------
-        geom: OCCT.gp.gp_Pnt or OCCT.Geom.Geom_Curve or OCCT.Geom.Geom_Surface
-            The shape to display
-        color: enaml.color.Color
-            An enaml color
-        transparency: float
-            The transparency (0 to 1).
-        material: OCCT.Graphic3d.Graphic3d_NameOfMaterial
-            The material.
-
-        Returns
-        -------
-        result: AIS_Shape or None
-            The AIS_Shape created for the geometry. Returns *None* if the
-            entity cannot be converted to a shape.
-        """
-        if isinstance(geom, gp_Pnt):
-            shape = BRepBuilderAPI_MakeVertex(geom).Vertex()
-        elif isinstance(geom, Geom_Curve):
-            shape = BRepBuilderAPI_MakeEdge(geom).Edge()
-        elif isinstance(geom, Geom_Surface):
-            shape = BRepBuilderAPI_MakeFace(geom, 1.0e-7).Face()
-        else:
-            return None
-
-        return self.display_shape(shape, color, transparency, material, update)
-
-    def display_mesh(self, mesh, mode=2):
-        """ Display a mesh.
-
-        Parameters
-        ----------
-        mesh: OCCT.SMESH_SMESH_Mesh or OCCT.SMESH_SMESH_subMesh
-            The mesh.
-        mode: int
-            Display mode for mesh elements (1=wireframe, 2=solid).
-
-        Returns
-        -------
-        result: OCCT.MeshVS.MeshVS_Mesh
-            The mesh created.
-        """
-        vs_link = SMESH_MeshVSLink(mesh)
-        mesh_vs = MeshVS_Mesh()
-        mesh_vs.SetDataSource(vs_link)
-        prs_builder = MeshVS_MeshPrsBuilder(mesh_vs)
-        mesh_vs.AddBuilder(prs_builder)
-        mesh_vs_drawer = mesh_vs.GetDrawer()
-        mesh_vs_drawer.SetBoolean(MeshVS_DA_DisplayNodes, False)
-        mesh_vs_drawer.SetColor(MeshVS_DA_EdgeColor, BLACK)
-        mesh_vs.SetDisplayMode(mode)
-        self.ais_context.Display(mesh_vs, True)
-        return mesh_vs
 
     def update_selection(self, pos, area, shift):
         """ Update the selection state
@@ -947,33 +946,25 @@ class QtOccViewer(QtControl, ProxyOccViewer):
                 shape_type = topods_shape.ShapeType()
                 attr = str(shape_type).split("_")[-1].lower() + 's'
 
-                # Try quick lookup
-                occ_shape = displayed_shapes.get(topods_shape)
-                if occ_shape:
-                    shapes.append(topods_shape)
-                    selection[occ_shape.declaration] = {
-                        'shapes': {0: topods_shape}}
-                    found = True
-                else:
-                    # Try long lookup based on topology
-                    for occ_shape in occ_shapes:
-                        shape_list = getattr(occ_shape.topology, attr, None)
-                        if shape_list is None:
-                            continue
-                        if topods_shape in shape_list:
-                            declaration = occ_shape.declaration
-                            shapes.append(topods_shape)
-                            i = shape_list.index(topods_shape)
+                # Try long lookup based on topology
+                for occ_shape in occ_shapes:
+                    shape_list = getattr(occ_shape.topology, attr, None)
+                    if shape_list is None:
+                        continue
+                    if topods_shape in shape_list:
+                        declaration = occ_shape.declaration
+                        shapes.append(topods_shape)
+                        i = shape_list.index(topods_shape)
 
-                            # Insert what was selected into the options
-                            if declaration not in selection:
-                                selection[declaration] = {}
-                            info = selection[declaration]
-                            if attr not in info:
-                                info[attr] = {}
-                            info[attr][i] = topods_shape
-                            found = True
-                            break
+                        # Insert what was selected into the options
+                        if declaration not in selection:
+                            selection[declaration] = {}
+                        info = selection[declaration]
+                        if attr not in info:
+                            info[attr] = {}
+                        info[attr][i] = topods_shape
+                        found = True
+                        break
 
                 # Mark it as found we don't know what shape it's from
                 if not found:
@@ -996,8 +987,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
 
     def update_display(self, change=None):
         """ Queue an update request """
-        self._update_count += 1
-        timed_call(1, self._do_update)
+        self._redisplay_timer.start()
 
     def clear_display(self):
         """ Remove all shapes and dimensions drawn """
@@ -1027,149 +1017,6 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         if not self._redraw_blocked:
             self.v3d_view.Redraw()
 
-    def _expand_shapes(self, shapes, dimensions, graphics):
-        expansion = []
-        for s in shapes:
-            if isinstance(s, OccPart):
-                if s.declaration.display:
-                    subshapes = self._expand_shapes(
-                        s.children(), dimensions, graphics)
-                    expansion.extend(subshapes)
-            elif isinstance(s, OccShape):
-                if s.declaration.display:
-                    expansion.append(s)
-                    for c in s.declaration.traverse():
-                        if isinstance(c, Dimension):
-                            dimensions.add(c.proxy)
-                        elif isinstance(c, DisplayItem):
-                            graphics.add(c.proxy)
-            elif isinstance(s, OccDimension):
-                dimensions.add(s)
-            elif isinstance(s, OccDisplayItem):
-                graphics.add(s)
-        return expansion
-
-    def _do_update(self):
-        # Only update when all changes are done
-        self._update_count -= 1
-        if self._update_count != 0:
-            return
-
-        qtapp = Application.instance()._qapp
-        start_time = datetime.now()
-
-        declaration = self.declaration
-        declaration.loading = True
-        self.errors = {}
-        ais_context = self.ais_context
-        default_color, default_alpha = self.shape_color
-        try:
-            view = self.v3d_view
-
-            self.clear_display()
-            log.debug("Rendering...")
-
-            #: Expand all parts otherwise we lose the material information
-            dimensions = self.dimensions = set()
-            graphics = self.graphics = set()
-            shapes = self._expand_shapes(self.children(), dimensions, graphics)
-
-            if not shapes:
-                log.debug("No shapes to display")
-                return
-
-            displayed_shapes = self._displayed_shapes = {}
-            ais_shapes = []
-
-            self.set_selection_mode(declaration.selection_mode)
-            n = len(shapes)
-            for i, occ_shape in enumerate(shapes):
-                qtapp.processEvents()
-                if self._update_count != 0:
-                    log.debug("Aborted!")
-                    return  # Another update coming abort
-
-                d = occ_shape.declaration
-                topods_shape = occ_shape.shape
-                if not topods_shape or topods_shape.IsNull():
-                    log.error("{} has no shape!".format(occ_shape))
-                    continue
-
-                # Translate part locations
-                parent = occ_shape.parent()
-                if parent and isinstance(parent, OccPart) \
-                        and not topods_shape.Locked():
-
-                    # Build transform for nested parts
-                    l = topods_shape.Location()
-                    while isinstance(parent, OccPart):
-                        l = parent.location.Multiplied(l)
-                        parent = parent.parent()
-
-                    topods_shape.Location(l)
-
-                    # HACK: Prevent doing this multiple times when the view is
-                    # force updated and the same part is rendered
-                    topods_shape.Locked(True)
-
-                # Save the mapping of topods_shape to declaracad shape
-                displayed_shapes[topods_shape] = occ_shape
-
-                declaration.progress = min(100, max(0, i * 100 / n))
-
-                ais_shape = occ_shape.ais_shape
-                if ais_shape is not None:
-                    try:
-                        if not ais_shape.HasMaterial() \
-                                and not ais_shape.HasColor():
-                            ais_shape.SetColor(default_color)
-                        ais_context.Display(ais_shape, False)
-                    except RuntimeError as e:
-                        log.exception(e)
-                        self.errors[occ_shape] = e
-                else:
-                    ais_shape = self.display_shape(
-                        topods_shape,
-                        d.color,
-                        d.transparency,
-                        d.material if d.material.name else None,
-                        d.texture,
-                        update=False)
-                    occ_shape.ais_shape = ais_shape
-                if ais_shape:
-                    ais_shapes.append(ais_shape)
-
-            # Display all dimensions
-            displayed_dimensions = self._displayed_dimensions = {}
-            if dimensions:
-                log.debug(f"Adding {len(dimensions)} dimensions...")
-                for item in dimensions:
-                    dim = item.dimension
-                    if dim is not None and item.declaration.display:
-                        displayed_dimensions[dim] = item
-                        self.display_ais(dim, update=False)
-
-            displayed_graphics = self._displayed_graphics = {}
-            if graphics:
-                log.debug(f"Adding {len(graphics)} graphics...")
-                for item in graphics:
-                    ais_item = item.item
-                    if ais_item is not None and item.declaration.display:
-                        displayed_graphics[ais_item] = item
-                        self.display_ais(ais_item, update=False)
-                self.gfx_structure.Display()
-
-            self.ais_context.UpdateCurrentViewer()
-
-            # Update bounding box
-            bbox = self.get_bounding_box(displayed_shapes.keys())
-            declaration.bbox = BBox(*bbox)
-            declaration.progress = 100
-            log.debug("Took: {}".format(datetime.now() - start_time))
-        except Exception as e:
-            log.error("Failed to display shapes: ")
-            log.exception(e)
-            self.errors[None] = e
-        finally:
-            declaration.loading = False
-            declaration.errors = self.errors
+    def update(self):
+        """ Redisplay """
+        self.ais_context.UpdateCurrentViewer()

@@ -60,13 +60,24 @@ class Application(QtApplication):
         """
         while self.running:
             try:
-                task = self.queue.get_nowait()
+                task = self.queue.get(block=False)
                 await task
             except Empty:
-                self._qapp.processEvents()
+                self.process_events()
                 await asyncio.sleep(0.1)
             except Exception as e:
+                if 'cannot enter context' in str(e):
+                    # HACK: Something is jacked up
+                    await asyncio.sleep(0.1)
+                    continue
                 log.exception(e)
+
+    def process_events(self):
+        """ Let the the app process events during long-running cpu intensive
+        tasks.
+
+        """
+        self._qapp.processEvents()
 
     def deferred_call(self, callback, *args, **kwargs):
         """ Invoke a callable on the next cycle of the main event loop

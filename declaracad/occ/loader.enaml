@@ -11,7 +11,7 @@ Created on Aug, 2020
 """
 import os
 from enaml.core.api import Include
-from declaracad.occ.part import Part
+from declaracad.occ.shape import Part
 
 
 def load_filename(filename, options):

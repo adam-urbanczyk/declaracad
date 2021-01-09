@@ -213,6 +213,9 @@ class ProxyOccViewer(ProxyControl):
     def reset_view(self):
         raise NotImplementedError
 
+    def clear_display(self):
+        raise NotImplementedError
+
     def update_display(self):
         raise NotImplementedError
 

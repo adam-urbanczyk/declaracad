@@ -133,7 +133,7 @@ def occ_parabola_factory():
 
 
 def occ_part_factory():
-    from .occ_part import OccPart
+    from .occ_shape import OccPart
     return OccPart
 
 
@@ -158,7 +158,7 @@ def occ_prism_factory():
 
 
 def occ_raw_part_factory():
-    from .occ_part import OccRawPart
+    from .occ_shape import OccRawPart
     return OccRawPart
 
 
