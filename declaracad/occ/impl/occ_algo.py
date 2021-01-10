@@ -58,7 +58,8 @@ from OCCT.ShapeUpgrade import ShapeUpgrade_UnifySameDomain
 from OCCT.TColgp import TColgp_Array1OfPnt2d
 from OCCT.TopTools import TopTools_ListOfShape, TopTools_HSequenceOfShape
 from OCCT.TopoDS import (
-    TopoDS, TopoDS_Edge, TopoDS_Face, TopoDS_Wire, TopoDS_Shape, TopoDS_Compound
+    TopoDS, TopoDS_Edge, TopoDS_Face, TopoDS_Wire, TopoDS_Shape,
+    TopoDS_Compound
 )
 
 
@@ -216,14 +217,19 @@ class OccFillet(OccOperation, ProxyFillet):
                 continue
 
             # If an array of points is create a changing radius fillet
-            if len(item) == 2 and isinstance(item[0], (list, tuple)):
+            n = len(item)
+            if n == 2 and isinstance(item[0], (list, tuple)):
                 pts, edge = item
                 array = TColgp_Array1OfPnt2d(1, len(pts))
                 for i, pt in enumerate(pts):
                     array.SetValue(i+1, gp_Pnt2d(*pt))
                 fillet.Add(array, edge)
                 continue
-
+            if n == 2 and isinstance(item[1], TopoDS_Face):
+                r, face = item
+                for edge in Topology(shape=face).edges_from_face(face):
+                    fillet.Add(r, edge)
+                continue
             # custom radius or r1 and r2 radius fillets
             fillet.Add(*item)
         self.shape = fillet.Shape()
