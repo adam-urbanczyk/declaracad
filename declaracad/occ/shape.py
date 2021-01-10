@@ -14,10 +14,12 @@ import math
 from math import pi
 from atom.api import (
     Atom, Tuple, Instance, Bool, Str, Float, FloatRange, Property, Coerced,
-    Typed, ForwardTyped, List, Enum, Event, Value, observe
+    Typed, ForwardTyped, List, Enum, Event, Value, Subclass,
+    observe, set_default
 )
 from enaml.application import Application
-from enaml.core.declarative import d_
+from enaml.core.declarative import d_, d_func
+from enaml.core.api import Include
 from enaml.colors import ColorMember
 from enaml.widgets.control import ProxyControl
 from enaml.widgets.toolkit_object import ToolkitObject
@@ -446,7 +448,8 @@ class Shape(ToolkitObject):
             if not child.is_initialized:
                 child.initialize()
             if isinstance(child, ToolkitObject):
-                child.activate_proxy()
+                if not child.proxy_is_active:
+                    child.activate_proxy()
 
         # Generating the model can take a lot of time
         # so process events inbetween to keep the UI from freezing
@@ -1065,3 +1068,39 @@ class TopoShape(RawShape):
     def get_shape(self):
         return self.shape
 
+
+class CachedPart(Include):
+    """ A node which generates a cached instance of a given part.
+
+    """
+    destroy_old = set_default(False)
+
+    #: Part model to generate, this is used as the cache key
+    part = d_(Subclass(Part))
+
+    #: Key use for caching. If you create multiple instances of the same
+    #: part use this to distingish between them
+    cache_key = d_(Str())
+
+    #: If true, force delete the cache to reload the cached part
+    reload = d_(Bool())
+
+    #: A function to generate the model
+    @d_func
+    def create_part(self):
+        return self.part()
+
+    def _default_objects(self):
+        """ Generae
+
+        """
+        key = f'{self.part.__class__.__qualname__}.{self.cache_key}'
+        model = Part.cache.get(key)
+        if self.reload and model is not None:
+            model.destroy()
+            model = None
+        if model is None or model.proxy is None:
+            part = self.create_part()
+            part.cached = True
+            model = Part.cache[key] = part
+        return [model]

@@ -36,7 +36,7 @@ from .draw import (
 from .shape import (
     Part, Point, Direction, BBox, Shape, RawShape, Face, Texture, Material,
     Box, Cylinder, Sphere, Cone, Wedge, Torus,
-    HalfSpace, Prism, Revol, TopoShape, RawPart
+    HalfSpace, Prism, Revol, TopoShape, RawPart, CachedPart
 )
 from .impl.topology import Topology
 from .loaders import LoadedPart

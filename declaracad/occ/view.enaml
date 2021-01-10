@@ -39,7 +39,7 @@ from declaracad.occ.plugin import (
     ViewerPlugin, ViewerProcess, load_model, EmptyFileError
 )
 
-from declaracad.occ.api import Topology, Point
+from declaracad.occ.api import Topology, Point, Part, Shape
 
 def expand_dict(p):
     for k, v in p.items():
@@ -217,7 +217,16 @@ enamldef ModelViewer(OccViewer): viewer:
         old = set(change['oldvalue'])
         removed = old - new
         for s in removed:
-            if not s.cached:
+            if isinstance(s, Part):
+                keep = False
+                for c in s.children:
+                    if isinstance(c, Shape) and c.cached:
+                        keep = True
+                    else:
+                        c.destroy()
+                if not keep:
+                    s.destroy()
+            else:
                 s.destroy()
 
     Include:

@@ -9,8 +9,11 @@ Created on Dec 27, 2020
 
 @author: jrm
 """
+
 import math
-from atom.api import Bool, Coerced, Str, Float, Typed, ForwardTyped, observe
+from atom.api import (
+    Bool, Coerced, Float, List, Str, Typed, ForwardTyped, observe
+)
 from enaml.colors import ColorMember, Color
 from enaml.core.declarative import d_
 from enaml.widgets.control import ProxyControl
@@ -124,7 +127,6 @@ class DisplayLine(DisplayItem):
 class DisplayPlane(DisplayItem):
     #: Reference to the implementation control
     proxy = Typed(ProxyDisplayPlane)
-
 
 class DisplayArrow(DisplayItem):
     """ Add an arrow to the 3d display.
