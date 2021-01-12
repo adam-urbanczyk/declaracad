@@ -77,9 +77,7 @@ from declaracad.occ.widgets.occ_viewer import (
     ProxyOccViewer, ViewerSelection
 )
 
-from declaracad.occ.dimension import Dimension
-from declaracad.occ.display import DisplayItem
-from declaracad.occ.shape import BBox
+from declaracad.occ.api import BBox, Topology
 
 from declaracad.core.utils import log
 
@@ -525,24 +523,6 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             ais_shape = s.ais_shape
             if ais_shape is not None:
                 try:
-
-                    # FIXME: Translate part locations
-                    #parent = occ_shape.parent()
-                    #if parent and isinstance(parent, OccPart) \
-                            #and not topods_shape.Locked():
-
-                        #Build transform for nested parts
-                        #l = topods_shape.Location()
-                        #while isinstance(parent, OccPart):
-                            #l = parent.location.Multiplied(l)
-                            #parent = parent.parent()
-
-                        #topods_shape.Location(l)
-
-                        #HACK: Prevent doing this multiple times when the view is
-                        #force updated and the same part is rendered
-                        #topods_shape.Locked(True)
-
                     display(ais_shape, False)
                     s.displayed = True
                     displayed_shapes[s.shape] = s
@@ -918,7 +898,6 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         """ Update the selection state
 
         """
-        d = self.declaration
         widget = self.widget
         view = self.v3d_view
         ais_context = self.ais_context
@@ -937,33 +916,35 @@ class QtOccViewer(QtControl, ProxyOccViewer):
         selection = {}
         shapes = []
         displayed_shapes = self._displayed_shapes
-        occ_shapes = self._displayed_shapes.values()
+        occ_shapes = set(self._displayed_shapes.values())
         while ais_context.MoreSelected():
             if ais_context.HasSelectedShape():
                 i = None
                 found = False
-                topods_shape = ais_context.SelectedShape()
+                topods_shape = Topology.cast_shape(ais_context.SelectedShape())
                 shape_type = topods_shape.ShapeType()
                 attr = str(shape_type).split("_")[-1].lower() + 's'
 
                 # Try long lookup based on topology
                 for occ_shape in occ_shapes:
                     shape_list = getattr(occ_shape.topology, attr, None)
-                    if shape_list is None:
+                    if not shape_list:
                         continue
-                    if topods_shape in shape_list:
-                        declaration = occ_shape.declaration
+                    for i, s in enumerate(shape_list):
+                        if topods_shape.IsPartner(s):
+                            found = True
+                            break
+                    if found:
+                        d = occ_shape.declaration
                         shapes.append(topods_shape)
-                        i = shape_list.index(topods_shape)
-
                         # Insert what was selected into the options
-                        if declaration not in selection:
-                            selection[declaration] = {}
-                        info = selection[declaration]
-                        if attr not in info:
-                            info[attr] = {}
-                        info[attr][i] = topods_shape
-                        found = True
+                        info = selection.get(d)
+                        if info is None:
+                            info = selection[d] = {}
+                        selection_info = info.get(attr)
+                        if selection_info is None:
+                            selection_info = info[attr] = {}
+                        selection_info[i] = topods_shape
                         break
 
                 # Mark it as found we don't know what shape it's from
@@ -982,7 +963,7 @@ class QtOccViewer(QtControl, ProxyOccViewer):
             ais_context.UpdateSelected(True)
         # Set selection
         self._selected_shapes = shapes
-        d.selection = ViewerSelection(
+        self.declaration.selection = ViewerSelection(
             selection=selection, position=pos, area=area)
 
     def update_display(self, change=None):
