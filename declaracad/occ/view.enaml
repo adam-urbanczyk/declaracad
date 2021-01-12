@@ -117,11 +117,11 @@ enamldef ModelViewer(OccViewer): viewer:
     attr default_actions: list = [
         ViewerAction(name="View iso (vi)", action=keymap['v']['i']),
         ViewerAction(name="View top (vt)", action=keymap['v']['t']),
-        ViewerAction(name="View bottom (vb)", action=keymap['v']['b']),
+        ViewerAction(name="View under (vu)", action=keymap['v']['u']),
         ViewerAction(name="View left (vl)", action=keymap['v']['l']),
         ViewerAction(name="View front (vf)", action=keymap['v']['f']),
-        ViewerAction(name="View right", action=lambda: set_view_mode('right')),
-        ViewerAction(name="View rear (vr)", action=lambda: set_view_mode('rear')),
+        ViewerAction(name="View right (vr)", action=keymap['v']['r']),
+        ViewerAction(name="View back (vb)", action=keymap['v']['b']),
         ViewerAction(name="Projection orthographic (po)", action=keymap['p']['o']),
         ViewerAction(name="Projection projection (pp)", action=keymap['p']['p']),
         ViewerAction(name="Fit all (fa)", action=self.fit_all),
@@ -134,8 +134,8 @@ enamldef ModelViewer(OccViewer): viewer:
         ViewerAction(name="Rotate Y 90 (ry)", action=keymap['r']['y']),
         ViewerAction(name="Rotate Z 90 (rz)", action=keymap['r']['z']),
         ViewerAction(name="Select anything (sa)", action=keymap['s']['a']),
-        ViewerAction(name="Select shape", action=lambda: set_selection_mode('shape')),
-        ViewerAction(name="Select shell", action=lambda: set_selection_mode('shell')),
+        ViewerAction(name="Select shape", action=lambda: proxy.set_selection_mode('shape')),
+        ViewerAction(name="Select shell", action=lambda: proxy.set_selection_mode('shell')),
         ViewerAction(name="Select face (sf)", action=keymap['s']['f']),
         ViewerAction(name="Select edge (se)", action=keymap['s']['e']),
         ViewerAction(name="Select wire (sw)", action=keymap['s']['w']),
@@ -300,7 +300,12 @@ enamldef ModelViewer(OccViewer): viewer:
                     desc.append("")
 
                 if d is not None:
-                    desc.append(f"{d.__class__.__name__}:")
+                    if isinstance(d, Part):
+                        desc.append(f"{d.__class__.__name__}:")
+                    elif isinstance(d.parent, Part):
+                        desc.append(f"{d.parent.__class__.__name__}:")
+                    else:
+                        desc.append(f"{d.__class__.__name__}:")
                 elif len(items) == 1:
                     for shape_type, mapping in items.items():
                         shape_type = shape_type[:-1]
@@ -416,10 +421,18 @@ enamldef ModelViewer(OccViewer): viewer:
 
         Menu: menu_view_direction:
             title = 'View direction'
-            attr keymap = {
-                vm[0]: lambda vm=vm: set_view_mode(vm)
-                for vm in viewer.get_member('view_mode').items
-            }
+
+            func default_keymap():
+                km = {
+                    vm[0]: lambda vm=vm: set_view_mode(vm)
+                    for vm in viewer.get_member('view_mode').items
+                    if vm not in ('bottom', 'rear')
+                }
+                km['u'] = lambda: set_view_mode('bottom')
+                km['b'] = lambda: set_view_mode('rear')
+                return km
+
+            attr keymap = default_keymap()
 
             func set_view_mode(mode):
                 log.debug(f"Set view mode {mode}")
